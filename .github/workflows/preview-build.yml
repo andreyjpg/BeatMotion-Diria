@@ -1,0 +1,42 @@
+name: Preview Build (develop → TestFlight + Android Internal)
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build-preview:
+    name: EAS Build Preview
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS Preview
+        run: eas build --platform ios --profile preview --non-interactive
+
+      - name: Build Android Preview
+        run: eas build --platform android --profile preview --non-interactive
+
+      - name: Submit iOS to TestFlight
+        run: eas submit --platform ios --profile preview --non-interactive
+
+      - name: Submit Android to Internal Track
+        run: eas submit --platform android --profile preview --non-interactive
