@@ -36,6 +36,9 @@ jobs:
           cache: "npm"
 
       - run: npm ci
+      - run: npm ci
+        working-directory: functions
+
       - run: npx tsc --noEmit
 
   lint:
@@ -50,6 +53,8 @@ jobs:
           cache: "npm"
 
       - run: npm ci
+      - run: npm ci
+        working-directory: functions
       - run: npx expo lint
 
   expoDoctor:
