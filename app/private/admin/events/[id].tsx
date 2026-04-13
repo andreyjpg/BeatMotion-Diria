@@ -120,7 +120,7 @@ const EditEvent = () => {
           location,
           bannerUrl,
         },
-        { abortEarly: false }
+        { abortEarly: false },
       );
       setFormError({
         title: "",
@@ -187,7 +187,7 @@ const EditEvent = () => {
       } catch (error: any) {
         Alert.alert(
           "Error",
-          error?.message ?? "No se pudo actualizar el evento."
+          error?.message ?? "No se pudo actualizar el evento.",
         );
       }
     }
@@ -198,7 +198,7 @@ const EditEvent = () => {
     const activeTotal = signups.reduce((sum, s) => {
       if (
         !ACTIVE_SIGNUP_STATUSES.includes(
-          s.status as (typeof ACTIVE_SIGNUP_STATUSES)[number]
+          s.status as (typeof ACTIVE_SIGNUP_STATUSES)[number],
         )
       ) {
         return sum;
@@ -210,18 +210,18 @@ const EditEvent = () => {
       if (!url) {
         Alert.alert(
           "Sin comprobante",
-          "No hay comprobante para esta inscripcion."
+          "No hay comprobante para esta inscripcion.",
         );
         return;
       }
       Linking.openURL(url).catch(() =>
-        Alert.alert("Error", "No se pudo abrir el comprobante.")
+        Alert.alert("Error", "No se pudo abrir el comprobante."),
       );
     };
 
     const handleDecision = async (
       signupId: string,
-      status: "approved" | "rejected"
+      status: "approved" | "rejected",
     ) => {
       try {
         await updateSignupStatus.mutateAsync({
@@ -308,7 +308,7 @@ const EditEvent = () => {
                     className="flex-1 bg-green-700 rounded-lg px-3 py-2 items-center"
                     onPress={() => handleDecision(signup.id, "approved")}
                     disabled={
-                      updateSignupStatus.isLoading ||
+                      updateSignupStatus.isPending ||
                       signup.status === "approved" ||
                       signup.status === "autoApproved"
                     }
@@ -321,7 +321,7 @@ const EditEvent = () => {
                     className="flex-1 bg-red-700 rounded-lg px-3 py-2 items-center"
                     onPress={() => handleDecision(signup.id, "rejected")}
                     disabled={
-                      updateSignupStatus.isLoading ||
+                      updateSignupStatus.isPending ||
                       signup.status === "rejected"
                     }
                   >
@@ -457,7 +457,7 @@ const EditEvent = () => {
             <Text className="text-white font-semibold">Sin límite</Text>
             <Text className="text-gray-400 text-sm">
               {formatEventCapacity(
-                unlimited ? null : Number(capacityInput) || null
+                unlimited ? null : Number(capacityInput) || null,
               )}
             </Text>
           </View>
@@ -595,10 +595,10 @@ const EditEvent = () => {
         <TouchableOpacity
           className="bg-green-500 rounded-2xl px-4 py-4 items-center active:opacity-80"
           onPress={handleSave}
-          disabled={updateEvent.isLoading || uploading || eventQuery.isLoading}
+          disabled={updateEvent.isPending || uploading || eventQuery.isLoading}
         >
           <Text className="text-white font-semibold">
-            {updateEvent.isLoading ? "Guardando..." : "Guardar cambios"}
+            {updateEvent.isPending ? "Guardando..." : "Guardar cambios"}
           </Text>
         </TouchableOpacity>
 
@@ -624,18 +624,18 @@ const EditEvent = () => {
                     } catch (error: any) {
                       Alert.alert(
                         "Error",
-                        error?.message ?? "No se pudo eliminar el evento."
+                        error?.message ?? "No se pudo eliminar el evento.",
                       );
                     }
                   },
                 },
-              ]
+              ],
             );
           }}
-          disabled={deleteEvent.isLoading}
+          disabled={deleteEvent.isPending}
         >
           <Text className="text-white font-semibold">
-            {deleteEvent.isLoading ? "Eliminando..." : "Eliminar evento"}
+            {deleteEvent.isPending ? "Eliminando..." : "Eliminar evento"}
           </Text>
         </TouchableOpacity>
 

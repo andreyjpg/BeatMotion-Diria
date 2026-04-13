@@ -1,22 +1,26 @@
-import { useMemo, useState } from "react";
+import { pickEventBanner, uploadEventBanner } from "@/hooks/events/eventMedia";
+import { useCreateEvent } from "@/hooks/events/useCreateEvent";
+import {
+  formatEventCapacity,
+  formatEventDateTime,
+  formatEventPrice,
+} from "@/hooks/events/utils";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from "@react-native-picker/picker";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
   Alert,
+  Image,
   ScrollView,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/Ionicons";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Picker } from "@react-native-picker/picker";
-import { useRouter } from "expo-router";
-import { useCreateEvent } from "@/hooks/events/useCreateEvent";
-import { pickEventBanner, uploadEventBanner } from "@/hooks/events/eventMedia";
-import { formatEventCapacity, formatEventDateTime, formatEventPrice } from "@/hooks/events/utils";
 
 const NewEvent = () => {
   const router = useRouter();
@@ -80,7 +84,10 @@ const NewEvent = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-black">
-      <ScrollView className="flex-1 px-5 py-6" contentContainerStyle={{ gap: 12, paddingBottom: 32 }}>
+      <ScrollView
+        className="flex-1 px-5 py-6"
+        contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
+      >
         <Text className="text-white text-2xl font-bold">Nuevo evento</Text>
 
         <View className="gap-2">
@@ -113,7 +120,9 @@ const NewEvent = () => {
               className="flex-1 bg-gray-900 rounded-xl px-4 py-3 flex-row items-center justify-between active:opacity-80"
               onPress={() => setShowDatePicker(true)}
             >
-              <Text className="text-white">{formatEventDateTime(datetime).split(",")[0]}</Text>
+              <Text className="text-white">
+                {formatEventDateTime(datetime).split(",")[0]}
+              </Text>
               <Icon name="calendar-outline" size={18} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
@@ -121,7 +130,11 @@ const NewEvent = () => {
               onPress={() => setShowTimePicker(true)}
             >
               <Text className="text-white">
-                {datetime.toLocaleTimeString("es-CR", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                {datetime.toLocaleTimeString("es-CR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                })}
               </Text>
               <Icon name="time-outline" size={18} color="#fff" />
             </TouchableOpacity>
@@ -179,7 +192,9 @@ const NewEvent = () => {
           <View>
             <Text className="text-white font-semibold">Sin límite</Text>
             <Text className="text-gray-400 text-sm">
-              {formatEventCapacity(unlimited ? null : Number(capacityInput) || null)}
+              {formatEventCapacity(
+                unlimited ? null : Number(capacityInput) || null,
+              )}
             </Text>
           </View>
           <Switch value={unlimited} onValueChange={setUnlimited} />
@@ -221,7 +236,9 @@ const NewEvent = () => {
 
         {!isFree && (
           <View className="gap-2">
-            <Text className="text-white font-semibold">Costo de entrada (CRC)</Text>
+            <Text className="text-white font-semibold">
+              Costo de entrada (CRC)
+            </Text>
             <TextInput
               value={priceInput}
               onChangeText={setPriceInput}
@@ -265,7 +282,9 @@ const NewEvent = () => {
           <View>
             <Text className="text-white font-semibold">Publicado</Text>
             <Text className="text-gray-400 text-sm">
-              {status === "published" ? "Visible en listados" : "Queda como borrador"}
+              {status === "published"
+                ? "Visible en listados"
+                : "Queda como borrador"}
             </Text>
           </View>
           <Switch
@@ -303,10 +322,10 @@ const NewEvent = () => {
         <TouchableOpacity
           className="bg-green-500 rounded-2xl px-4 py-4 items-center active:opacity-80"
           onPress={handleSave}
-          disabled={createEvent.isLoading || uploading}
+          disabled={createEvent.isPending || uploading}
         >
           <Text className="text-white font-semibold">
-            {createEvent.isLoading ? "Guardando..." : "Guardar evento"}
+            {createEvent.isPending ? "Guardando..." : "Guardar evento"}
           </Text>
         </TouchableOpacity>
 

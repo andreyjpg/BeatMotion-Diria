@@ -69,7 +69,7 @@ const EventsList = () => {
       mes: events.filter(
         (evt) =>
           evt.datetime.getFullYear() === now.getFullYear() &&
-          evt.datetime.getMonth() === now.getMonth()
+          evt.datetime.getMonth() === now.getMonth(),
       ),
       pasados: events
         .filter((evt) => evt.datetime < now && evt.datetime >= sixMonthsAgo)
@@ -183,7 +183,7 @@ const EventsList = () => {
         currentUserName={
           user?.name || user?.lastName
             ? `${user?.name ?? ""} ${user?.lastName ?? ""}`.trim()
-            : user?.email ?? "Invitado"
+            : (user?.email ?? "Invitado")
         }
         currentUserId={user?.uid ?? ""}
       />
@@ -246,7 +246,7 @@ const SignupModal = ({
     if (!currentUserId) {
       Alert.alert(
         "Sesion requerida",
-        "Inicia sesion para registrarte al evento."
+        "Inicia sesion para registrarte al evento.",
       );
       return;
     }
@@ -260,7 +260,7 @@ const SignupModal = ({
     if (capacity && available !== null && desiredTotal > available) {
       Alert.alert(
         "Lo sentimos",
-        "Ya se agotaron los cupos disponibles, pero favor contactar al director de la academia para consultar disponibilidad."
+        "Ya se agotaron los cupos disponibles, pero favor contactar al director de la academia para consultar disponibilidad.",
       );
       return;
     }
@@ -268,7 +268,7 @@ const SignupModal = ({
     if (!isFree && !receiptUri) {
       Alert.alert(
         "Comprobante requerido",
-        "Sube la imagen del comprobante de pago."
+        "Sube la imagen del comprobante de pago.",
       );
       return;
     }
@@ -304,7 +304,7 @@ const SignupModal = ({
         "Registro enviado",
         isFree
           ? "Registro confirmado."
-          : "Solicitud enviada. Espera la validacion del pago."
+          : "Solicitud enviada. Espera la validacion del pago.",
       );
     } catch (error) {
       console.error("Error enviando registro de evento:", error);
@@ -312,27 +312,27 @@ const SignupModal = ({
       if (message === "NO_AVAILABLE_SLOTS") {
         Alert.alert(
           "Lo sentimos",
-          "Ya se agotaron los cupos disponibles, pero favor contactar al director de la academia para consultar disponibilidad."
+          "Ya se agotaron los cupos disponibles, pero favor contactar al director de la academia para consultar disponibilidad.",
         );
       } else if (message === "missing-receipt-uri") {
         Alert.alert(
           "Comprobante requerido",
-          "La imagen del comprobante es obligatoria para este evento."
+          "La imagen del comprobante es obligatoria para este evento.",
         );
       } else if (message === "missing-user-id") {
         Alert.alert(
           "Sesion requerida",
-          "Inicia sesion para registrarte al evento."
+          "Inicia sesion para registrarte al evento.",
         );
       } else if (message === "storage-not-initialized") {
         Alert.alert(
           "Error",
-          "No se pudo acceder al almacenamiento. Intenta de nuevo."
+          "No se pudo acceder al almacenamiento. Intenta de nuevo.",
         );
       } else {
         Alert.alert(
           "Error",
-          "No se pudo completar el registro. Intenta de nuevo o contacta al administrador."
+          "No se pudo completar el registro. Intenta de nuevo o contacta al administrador.",
         );
       }
     } finally {
@@ -346,7 +346,7 @@ const SignupModal = ({
     isClosed ||
     isFull ||
     alreadyRegistered ||
-    createSignup.isLoading ||
+    createSignup.isPending ||
     uploading;
 
   const handleCancel = async () => {
@@ -362,7 +362,7 @@ const SignupModal = ({
           onPress: async () => {
             try {
               await cancelSignup.mutateAsync({
-                signupId: mySignup.data.id,
+                signupId: mySignup?.data?.id || "",
                 eventId: event.id,
                 userId: currentUserId,
               });
@@ -371,18 +371,18 @@ const SignupModal = ({
               onClose();
               Alert.alert(
                 "Registro cancelado",
-                "Tu registro ha sido cancelado."
+                "Tu registro ha sido cancelado.",
               );
             } catch (error) {
               console.error("Error cancelando registro de evento:", error);
               Alert.alert(
                 "Error",
-                "No se pudo cancelar el registro. Intenta de nuevo."
+                "No se pudo cancelar el registro. Intenta de nuevo.",
               );
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -419,8 +419,8 @@ const SignupModal = ({
                 {available === null
                   ? "Cupos ilimitados"
                   : available > 0
-                  ? `Cupos disponibles: ${available}`
-                  : "Cupos agotados"}
+                    ? `Cupos disponibles: ${available}`
+                    : "Cupos agotados"}
               </Text>
               {isPast && (
                 <Text className="text-red-400">
@@ -510,9 +510,9 @@ const SignupModal = ({
                 <TouchableOpacity
                   className="rounded-full px-4 py-3 flex-row items-center justify-center gap-2 bg-red-600"
                   onPress={handleCancel}
-                  disabled={cancelSignup.isLoading}
+                  disabled={cancelSignup.isPending}
                 >
-                  {cancelSignup.isLoading ? (
+                  {cancelSignup.isPending ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
                     <Icon name="trash-outline" size={18} color="#fff" />
@@ -538,7 +538,7 @@ const SignupModal = ({
               onPress={handleSubmit}
               disabled={disableSubmit}
             >
-              {createSignup.isLoading || uploading ? (
+              {createSignup.isPending || uploading ? (
                 <ActivityIndicator color={disableSubmit ? "#ccc" : "#000"} />
               ) : (
                 <Icon
