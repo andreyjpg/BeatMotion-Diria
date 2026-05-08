@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { surveyResponseListSchema } from "./surveySchema";
 
-const fetchSurveyResponses = async (surveyId: string) => {
+const fetchResponsesByCourse = async (courseId: string) => {
   try {
     const q = query(
       collection(firestore, "surveyResponses"),
-      where("surveyId", "==", surveyId),
+      where("courseId", "==", courseId),
     );
     const snapshot = await getDocs(q);
 
@@ -18,16 +18,16 @@ const fetchSurveyResponses = async (surveyId: string) => {
 
     return surveyResponseListSchema.parse(responses);
   } catch (error) {
-    console.error("Error fetching survey responses:", error);
+    console.error("Error fetching responses by course:", error);
     throw error;
   }
 };
 
-export const useSurveyResponses = (surveyId: string) => {
+export const useResponsesByCourse = (courseId: string) => {
   return useQuery({
-    queryKey: ["surveyResponses", surveyId],
-    queryFn: () => fetchSurveyResponses(surveyId),
-    enabled: !!surveyId,
-    staleTime: 1000 * 60 * 2,
+    queryKey: ["surveyResponses", courseId],
+    queryFn: () => fetchResponsesByCourse(courseId),
+    enabled: !!courseId,
+    staleTime: 1000 * 60 * 5,
   });
 };

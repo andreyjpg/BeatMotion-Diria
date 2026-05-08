@@ -1,7 +1,7 @@
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
 import { useCourseMemberByUser } from "@/hooks/courseMember/useCourseMemberByUser";
-import { useAvailableSurveys } from "@/hooks/surveys/useSurveys";
+import { useAvailableSurveys } from "@/hooks/surveys/useAvailableSurveys";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";

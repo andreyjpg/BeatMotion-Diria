@@ -1,6 +1,6 @@
 import MenuButton from "@/components/MenuButton";
 import { useCourseMemberByUser } from "@/hooks/courseMember/useCourseMemberByUser";
-import { useAvailableSurveys } from "@/hooks/surveys/useSurveys";
+import { useAvailableSurveys } from "@/hooks/surveys/useAvailableSurveys";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Href, useRouter } from "expo-router";

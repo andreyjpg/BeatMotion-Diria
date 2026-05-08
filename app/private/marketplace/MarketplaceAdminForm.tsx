@@ -3,11 +3,9 @@
   uploadMarketplaceImage,
 } from "@/hooks/marketplace/marketplaceMedia";
 import { useMarketplaceItems } from "@/hooks/marketplace/useMarketplaceItems";
-import {
-  useCreateMarketplaceItem,
-  useDeleteMarketplaceItem,
-  useUpdateMarketplaceItem,
-} from "@/hooks/marketplace/useMarketplaceMutations";
+import { useCreateMarketplaceItem } from "@/hooks/marketplace/useCreateMarketplaceItem";
+import { useDeleteMarketplaceItem } from "@/hooks/marketplace/useDeleteMarketplaceItem";
+import { useUpdateMarketplaceItem } from "@/hooks/marketplace/useUpdateMarketplaceItem";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
