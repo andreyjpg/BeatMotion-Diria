@@ -1,6 +1,7 @@
 import AssignStudentModal from "@/components/AssignStudentModal";
 import HeaderTitle from "@/components/headerTitle";
 import { firestore } from "@/firebaseConfig";
+import { useBranches } from "@/hooks/branches/useBranches";
 import { useUpdateCourse } from "@/hooks/courses/useUpdateCourse";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
@@ -58,6 +59,8 @@ export default function EditCourseScreen() {
     }
   }, [id]);
 
+  const branchesQuery = useBranches();
+
   const [loading, setLoading] = useState(true);
   const [loadingTeachers, setLoadingTeachers] = useState(true);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -66,6 +69,7 @@ export default function EditCourseScreen() {
   const [level, setLevel] = useState("Inicial");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [branchId, setBranchId] = useState("");
 
   const [classes, setClasses] = useState<any[]>([]);
 
@@ -129,6 +133,7 @@ export default function EditCourseScreen() {
       setLevel(data.level ?? "Inicial");
       setDescription(data.description ?? "");
       setImageUrl(data.imageUrl ?? "");
+      setBranchId(data.branchId ?? "");
       setLoading(false);
     };
     if (id) loadCourse();
@@ -167,6 +172,7 @@ export default function EditCourseScreen() {
       level: level.trim(),
       description: description.trim(),
       isDeleted: false,
+      branchId: branchId || null,
     };
     mutationCourse.mutate({ id, patch: body });
   };
@@ -252,6 +258,21 @@ export default function EditCourseScreen() {
               placeholderTextColor="#9CA3AF"
               multiline
             />
+
+            <Text className="text-white mb-2 font-semibold">Sucursal</Text>
+            <View className="bg-gray-900 rounded-xl mb-4">
+              <Picker
+                selectedValue={branchId}
+                onValueChange={(v) => setBranchId(String(v))}
+                dropdownIconColor="#ffffff"
+                style={{ color: "white" }}
+              >
+                <Picker.Item label="Sin sucursal" value="" />
+                {(branchesQuery.data ?? []).map((b) => (
+                  <Picker.Item key={b.id} label={b.name} value={b.id} />
+                ))}
+              </Picker>
+            </View>
 
             <TouchableOpacity
               className="bg-primary rounded-2xl px-5 py-4 active:opacity-80 mb-4"

@@ -6,15 +6,14 @@ import {
   useLocalSearchParams,
   useRootNavigationState,
 } from "expo-router";
+import { useCreateClass } from "@/hooks/classes/useCreateClass";
 import {
-  addDoc,
   collection,
   getDocs,
   getFirestore,
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
   where,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -38,6 +37,7 @@ type VideoLink = {
 export default function NewClassScreen() {
   const params = useLocalSearchParams();
   const preselectedCourseId = params.courseId as string | undefined;
+  const createClass = useCreateClass();
 
   const [courses, setCourses] = useState<any[]>([]);
   const [courseId, setCourseId] = useState<string>(preselectedCourseId || "");
@@ -195,9 +195,8 @@ export default function NewClassScreen() {
       return;
     }
 
-    try {
-      const db = getFirestore();
-      await addDoc(collection(db, "classes"), {
+    createClass.mutate(
+      {
         courseId,
         title: title.trim(),
         description: description.trim() || null,
@@ -211,16 +210,9 @@ export default function NewClassScreen() {
           platform: v.platform,
           title: v.title || null,
         })),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        isDeleted: false,
-      });
-      Alert.alert("Clase", "Creada correctamente.");
-      setPendingNav(true);
-    } catch (e) {
-      console.error(e);
-      Alert.alert("Error", "No se pudo crear la clase.");
-    }
+      },
+      { onSuccess: () => setPendingNav(true) },
+    );
   };
 
   return (

@@ -179,6 +179,20 @@ export default function AdminLayout() {
         name="reports/index"
         options={{ title: "Reportes", headerShown: false }}
       />
+
+      {/* Branches */}
+      <Stack.Screen
+        name="branches/index"
+        options={{ title: "Sucursales", headerShown: false }}
+      />
+      <Stack.Screen
+        name="branches/new"
+        options={{ title: "Nueva sucursal", headerShown: false }}
+      />
+      <Stack.Screen
+        name="branches/[id]"
+        options={{ title: "Editar sucursal", headerShown: false }}
+      />
     </Stack>
   );
 }

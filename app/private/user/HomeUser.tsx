@@ -2,7 +2,11 @@ import MenuButton from "@/components/MenuButton";
 import { useCourseMemberByUser } from "@/hooks/courseMember/useCourseMemberByUser";
 import { useAvailableSurveys } from "@/hooks/surveys/useAvailableSurveys";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  FontAwesome5,
+  MaterialCommunityIcons,
+  MaterialIcons,
+} from "@expo/vector-icons";
 import { Href, useRouter } from "expo-router";
 import { JSX } from "react";
 import { ScrollView, Text, TouchableHighlight, View } from "react-native";
@@ -32,13 +36,7 @@ const MENU: MenuProps[] = [
     route: "/private/user/surveys/list",
   },
   {
-    icon: (
-      <MaterialCommunityIcons
-        name="clipboard-check-outline"
-        size={44}
-        color="turquoise"
-      />
-    ),
+    icon: <MaterialIcons name="event" size={44} color="turquoise" />,
     label: "Eventos",
     route: "/private/user/events",
   },

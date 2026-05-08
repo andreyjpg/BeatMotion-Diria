@@ -1,7 +1,7 @@
 {
   "name": "beatmotion-diria",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
     "start": "expo start -c --tunnel",
     "start:qa": "cross-env APP_ENV=preview expo start -c --tunnel",
