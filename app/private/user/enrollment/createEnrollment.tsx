@@ -71,23 +71,19 @@ const CreateEnrollment = () => {
 
   useEffect(() => {
     const enrolledCourses = selectedCourses.length + enrolledCourseIds.length;
-    //if the number is more or equal than five is the same fare
     if (enrolledCourses >= 5)
       return setTotalAmount(
         faresQuery.data?.find((data) => data.type === "course_5")?.fare || 0,
       );
-    //look the fate for number of Course in fare collection
-    const fareAccumulated = faresQuery.data?.find(
-      (data) => data.numCourse === enrolledCourses,
-    ) || { fare: 0 };
 
-    const previousFare = faresQuery.data?.find(
-      (data) => data.numCourse === enrolledCourseIds.length,
-    ) || { fare: 0 };
+    const courseTierFares = faresQuery.data?.filter((d) => d.numCourse > 0) ?? [];
 
-    const totalToPayForNewEnrollment =
-      fareAccumulated?.fare - previousFare?.fare;
-    setTotalAmount(selectedCourses.length > 0 ? totalToPayForNewEnrollment : 0);
+    const fareAccumulated =
+      courseTierFares.find((d) => d.numCourse === enrolledCourses)?.fare ?? 0;
+    const previousFare =
+      courseTierFares.find((d) => d.numCourse === enrolledCourseIds.length)?.fare ?? 0;
+
+    setTotalAmount(selectedCourses.length > 0 ? fareAccumulated - previousFare : 0);
   }, [selectedCourses, faresQuery.data, enrolledCourseIds]);
 
   const handleImagePick = async () => {
