@@ -1,10 +1,8 @@
 import HeaderTitle from "@/components/headerTitle";
 import { useCourses } from "@/hooks/courses/useCourses";
-import {
-  useCreateSurvey,
-  useUpdateSurvey,
-  useSurveyById,
-} from "@/hooks/surveys/useSurveys";
+import { useCreateSurvey } from "@/hooks/surveys/useCreateSurvey";
+import { useUpdateSurvey } from "@/hooks/surveys/useUpdateSurvey";
+import { useSurveyById } from "@/hooks/surveys/useSurveyById";
 import {
   SurveyQuestion,
   QuestionType,

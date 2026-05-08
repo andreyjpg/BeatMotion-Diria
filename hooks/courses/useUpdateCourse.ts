@@ -10,6 +10,7 @@ type IncomingData = {
   description: string;
   level: string;
   isDeleted: boolean;
+  branchId?: string | null;
 };
 
 type UpdateCourseBody =

@@ -1,4 +1,5 @@
-import { addCourse } from "@/services/catalog";
+import { useBranches } from "@/hooks/branches/useBranches";
+import { useCreateCourse } from "@/hooks/courses/useCreateCourse";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
 import { getAuth } from "firebase/auth";
@@ -44,10 +45,12 @@ export default function NewCourseScreen() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [level, setLevel] = useState("Inicial");
   const [description, setDescription] = useState("");
-  // const [imageUrl, setImageUrl] = useState("");
   const [day, setDay] = useState("lunes");
-  const [isSaving, setIsSaving] = useState(false);
+  const [branchId, setBranchId] = useState("");
   const [loadingTeachers, setLoadingTeachers] = useState(true);
+
+  const createCourse = useCreateCourse();
+  const branchesQuery = useBranches();
 
   useEffect(() => {
     loadTeachers();
@@ -99,33 +102,25 @@ export default function NewCourseScreen() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!title.trim() || !teacher.trim()) {
       Alert.alert("Faltan datos", "Título y profesor son obligatorios.");
       return;
     }
 
-    try {
-      setIsSaving(true);
-      const uid = getAuth().currentUser?.uid ?? "unknown";
-      await addCourse({
+    const uid = getAuth().currentUser?.uid ?? "unknown";
+    createCourse.mutate(
+      {
         title: title.trim(),
         description: description.trim(),
         level: level.trim(),
         teacher: teacher.trim(),
-        // imageUrl: imageUrl.trim() || undefined,
-        isDeleted: false,
+        day,
+        branchId: branchId || null,
         createdBy: uid,
-        day: day,
-      });
-      Alert.alert("Curso", "Curso agregado correctamente.");
-      router.back();
-    } catch (e) {
-      console.error(e);
-      Alert.alert("Error", "No se pudo guardar el curso.");
-    } finally {
-      setIsSaving(false);
-    }
+      },
+      { onSuccess: () => router.back() },
+    );
   };
 
   return (
@@ -203,6 +198,21 @@ export default function NewCourseScreen() {
           </Picker>
         </View>
 
+        <Text className="text-white mb-2 font-semibold">Sucursal</Text>
+        <View className="bg-gray-900 rounded-xl mb-4">
+          <Picker
+            selectedValue={branchId}
+            onValueChange={(v) => setBranchId(String(v))}
+            dropdownIconColor="#ffffff"
+            style={{ color: "white" }}
+          >
+            <Picker.Item label="Sin sucursal" value="" />
+            {(branchesQuery.data ?? []).map((b) => (
+              <Picker.Item key={b.id} label={b.name} value={b.id} />
+            ))}
+          </Picker>
+        </View>
+
         <Text className="text-white mb-2 font-semibold">Descripción</Text>
         <TextInput
           className="bg-gray-900 text-white rounded-xl px-4 py-3 mb-4"
@@ -216,10 +226,12 @@ export default function NewCourseScreen() {
         <TouchableOpacity
           className="bg-primary rounded-2xl px-5 py-4 active:opacity-80 mb-3"
           onPress={handleSave}
-          disabled={isSaving || loadingTeachers || teachers.length === 0}
+          disabled={
+            createCourse.isPending || loadingTeachers || teachers.length === 0
+          }
         >
           <Text className="text-center font-semibold">
-            {isSaving ? "Guardando..." : "Guardar curso"}
+            {createCourse.isPending ? "Guardando..." : "Guardar curso"}
           </Text>
         </TouchableOpacity>
 

@@ -2,7 +2,7 @@
 import { formatCurrency } from "@/constants/helpers";
 import type { MarketplaceItem } from "@/hooks/marketplace/schema";
 import { useMarketplaceItems } from "@/hooks/marketplace/useMarketplaceItems";
-import { useDeleteMarketplaceItem } from "@/hooks/marketplace/useMarketplaceMutations";
+import { useDeleteMarketplaceItem } from "@/hooks/marketplace/useDeleteMarketplaceItem";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons } from "@expo/vector-icons";
 import type { Href } from "expo-router";

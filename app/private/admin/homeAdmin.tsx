@@ -51,6 +51,11 @@ const MENU: MenuProps[] = [
     route: "/private/admin/events",
   },
   {
+    icon: <Ionicons name="business-outline" size={34} color="turquoise" />,
+    label: "Sucursales",
+    route: "/private/admin/branches",
+  },
+  {
     icon: <AntDesign name="notification" size={34} color="turquoise" />,
     label: "Centro notificaciones",
     route: "/private/admin/notifications/notificationCenter",
