@@ -67,6 +67,12 @@ export const onEnrollmentAccepted = onDocumentUpdated(
             error,
           );
         });
+
+      if (after.annualFeeYear) {
+        await db.collection("enrollments").doc(enrollmentId).update({
+          annualFeeYear: new Date().getFullYear(),
+        });
+      }
     }
   },
 );
@@ -144,6 +150,12 @@ export const onPaymentAccepted = onDocumentUpdated(
           });
         });
         await batch.commit();
+      }
+
+      if (after.annualFeeYear) {
+        await db.collection("payments").doc(event.params.paymentId).update({
+          annualFeeYear: new Date().getFullYear(),
+        });
       }
 
       logger.log("onPaymentAccepted finished running successfully");

@@ -14,6 +14,7 @@ export const PaymentSchema = zod.array(
     isLatePayment: zod.boolean().nullish(),
     daysAfterPayment: zod.number().nullish(),
     lateFare: zod.number().nullish(),
+    annualFeeYear: zod.number().nullable().optional(),
   })
 );
 
@@ -35,4 +36,5 @@ export type PaymentCreatePayload = {
   daysAfterPayment?: number;
   status: PaymentStatus;
   lateFare: number;
+  annualFeeYear?: number | null;
 };
