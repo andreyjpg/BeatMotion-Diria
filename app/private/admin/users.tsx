@@ -22,7 +22,7 @@ export default function AdminUsersScreen() {
     if (user?.role !== "admin") {
       Alert.alert(
         "Acceso restringido",
-        "Solo los administradores pueden ver esta sección"
+        "Solo los administradores pueden ver esta sección",
       );
       router.replace("/private/home");
     }
@@ -30,10 +30,10 @@ export default function AdminUsersScreen() {
 
   const handleDeactivate = async (uid: string, currentStatus: boolean) => {
     try {
-      await updateDoc(doc(firestore, "users", uid), { active: !currentStatus });
+      await updateDoc(doc(firestore, "users", uid), { isActive: !currentStatus });
       Alert.alert(
         "Éxito",
-        `Usuario ${!currentStatus ? "activado" : "desactivado"}`
+        `Usuario ${!currentStatus ? "activado" : "desactivado"}`,
       );
     } catch (error) {
       console.error("Error updating status:", error);
@@ -77,7 +77,7 @@ export default function AdminUsersScreen() {
               console.error("Error creando o recuperando progreso:", error);
               Alert.alert(
                 "Error",
-                "No se pudo acceder al progreso del usuario"
+                "No se pudo acceder al progreso del usuario",
               );
             } finally {
               setLoadingUser(null);
@@ -109,10 +109,10 @@ export default function AdminUsersScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           className="bg-yellow-500 px-3 py-2 rounded-xl"
-          onPress={() => handleDeactivate(item.id, item.active)}
+          onPress={() => handleDeactivate(item.id, item.isActive)}
         >
           <Text className="text-white">
-            {item.active ? "Desactivar" : "Activar"}
+            {item.isActive ? "Desactivar" : "Activar"}
           </Text>
         </TouchableOpacity>
       </View>

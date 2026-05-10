@@ -244,10 +244,35 @@ export const checkPaymentStatus = onSchedule(
       logger.info("No members found. courseMember is empty");
       return;
     }
+    const msPerDay = 1000 * 60 * 60 * 24;
+
+    const pendingDay1Messages = [
+      "Tu próximo pago se acerca. Tienes 10 días para realizarlo.",
+      "Recuerda que tienes un pago próximo. ¡No te quedes sin bailar!",
+      "Primer aviso: tu pago mensual está por vencer. ¡Ponlo en tu agenda!",
+    ];
+    const pendingDay5Messages = [
+      "Te quedan 5 días para realizar tu pago. ¡Mueve los pies y también las finanzas!",
+      "A mitad del camino: 5 días para pagar. ¡Tú puedes!",
+      "Recordatorio a mitad de plazo: tu pago vence en 5 días.",
+    ];
+    const pendingLastDayMessages = [
+      "¡Hoy es el último día para realizar tu pago! Evita cargos por mora.",
+      "¡Última oportunidad! Tu pago vence hoy. ¡No te quedes fuera de la pista!",
+      "Aviso final: tu pago vence hoy. ¡No dejes pasar más tiempo!",
+    ];
+    const overdueMessages = [
+      "Tu pago está atrasado… pero prometemos no contárselo al resto del grupo.",
+      "¡Hey! Parece que tu pago se nos escapó. Recuerda ponerte al día.",
+      "El ritmo del baile no para, pero tu pago sí se detuvo. ¡Ponlo al día!",
+      "Tu cuenta está bailando sin música. Es hora de ponerse al día con el pago.",
+      "Pequeño recordatorio: tienes un pago pendiente. ¡No dejes que te deje fuera de pista!",
+    ];
+
     const updates: Promise<any>[] = [];
     const notifications: Promise<any>[] = [];
     const batch = db.batch();
-    const refNotifications = db.collection("notifications").doc();
+    let batchCount = 0;
 
     courseMembersSnapshot.forEach((doc) => {
       const memberData = doc.data();
@@ -255,62 +280,134 @@ export const checkPaymentStatus = onSchedule(
 
       if (memberData.nextPaymentDate instanceof Timestamp) {
         const paymentDate: Date = memberData.nextPaymentDate.toDate();
-        const tenDaysBeforePayment = paymentDate;
-        tenDaysBeforePayment.setDate(today.getDate() - 10);
+        const tenDaysBeforePayment = new Date(paymentDate);
+        tenDaysBeforePayment.setDate(paymentDate.getDate() - 10);
 
-        //look if the payment is in the next 7 days so the user will be notice that the payment is pending
+        const daysUntilDue = Math.floor(
+          (paymentDate.getTime() - today.getTime()) / msPerDay,
+        );
+        const lastPendingNotifiedAt: Date | null =
+          memberData.lastPendingNotificationAt
+            ? memberData.lastPendingNotificationAt.toDate()
+            : null;
+        const daysSinceLastPending = lastPendingNotifiedAt
+          ? Math.floor(
+              (today.getTime() - lastPendingNotifiedAt.getTime()) / msPerDay,
+            )
+          : 999;
+
+        //look if the payment is in the next 10 days so the user will be notified that the payment is pending
         if (
           paymentDate > today &&
           today >= tenDaysBeforePayment &&
-          memberData.paymentStatus === "ok" &&
           memberData.active
         ) {
-          logger.info(
-            `User ${userId} has a next payment: ${paymentDate.toISOString()}`,
-          );
+          let notificationContent: string | null = null;
 
-          updates.push(
-            doc.ref.update({
-              paymentStatus: "pending",
-              updatedAt: Timestamp.now(),
-            }),
-          );
+          if (memberData.paymentStatus === "ok") {
+            // Day 1: entering the pending window
+            notificationContent =
+              pendingDay1Messages[
+                Math.floor(Math.random() * pendingDay1Messages.length)
+              ];
+            updates.push(
+              doc.ref.update({
+                paymentStatus: "pending",
+                lastPendingNotificationAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+              }),
+            );
+          } else if (
+            memberData.paymentStatus === "pending" &&
+            daysSinceLastPending >= 4
+          ) {
+            if (daysUntilDue <= 1) {
+              // Day 10: last day
+              notificationContent =
+                pendingLastDayMessages[
+                  Math.floor(Math.random() * pendingLastDayMessages.length)
+                ];
+            } else if (daysUntilDue <= 5) {
+              // Day 5: mid-window reminder
+              notificationContent =
+                pendingDay5Messages[
+                  Math.floor(Math.random() * pendingDay5Messages.length)
+                ];
+            }
+            if (notificationContent) {
+              updates.push(
+                doc.ref.update({
+                  lastPendingNotificationAt: Timestamp.now(),
+                  updatedAt: Timestamp.now(),
+                }),
+              );
+            }
+          }
 
-          notifications.push(
-            sendPaymentReminderNotification(userId, paymentDate, db),
-          );
-          //send notifications to firebase, so the user can see it in the menu in case don't have the user login in a device
-          batch.set(refNotifications, {
-            userId,
-            title: "Tu próximo pago se acerca",
-            content: `Solo un recordatorio: tu pago vence el día ${paymentDate}.`,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            read: false,
-          });
+          if (notificationContent) {
+            logger.info(
+              `User ${userId} pending payment notification (${daysUntilDue} days left): ${paymentDate.toISOString()}`,
+            );
+            notifications.push(
+              sendPaymentReminderNotification(userId, paymentDate, db),
+            );
+            const refPendingNotification = db.collection("notifications").doc();
+            batch.set(refPendingNotification, {
+              userId,
+              title: "Pago pendiente",
+              content: notificationContent,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              read: false,
+            });
+            batchCount++;
+          }
         } else if (
-          //look if the payment is already late after the next payment date
+          //look if the payment is already late — notify every 2 days while unpaid
           paymentDate < today &&
-          memberData.paymentStatus !== "late" &&
           memberData.active
         ) {
-          logger.warn(
-            `User ${userId} has an overdue payment: ${paymentDate.toISOString()}`,
-          );
-          updates.push(
-            doc.ref.update({
-              paymentStatus: "late",
-              updatedAt: Timestamp.now(),
-            }),
-          );
-          notifications.push(sendOverdueNotification(userId, paymentDate, db));
-          //send notifications to firebase, so the user can see it in the menu in case don't have the user login in a device
-          batch.set(refNotifications, {
-            userId,
-            title: "Ooops… pequeño tropiezo",
-            content: `Tu pago está atrasado… pero prometemos no contárselo al resto del grupo.`,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            read: false,
-          });
+          const lastNotifiedAt: Date | null =
+            memberData.lastOverdueNotificationAt
+              ? memberData.lastOverdueNotificationAt.toDate()
+              : null;
+          const daysSinceNotification = lastNotifiedAt
+            ? Math.floor(
+                (today.getTime() - lastNotifiedAt.getTime()) / msPerDay,
+              )
+            : 999;
+
+          if (daysSinceNotification >= 2) {
+            logger.warn(
+              `User ${userId} has an overdue payment: ${paymentDate.toISOString()}`,
+            );
+
+            const randomMessage =
+              overdueMessages[
+                Math.floor(Math.random() * overdueMessages.length)
+              ];
+
+            updates.push(
+              doc.ref.update({
+                paymentStatus: "late",
+                lastOverdueNotificationAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+              }),
+            );
+
+            notifications.push(
+              sendOverdueNotification(userId, paymentDate, db),
+            );
+            //send notification to firebase so the user can see it in the menu
+            const refOverdueNotification = db.collection("notifications").doc();
+            batch.set(refOverdueNotification, {
+              userId,
+              title: "Pago retrasado",
+              content: randomMessage,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              read: false,
+            });
+            batchCount++;
+          }
         }
       } else {
         logger.warn(
@@ -319,9 +416,9 @@ export const checkPaymentStatus = onSchedule(
       }
     });
 
-    await Promise.all(updates);
-    await Promise.all(notifications); //send notifications
-    batch.commit();
+    if (updates.length > 0) await Promise.all(updates);
+    if (notifications.length > 0) await Promise.all(notifications);
+    if (batchCount > 0) await batch.commit();
 
     logger.info("Next payment check function is finished");
   },
