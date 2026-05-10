@@ -11,6 +11,7 @@ import { Enrollment as EnrollmentType } from "@/hooks/enrollment/schema";
 import { useCreateEnrollment } from "@/hooks/enrollment/useCreateEnrollment";
 import { useEnrollmentByUserId } from "@/hooks/enrollment/useEnrollmentByUserId";
 import { useFares } from "@/hooks/fares/useFares";
+import { usePaymentsByUser } from "@/hooks/payment/usePaymentsByUser";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -33,6 +34,21 @@ const CreateEnrollment = () => {
   const enrollmentsQuery = useEnrollmentByUserId(user!.uid);
   const faresQuery = useFares();
   const branchesQuery = useBranches();
+
+  const paymentsByUserQuery = usePaymentsByUser(user?.uid);
+
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const isExemptMonth = currentMonth === 10 || currentMonth === 11;
+  const annualFare = faresQuery.data?.find((d) => d.type === "annual")?.fare ?? 0;
+
+  const paidInPayments = paymentsByUserQuery.data?.some(
+    (p) => (p as any).annualFeeYear === currentYear && p.status !== "rejected"
+  ) ?? false;
+  const paidInEnrollments = enrollmentsQuery.data?.some(
+    (e) => (e as any).annualFeeYear === currentYear && e.status !== "rejected"
+  ) ?? false;
+  const shouldChargeAnnualFee = !isExemptMonth && !paidInPayments && !paidInEnrollments;
 
   const router = useRouter();
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
@@ -83,8 +99,9 @@ const CreateEnrollment = () => {
     const previousFare =
       courseTierFares.find((d) => d.numCourse === enrolledCourseIds.length)?.fare ?? 0;
 
-    setTotalAmount(selectedCourses.length > 0 ? fareAccumulated - previousFare : 0);
-  }, [selectedCourses, faresQuery.data, enrolledCourseIds]);
+    const courseDiff = selectedCourses.length > 0 ? fareAccumulated - previousFare : 0;
+    setTotalAmount(courseDiff + (shouldChargeAnnualFee ? annualFare : 0));
+  }, [selectedCourses, faresQuery.data, enrolledCourseIds, shouldChargeAnnualFee, annualFare]);
 
   const handleImagePick = async () => {
     const imageSelected = await askForCameraPermission();
@@ -112,6 +129,7 @@ const CreateEnrollment = () => {
           totalAmount,
           reviewedBy: null,
           reviewedAt: null,
+          annualFeeYear: shouldChargeAnnualFee ? currentYear : null,
         },
       });
     } catch (error: any) {
@@ -202,6 +220,12 @@ const CreateEnrollment = () => {
               )}
               ListFooterComponent={
                 <View className="ml-4 mt-5">
+                  {shouldChargeAnnualFee && (
+                    <Text className="text-white text-base mb-1">
+                      Matrícula anual:{" "}
+                      <Text className="font-bold">₡{annualFare}</Text>
+                    </Text>
+                  )}
                   <Text className="text-white text-xl">
                     Total a pagar :{" "}
                     <Text className="font-extrabold">₡{totalAmount}</Text>

@@ -51,6 +51,7 @@ export const enrollmentSchema = zod.array(
     assignedClass: zod.string().nullable().optional(),
     classAssignedAt: timestampSchema.nullable().optional(),
     classAssignedBy: zod.string().nullable().optional(),
+    annualFeeYear: zod.number().nullable().optional(),
   })
 );
 
