@@ -6,9 +6,11 @@ import {
   getEnrollmentColor,
   statusTranslations,
 } from "@/constants/helpers";
+import { useBranches } from "@/hooks/branches/useBranches";
 import { Enrollment as Enrollmentype } from "@/hooks/enrollment/schema";
 import { useEnrollmentsByStatus } from "@/hooks/enrollment/useEnrollmentsByStatus";
 import { useUpdateEnrollment } from "@/hooks/enrollment/useUpdateEnrollment";
+import { useCourses } from "@/hooks/courses/useCourses";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -42,6 +44,8 @@ const EnrollmentList = () => {
   const [imageSelected, setImageSelected] = useState<string | null>(null);
   const updateEnrollment = useUpdateEnrollment();
   const { user: activeUser } = useActiveUser();
+  const coursesQuery = useCourses();
+  const branchesQuery = useBranches();
 
   const handleFilterChange = (value: string) => {
     setStatusFilter(value);
@@ -126,7 +130,14 @@ const EnrollmentList = () => {
                 tintColor="#facc15"
               />
             }
-            renderItem={({ item }) => (
+            renderItem={({ item }) => {
+              const fullCourse = coursesQuery.data?.find(
+                (c) => c.id === item.course?.id
+              );
+              const branch = fullCourse?.branchId
+                ? branchesQuery.data?.find((b) => b.id === fullCourse.branchId)
+                : undefined;
+              return (
               <TouchableHighlight
                 className="bg-gray-900 rounded-3xl overflow-hidden flex-1 mb-3"
                 onPress={() => {
@@ -216,10 +227,23 @@ const EnrollmentList = () => {
                     <Text className="text-gray-400">
                       Dia de curso: {item.course?.day}
                     </Text>
+                    {branch && (
+                      <View className="flex-row items-center gap-1">
+                        <Ionicons
+                          name="business-outline"
+                          size={12}
+                          color="turquoise"
+                        />
+                        <Text className="text-primary text-xs">
+                          {branch.name}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               </TouchableHighlight>
-            )}
+              );
+            }}
           />
         )}
       </DataLoader>
