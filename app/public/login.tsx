@@ -124,7 +124,7 @@ const LogIn = () => {
           </View>
 
           <Image
-            source={require("../../assets/images/BeatMotionLogo.png")}
+            source={require("../../assets/images/LogoDiria.jpg")}
             className="w-30 h-20 mt-4"
             resizeMode="contain"
           />
