@@ -36,7 +36,7 @@ jobs:
         run: eas build --platform android --profile production --non-interactive
 
       - name: Submit iOS to App Store
-        run: eas submit --platform ios --profile production --non-interactive
+        run: eas submit --platform ios --profile production --non-interactive --latest
 
       - name: Submit Android to Google Play
-        run: eas submit --platform android --profile production --non-interactive
+        run: eas submit --platform android --profile production --non-interactive --latest
