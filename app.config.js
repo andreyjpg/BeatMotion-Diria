@@ -17,7 +17,7 @@ export default ({ config }) => {
     expo: {
       name: appName,
       slug: "BeatMotion-Diria",
-      version: "1.0.0",
+      version: "1.1.0",
       orientation: "portrait",
       icon: "./assets/images/LogoDiria.png",
       scheme: isProd ? "beatmotiondiria" : "beatmotiondiria-qa",
