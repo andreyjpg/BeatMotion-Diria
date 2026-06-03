@@ -55,7 +55,7 @@ const LogIn = () => {
       ) : (
         <View className="w-full max-w-md gap-6 items-center">
           <Image
-            source={require("../../assets/images/LogoDiria.jpg")}
+            source={require("../../assets/images/LogoDiria.png")}
             className="w-30 h-80"
             resizeMode="contain"
           />
@@ -124,7 +124,7 @@ const LogIn = () => {
           </View>
 
           <Image
-            source={require("../../assets/images/LogoDiria.jpg")}
+            source={require("../../assets/images/LogoDiria.png")}
             className="w-30 h-20 mt-4"
             resizeMode="contain"
           />
