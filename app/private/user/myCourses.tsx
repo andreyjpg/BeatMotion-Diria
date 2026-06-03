@@ -1,7 +1,9 @@
 import DataLoader from "@/components/DataLoader";
 import { getEnrollmentColor, statusTranslations } from "@/constants/helpers";
+import { useBranches } from "@/hooks/branches/useBranches";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 
@@ -9,6 +11,7 @@ const MyCourses = () => {
   const router = useRouter();
   const { user: activeUser } = useActiveUser();
   const myCoursesQuery = useCoursesByUserMember(activeUser?.uid || "");
+  const branchesQuery = useBranches();
 
   const handleClickCourse = (courseId: string) => {
     router.push({
@@ -48,26 +51,45 @@ const MyCourses = () => {
               refreshControl={
                 <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
               }
-              renderItem={({ item: course }) => (
-                <Pressable
-                  onPress={() => handleClickCourse(course.courseId)}
-                  className="active:bg-secondary bg-gray-950 rounded-lg mb-3"
-                >
-                  <View key={course.id} className="mb-4 p-4  mx-1">
-                    <Text className="text-white text-xl font-bold">
-                      {course.title}
-                    </Text>
-                    <Text className="text-gray-500">{course.description}</Text>
-                    <Text
-                      className={`${getEnrollmentColor(
-                        course.paymentStatus
-                      )} mt-2 font-bold`}
-                    >
-                      Pago {statusTranslations[course.paymentStatus]}
-                    </Text>
-                  </View>
-                </Pressable>
-              )}
+              renderItem={({ item: course }) => {
+                const branch = branchesQuery.data?.find(
+                  (b) => b.id === course.branchId
+                );
+                return (
+                  <Pressable
+                    onPress={() => handleClickCourse(course.courseId)}
+                    className="active:bg-secondary bg-gray-950 rounded-lg mb-3"
+                  >
+                    <View key={course.id} className="mb-4 p-4 mx-1">
+                      <Text className="text-white text-xl font-bold">
+                        {course.title}
+                      </Text>
+                      {branch && (
+                        <View className="flex-row items-center gap-1 mt-1">
+                          <Ionicons
+                            name="business-outline"
+                            size={12}
+                            color="turquoise"
+                          />
+                          <Text className="text-primary text-xs">
+                            {branch.name}
+                          </Text>
+                        </View>
+                      )}
+                      <Text className="text-gray-500 mt-1">
+                        {course.description}
+                      </Text>
+                      <Text
+                        className={`${getEnrollmentColor(
+                          course.paymentStatus
+                        )} mt-2 font-bold`}
+                      >
+                        Pago {statusTranslations[course.paymentStatus]}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              }}
             />
           )}
         </DataLoader>

@@ -1,6 +1,8 @@
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
-import { useToggleSurveyActive, useDeleteSurvey, useSurveys } from "@/hooks/surveys/useSurveys";
+import { useSurveys } from "@/hooks/surveys/useSurveys";
+import { useUpdateSurvey } from "@/hooks/surveys/useUpdateSurvey";
+import { useDeleteSurvey } from "@/hooks/surveys/useDeleteSurvey";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
@@ -18,7 +20,7 @@ import type { Href } from "expo-router";
 export default function SurveysListScreen() {
   const router = useRouter();
   const surveysQuery = useSurveys();
-  const toggleActive = useToggleSurveyActive();
+  const toggleActive = useUpdateSurvey();
   const deleteSurvey = useDeleteSurvey();
 
   const handleToggleActive = (survey: Survey) => {
@@ -33,7 +35,7 @@ export default function SurveysListScreen() {
           onPress: () => {
             toggleActive.mutate({
               surveyId: survey.id,
-              isActive: survey.isActive,
+              isActive: !survey.isActive,
             });
           },
         },

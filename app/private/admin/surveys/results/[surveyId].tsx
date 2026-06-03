@@ -1,10 +1,8 @@
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
-import {
-  useSurveyResponses,
-  useSurveyResults,
-} from "@/hooks/surveys/useSurveyResponses";
-import { useSurveyById } from "@/hooks/surveys/useSurveys";
+import { useSurveyResponses } from "@/hooks/surveys/useSurveyResponses";
+import { useSurveyResults } from "@/hooks/surveys/useSurveyResults";
+import { useSurveyById } from "@/hooks/surveys/useSurveyById";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { RefreshControl, ScrollView, Text, View } from "react-native";

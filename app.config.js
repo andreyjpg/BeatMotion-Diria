@@ -19,7 +19,7 @@ export default ({ config }) => {
       slug: "BeatMotion-Diria",
       version: "1.0.0",
       orientation: "portrait",
-      icon: "./assets/images/BeatMotionLogo.png",
+      icon: "./assets/images/LogoDiria",
       scheme: isProd ? "beatmotiondiria" : "beatmotiondiria-qa",
       userInterfaceStyle: "automatic",
       newArchEnabled: true,
@@ -37,7 +37,7 @@ export default ({ config }) => {
           ? "./google-services-production.json"
           : "./google-services-preview.json",
         adaptiveIcon: {
-          foregroundImage: "./assets/images/BeatMotionLogo.png",
+          foregroundImage: "./assets/images/LogoDiria.jpg",
           backgroundColor: "#000000",
         },
         edgeToEdgeEnabled: true,
@@ -65,7 +65,7 @@ export default ({ config }) => {
         [
           "expo-notifications",
           {
-            icon: "./assets/images/BeatMotionLogo.png",
+            icon: "./assets/images/LogoDiria.jpg",
             color: "#000000",
           },
         ],

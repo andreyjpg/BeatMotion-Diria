@@ -4,6 +4,7 @@ import {
 } from "@/components/enrollment/askCameraPermision";
 import { formatCurrency, formatDate } from "@/constants/helpers";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
+import { useEnrollmentByUserId } from "@/hooks/enrollment/useEnrollmentByUserId";
 import { useFares } from "@/hooks/fares/useFares";
 import { PaymentStatus } from "@/hooks/payment/schema";
 import { useCreatePayment } from "@/hooks/payment/useCreatePayment";
@@ -27,6 +28,13 @@ const Detail = () => {
   const createPaymentMutation = useCreatePayment();
   const coursesByUserQuery = useCoursesByUserMember(user?.uid || "");
   const paymentByUserQuery = usePaymentsByUser(user?.uid);
+  const enrollmentsByUserQuery = useEnrollmentByUserId(user?.uid || "");
+
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const isExemptMonth = currentMonth === 10 || currentMonth === 11;
+  const annualFare = faresQuery.data?.find((d) => d.type === "annual")?.fare ?? 0;
+
   const [latePayment, setLatePayment] = useState({
     isLate: false,
     daysLate: 0,
@@ -35,6 +43,7 @@ const Detail = () => {
   const [paymentDate, setPaymentDate] = useState<Date>();
   const [amountPerNumberOfCourses, setAmountPerNumberOfCourses] = useState(0);
   const [paymentStatus, setpaymentStatus] = useState("");
+  const [shouldChargeAnnualFee, setShouldChargeAnnualFee] = useState(false);
 
   const [image, setImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -91,6 +100,17 @@ const Detail = () => {
     setHasPendingPayment(!!hasPending);
   }, [paymentByUserQuery.data]);
 
+  useEffect(() => {
+    if (isExemptMonth) { setShouldChargeAnnualFee(false); return; }
+    const paidInPayments = paymentByUserQuery.data?.some(
+      (p) => (p as any).annualFeeYear === currentYear && p.status !== "rejected"
+    ) ?? false;
+    const paidInEnrollments = enrollmentsByUserQuery.data?.some(
+      (e) => (e as any).annualFeeYear === currentYear && e.status !== "rejected"
+    ) ?? false;
+    setShouldChargeAnnualFee(!paidInPayments && !paidInEnrollments);
+  }, [paymentByUserQuery.data, enrollmentsByUserQuery.data, isExemptMonth, currentYear]);
+
   const handleImagePick = async () => {
     const imageSelected = await askForCameraPermission();
     setImage(imageSelected);
@@ -110,12 +130,13 @@ const Detail = () => {
         userId: user?.uid || "",
         coursesId: coursesEnrolled,
         monthlyFare: amountPerNumberOfCourses,
-        totalAmount: amountPerNumberOfCourses + latePayment.amount,
+        totalAmount: amountPerNumberOfCourses + latePayment.amount + (shouldChargeAnnualFee ? annualFare : 0),
         photoProofURL: imageUrl,
         isLatePayment: latePayment.isLate,
         daysAfterPayment: latePayment.daysLate,
         lateFare: latePayment.amount,
         status: PaymentStatus.pending,
+        annualFeeYear: shouldChargeAnnualFee ? currentYear : null,
       });
     } catch (error: any) {
       console.error("Error uploading enrollment:", error);
@@ -189,10 +210,16 @@ const Detail = () => {
           </Text>
         </View>
       )}
+      {shouldChargeAnnualFee && (
+        <View className="flex-row justify-between bg-gray-800 px-3 py-2 rounded-lg">
+          <Text className="text-white">Matrícula anual:</Text>
+          <Text className="text-white mr-5">{formatCurrency(annualFare)}</Text>
+        </View>
+      )}
       <View className="flex-row justify-between bg-gray-800 px-3 py-2 rounded-lg">
         <Text className="text-white">Monto total:</Text>
         <Text className=" text-white mr-5">
-          {formatCurrency(latePayment.amount + amountPerNumberOfCourses)}
+          {formatCurrency(latePayment.amount + amountPerNumberOfCourses + (shouldChargeAnnualFee ? annualFare : 0))}
         </Text>
       </View>
       <TouchableHighlight

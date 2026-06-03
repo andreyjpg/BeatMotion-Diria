@@ -13,6 +13,7 @@ export const courseSchema = zod.array(
     createdBy: zod.string().min(2).max(100).nullable(),
     day: zod.string().min(2).max(50).nullish(),
     startDate: timestampSchema,
+    branchId: zod.string().nullable().optional(),
   }),
 );
 

@@ -1,7 +1,7 @@
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
-import { useSurveyById } from "@/hooks/surveys/useSurveys";
-import { useSubmitSurveyResponse } from "@/hooks/surveys/useSurveyResponses";
+import { useSurveyById } from "@/hooks/surveys/useSurveyById";
+import { useSubmitSurveyResponse } from "@/hooks/surveys/useSubmitSurveyResponse";
 import {
   QuestionResponse,
   SurveyQuestion,
