@@ -462,6 +462,113 @@ export const checkPaymentStatus = onSchedule(
   },
 );
 
+function pad(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+export const sendAttendanceNotification = onSchedule(
+  {
+    schedule: "0 9 * * *",
+    timeZone: "America/Costa_Rica",
+  },
+  async () => {
+    const today = new Date();
+    const dayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+    const todayDayName = dayNames[today.getDay()];
+    const todayDateString = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+    logger.info(`sendAttendanceNotification: checking day="${todayDayName}" date="${todayDateString}"`);
+
+    const coursesSnap = await db
+      .collection("courses")
+      .where("isDeleted", "==", false)
+      .where("day", "==", todayDayName)
+      .get();
+
+    if (coursesSnap.empty) {
+      logger.info("No courses scheduled for today.");
+      return;
+    }
+
+    for (const courseDoc of coursesSnap.docs) {
+      const course = courseDoc.data();
+      const courseId = courseDoc.id;
+
+      const classesSnap = await db
+        .collection("classes")
+        .where("courseId", "==", courseId)
+        .where("date", "==", todayDateString)
+        .get();
+
+      if (classesSnap.empty) {
+        logger.info(`No class session found for course ${courseId} on ${todayDateString}. Skipping.`);
+        continue;
+      }
+
+      const classDoc = classesSnap.docs[0];
+      const classId = classDoc.id;
+
+      const membersSnap = await db
+        .collection("courseMember")
+        .where("courseId", "==", courseId)
+        .where("active", "==", true)
+        .get();
+
+      if (membersSnap.empty) {
+        logger.info(`No active members for course ${courseId}. Skipping.`);
+        continue;
+      }
+
+      const userIds = membersSnap.docs.map((d) => d.data().userId as string);
+
+      const tokenDocs = await Promise.all(
+        userIds.map((uid) => db.collection("pushTokens").doc(uid).get()),
+      );
+
+      const messages = tokenDocs
+        .filter((snap) => snap.exists && snap.data()?.token)
+        .map((snap) => ({
+          to: snap.data()!.token as string,
+          sound: "default",
+          title: "¿Vas a tu clase hoy?",
+          body: `Tu clase de ${course.title} es hoy. ¿Vas a asistir?`,
+          data: {
+            type: "attendance_rsvp",
+            courseId,
+            classId,
+            courseTitle: course.title ?? "",
+          },
+        }));
+
+      if (messages.length > 0) {
+        await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(messages),
+        });
+      }
+
+      const batch = db.batch();
+      userIds.forEach((userId) => {
+        const ref = db.collection("notifications").doc();
+        batch.set(ref, {
+          userId,
+          title: "¿Vas a tu clase hoy?",
+          content: `Tu clase de ${course.title} es hoy. ¿Vas a asistir?`,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          read: false,
+          data: { type: "attendance_rsvp", courseId, classId },
+        });
+      });
+      await batch.commit();
+
+      logger.info(
+        `Sent attendance notification for course ${courseId} / class ${classId} to ${messages.length} students.`,
+      );
+    }
+  },
+);
+
 interface UserDeletePayload {
   userId: string;
 }
