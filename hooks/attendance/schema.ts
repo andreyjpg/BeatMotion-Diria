@@ -7,6 +7,7 @@ const AttendanceSchema = zod.object({
   classId: zod.string(),
   userId: zod.string(),
   attended: zod.boolean(),
+  rsvpStatus: zod.enum(["leaders", "followers", "no_asistira"]).nullish(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema.nullish(),
 });

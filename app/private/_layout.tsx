@@ -65,6 +65,10 @@ export default function PrivateLayout() {
           name="user/enrollment/createEnrollment"
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="user/attendance/rsvp"
+          options={{ headerShown: false }}
+        />
       </Stack>
       <PrivacyConsentModal
         visible={userData !== undefined && userData.consentAccepted !== true}
