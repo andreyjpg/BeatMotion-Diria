@@ -48,11 +48,18 @@ export const useCreateFCMToken = () => {
       );
     };
 
-    registerToken();
+    // Push tokens aren't available everywhere (Expo Go on Android throws since
+    // SDK 55); a missing token must never break the app.
+    const safeRegisterToken = () =>
+      registerToken().catch((error) =>
+        console.warn("Push notifications unavailable:", error?.message ?? error)
+      );
+
+    safeRegisterToken();
 
     const subscription = Notifications.addNotificationResponseReceivedListener(
       () => {
-        registerToken();
+        safeRegisterToken();
       }
     );
 
