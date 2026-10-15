@@ -1,36 +1,21 @@
-import { auth, firestore } from "@/firebaseConfig";
-import { Stack, router } from "expo-router";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { Redirect, Stack } from "expo-router";
 import { Text, View } from "react-native";
 
+// Admins and teachers only. This only hides screens: what each role may
+// actually read or change is enforced by the database's access rules.
 export default function AdminLayout() {
-  const [allowed, setAllowed] = useState<null | boolean>(null);
+  const { user, isLoading } = useActiveUser();
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (!u) {
-        setAllowed(false);
-        router.replace("/public/login");
-        return;
-      }
-      const snap = await getDoc(doc(firestore, "users", u.uid));
-      const role = snap.exists() ? (snap.data() as any).role : "user";
-      const isAdmin = role === "admin" || role === "teacher";
-      setAllowed(isAdmin);
-      if (!isAdmin) router.replace("/private/home");
-    });
-    return () => unsub();
-  }, []);
-
-  if (allowed === null) {
+  if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
         <Text className="text-white">Cargando acceso...</Text>
       </View>
     );
   }
+  if (!user) return <Redirect href="/public/login" />;
+  if (user.role !== "admin" && user.role !== "teacher") return <Redirect href="/private/home" />;
 
   return (
     <Stack initialRouteName="coursesMenu">

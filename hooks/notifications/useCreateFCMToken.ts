@@ -1,11 +1,14 @@
-import { firestore } from "@/firebaseConfig";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { supabase } from "@/lib/supabase";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { useEffect } from "react";
 
+/**
+ * Registers this device's Expo push token for the signed-in user. Runs on
+ * every sign-in, so devices register themselves again after the migration.
+ */
 export const useCreateFCMToken = () => {
   const { user } = useActiveUser();
 
@@ -36,16 +39,10 @@ export const useCreateFCMToken = () => {
         projectId: Constants.expoConfig?.extra?.eas?.projectId,
       });
 
-      const ref = doc(firestore, "pushTokens", user.uid);
-      await setDoc(
-        ref,
-        {
-          token: expoToken,
-          role: user.role,
-          timestamp: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const { error } = await supabase
+        .from("push_tokens")
+        .upsert({ user_id: user.uid, token: expoToken }, { onConflict: "user_id" });
+      if (error) console.error("Error saving push token:", error);
     };
 
     registerToken();

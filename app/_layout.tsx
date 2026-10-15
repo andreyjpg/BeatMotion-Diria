@@ -1,6 +1,6 @@
 // app/_layout.tsx
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { AuthProvider, useActiveUser } from "@/hooks/user/UseActiveUser";
 import {
   DarkTheme,
   DefaultTheme,
@@ -67,10 +67,12 @@ export default Sentry.wrap(function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <AppContent />
-        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+          <AppContent />
+          <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 });

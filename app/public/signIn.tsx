@@ -1,8 +1,8 @@
 import { signInValidationSchema } from "@/constants/validationForms";
-import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
-import { doc, getFirestore, setDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   Pressable,
@@ -22,6 +22,7 @@ const SignIn = () => {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const [consentAccepted, setConsentAccepted] = useState(false);
 
@@ -63,9 +64,10 @@ const SignIn = () => {
     }
   };
 
+  // The profile is created by the database in the same step as the account
+  // (from the metadata below), so an account can't end up without a profile.
   const register = async () => {
-    const auth = getAuth();
-    const db = getFirestore();
+    if (submitting) return;
     if (!validateForm()) {
       return;
     }
@@ -77,37 +79,44 @@ const SignIn = () => {
       );
       return;
     }
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password,
-      );
-      const user = userCredential.user;
 
-      await setDoc(doc(db, "users", user.uid), {
-        name: name,
-        lastName: lastName,
-        phone: phone,
-        email: user.email,
-        createdAt: new Date(),
-        uid: user.uid,
-        role: "user",
-        isActive: true,
-        consentAccepted: true,
-        consentAcceptedAt: new Date(),
-      });
-      handleClearValues();
-      Alert.alert("Registro exitoso", "Usuario registrado y datos guardados", [
-        { text: "continuar", onPress: () => console.log("Continuar") },
-      ]);
-    } catch (error) {
-      Alert.alert(
-        "Error",
-        "No se pudo registrar el usuario. Inténtalo de nuevo.",
-        [{ text: "OK" }],
-      );
+    setSubmitting(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: {
+          name: name.trim(),
+          last_name: lastName.trim(),
+          phone: phone.trim(),
+          consent_accepted: true,
+        },
+      },
+    });
+    setSubmitting(false);
+
+    if (error) {
+      console.error("Sign-up error:", error);
+      const message =
+        error.code === "user_already_exists" || error.code === "email_exists"
+          ? "Ya existe una cuenta con este correo. Inicia sesión o recupera tu contraseña."
+          : error.code === "weak_password"
+            ? "La contraseña es muy débil. Usa una más segura."
+            : "No se pudo registrar el usuario. Inténtalo de nuevo.";
+      Alert.alert("Error", message, [{ text: "OK" }]);
+      return;
     }
+
+    handleClearValues();
+    // With email confirmation enabled in Supabase there is no session until the
+    // user confirms; otherwise the root layout opens the app right away.
+    Alert.alert(
+      "Registro exitoso",
+      data.session
+        ? "Tu cuenta fue creada."
+        : "Revisa tu correo para confirmar la cuenta antes de iniciar sesión.",
+      [{ text: "Continuar" }],
+    );
   };
 
   const handleClearValues = () => {
@@ -233,15 +242,19 @@ const SignIn = () => {
         </Pressable>
 
         <TouchableOpacity
-          className={`rounded-xl py-3 active:opacity-80 ${consentAccepted ? "bg-emerald-400" : "bg-emerald-900"}`}
+          className={`rounded-xl py-3 active:opacity-80 ${consentAccepted && !submitting ? "bg-emerald-400" : "bg-emerald-900"}`}
           onPress={register}
-          disabled={!consentAccepted}
+          disabled={!consentAccepted || submitting}
         >
-          <Text
-            className={`text-center font-semibold ${consentAccepted ? "text-black" : "text-gray-500"}`}
-          >
-            Crear cuenta
-          </Text>
+          {submitting ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <Text
+              className={`text-center font-semibold ${consentAccepted ? "text-black" : "text-gray-500"}`}
+            >
+              Crear cuenta
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

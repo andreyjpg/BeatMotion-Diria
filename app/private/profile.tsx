@@ -1,16 +1,14 @@
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
 import HeaderTitle from "@/components/headerTitle";
 import { UserProfileValidationSchema } from "@/constants/validationForms";
-import { auth, functions } from "@/firebaseConfig";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useUpdateProfile } from "@/hooks/user/useUpdateProfile";
 import { useUserInfo } from "@/hooks/user/useUserInfo";
-import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
-import { signOut } from "firebase/auth";
-import { httpsCallable } from "firebase/functions";
 import { useEffect, useState } from "react";
 import {
+  Alert,
   Image,
   ScrollView,
   Text,
@@ -25,7 +23,6 @@ export default function ProfileScreen() {
   const { user: activeUser } = useActiveUser();
   const userInfo = useUserInfo(activeUser?.uid as string);
   const updateProfile = useUpdateProfile();
-  const queryClient = useQueryClient();
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
@@ -98,25 +95,29 @@ export default function ProfileScreen() {
     }
   };
 
+  // Signing out clears the cached data (see AuthProvider) and the root layout
+  // switches back to the login screen.
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      queryClient.invalidateQueries({ queryKey: ["activeUser"] });
-      router.replace("/public/login");
-    } catch (err) {
-      throw new Error(`Error loggin out ${err}`);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Logout error:", error);
+      Alert.alert("Error", "No se pudo cerrar la sesión. Inténtalo de nuevo.");
+      return;
     }
+    router.replace("/public/login");
   };
 
+  // The function needs the current session to know whose account to delete,
+  // so call it before signing out.
   const handleDeleteAccount = async () => {
-    const sendPush = httpsCallable(functions, "deleteUser");
-    await signOut(auth);
-
-    await sendPush({
-      userId: activeUser?.uid,
-    });
-
-    queryClient.invalidateQueries({ queryKey: ["activeUser"] });
+    const { error } = await supabase.functions.invoke("delete-account");
+    if (error) {
+      console.error("Delete account error:", error);
+      Alert.alert("Error", "No se pudo eliminar la cuenta. Inténtalo de nuevo.");
+      return;
+    }
+    // The account no longer exists on the server; just clear the local session.
+    await supabase.auth.signOut({ scope: "local" });
     router.replace("/public/login");
   };
 

@@ -1,0 +1,24 @@
+{
+  "name": "migrate-from-firebase",
+  "private": true,
+  "type": "module",
+  "description": "One-time migration of Firebase Auth users, Firestore data and Storage files into Supabase.",
+  "scripts": {
+    "dry-run": "tsx --env-file=.env src/migrate.ts --dry-run",
+    "migrate": "tsx --env-file=.env src/migrate.ts",
+    "check-login": "tsx --env-file=.env src/check-login.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.0",
+    "firebase-admin": "^13.0.0",
+    "pg": "^8.13.0",
+    "sharp": "^0.34.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.0"
+  }
+}

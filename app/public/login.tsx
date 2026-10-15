@@ -1,6 +1,6 @@
 ﻿import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { supabase } from "@/lib/supabase";
 import { useRouter } from "expo-router";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,6 +20,7 @@ const URL_POLICIES = "https://beatmotion-politica-privacidad.netlify.app";
 const LogIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const { isLoading } = useActiveUser();
   const router = useRouter();
 
@@ -33,18 +34,25 @@ const LogIn = () => {
     }
   }, []);
 
+  // On success the root layout sees the new session and opens the app.
   const handleLogin = async () => {
-    const auth = getAuth();
+    if (submitting) return;
+    setSubmitting(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    setSubmitting(false);
 
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
+    if (error) {
       console.error("Login error:", error);
-      Alert.alert(
-        "Error",
-        "Hubo un problema al iniciar sesión. Verifica tus credenciales o conexión.",
-        [{ text: "OK" }],
-      );
+      const message =
+        error.code === "invalid_credentials"
+          ? "Correo o contraseña incorrectos."
+          : error.code === "email_not_confirmed"
+            ? "Confirma tu correo antes de iniciar sesión."
+            : "Hubo un problema al iniciar sesión. Verifica tus credenciales o conexión.";
+      Alert.alert("Error", message, [{ text: "OK" }]);
     }
   };
 
@@ -87,12 +95,17 @@ const LogIn = () => {
             />
 
             <TouchableOpacity
-              className="bg-emerald-400 rounded-xl py-3 active:opacity-80"
+              className={`rounded-xl py-3 active:opacity-80 ${submitting ? "bg-emerald-700" : "bg-emerald-400"}`}
               onPress={handleLogin}
+              disabled={submitting}
             >
-              <Text className="text-center font-semibold text-black">
-                Ingresar
-              </Text>
+              {submitting ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <Text className="text-center font-semibold text-black">
+                  Ingresar
+                </Text>
+              )}
             </TouchableOpacity>
 
             <TouchableHighlight
