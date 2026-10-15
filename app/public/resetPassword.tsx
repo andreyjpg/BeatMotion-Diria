@@ -86,7 +86,9 @@ const ResetPassword = () => {
           <Text className="text-gray-400 text-sm">
             {step === "email"
               ? "Ingresa tu correo y te enviaremos un código"
-              : `Ingresa el código que enviamos a ${email.trim()} y tu nueva contraseña`}
+              : // Supabase doesn't reveal whether an email has an account, so
+                // don't claim the code was sent.
+                `Si ${email.trim()} está registrado, te enviamos un código. Ingrésalo junto con tu nueva contraseña.`}
           </Text>
         </View>
 
