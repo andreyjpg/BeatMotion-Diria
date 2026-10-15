@@ -6,6 +6,16 @@ module.exports = defineConfig([
   expoConfig,
   {
     // supabase/ holds Deno Edge Functions and Node scripts with their own tooling.
-    ignores: ['dist/*', 'supabase/**'],
+    ignores: ['dist/*', '.expo/*', 'supabase/**'],
+  },
+  {
+    // eslint-config-expo 57 enables the React Compiler rules as errors. Existing
+    // screens predate them (mostly setState inside useEffect), so they stay
+    // visible as warnings and get fixed as each screen is reworked.
+    rules: {
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/purity': 'warn',
+    },
   },
 ]);
