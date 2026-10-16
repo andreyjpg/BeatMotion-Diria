@@ -1,3 +1,4 @@
+import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
 import { useCourses } from "@/hooks/courses/useCourses";
 import { useCreateSurvey } from "@/hooks/surveys/useCreateSurvey";
@@ -15,7 +16,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
-  ScrollView,
   Switch,
   Text,
   TextInput,
@@ -232,7 +232,7 @@ export default function CreateEditSurveyScreen() {
         subtitle={isEditing ? "Modifica la encuesta" : "Crea una nueva encuesta"}
       />
 
-      <ScrollView
+      <FormScrollView
         className="flex-1 px-6"
         contentContainerStyle={{ paddingBottom: 100 }}
       >
@@ -511,7 +511,7 @@ export default function CreateEditSurveyScreen() {
         >
           <Text className="text-white font-semibold">Cancelar</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </FormScrollView>
     </SafeAreaView>
   );
 }

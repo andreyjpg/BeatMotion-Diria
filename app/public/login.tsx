@@ -1,5 +1,6 @@
-﻿import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { supabase } from "@/lib/supabase";
+﻿import FormScrollView from "@/components/FormScrollView";
+import { useSignIn } from "@/hooks/auth/useSignIn";
+import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -20,7 +21,8 @@ const URL_POLICIES = "https://beatmotion-politica-privacidad.netlify.app";
 const LogIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const signIn = useSignIn();
+  const submitting = signIn.isPending;
   const { isLoading } = useActiveUser();
   const router = useRouter();
 
@@ -35,29 +37,28 @@ const LogIn = () => {
   }, []);
 
   // On success the root layout sees the new session and opens the app.
-  const handleLogin = async () => {
+  const handleLogin = () => {
     if (submitting) return;
-    setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    setSubmitting(false);
-
-    if (error) {
-      console.error("Login error:", error);
-      const message =
-        error.code === "invalid_credentials"
-          ? "Correo o contraseña incorrectos."
-          : error.code === "email_not_confirmed"
-            ? "Confirma tu correo antes de iniciar sesión."
-            : "Hubo un problema al iniciar sesión. Verifica tus credenciales o conexión.";
-      Alert.alert("Error", message, [{ text: "OK" }]);
-    }
+    signIn.mutate(
+      { email, password },
+      {
+        onError: (error) => {
+          console.error("Login error:", error);
+          const message =
+            error.code === "invalid_credentials"
+              ? "Correo o contraseña incorrectos."
+              : error.code === "email_not_confirmed"
+                ? "Confirma tu correo antes de iniciar sesión."
+                : "Hubo un problema al iniciar sesión. Verifica tus credenciales o conexión.";
+          Alert.alert("Error", message, [{ text: "OK" }]);
+        },
+      },
+    );
   };
 
   return (
-    <SafeAreaView className="flex-1 justify-center items-center px-5 bg-black w-full">
+    <SafeAreaView className="flex-1 bg-black w-full">
+      <FormScrollView contentContainerClassName="flex-grow justify-center items-center px-5">
       {isLoading ? (
         <ActivityIndicator size="large" color="#40E0D0" className="mb-4" />
       ) : (
@@ -143,6 +144,7 @@ const LogIn = () => {
           />
         </View>
       )}
+      </FormScrollView>
     </SafeAreaView>
   );
 };

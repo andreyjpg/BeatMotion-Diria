@@ -1,5 +1,6 @@
+import FormScrollView from "@/components/FormScrollView";
 import { signInValidationSchema } from "@/constants/validationForms";
-import { supabase } from "@/lib/supabase";
+import { useSignUp } from "@/hooks/auth/useSignUp";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -22,7 +23,8 @@ const SignIn = () => {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const signUp = useSignUp();
+  const submitting = signUp.isPending;
 
   const [consentAccepted, setConsentAccepted] = useState(false);
 
@@ -48,7 +50,8 @@ const SignIn = () => {
         password: "",
       });
       return true;
-    } catch (err: any) {
+    } catch (err) {
+      if (!(err instanceof Yup.ValidationError)) throw err;
       const errors = {
         name: "",
         lastName: "",
@@ -56,7 +59,7 @@ const SignIn = () => {
         email: "",
         password: "",
       };
-      err.inner.forEach((error: any) => {
+      err.inner.forEach((error) => {
         errors[error.path as keyof typeof errors] = error.message;
       });
       setFormErrors(errors);
@@ -64,9 +67,7 @@ const SignIn = () => {
     }
   };
 
-  // The profile is created by the database in the same step as the account
-  // (from the metadata below), so an account can't end up without a profile.
-  const register = async () => {
+  const register = () => {
     if (submitting) return;
     if (!validateForm()) {
       return;
@@ -80,42 +81,32 @@ const SignIn = () => {
       return;
     }
 
-    setSubmitting(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          name: name.trim(),
-          last_name: lastName.trim(),
-          phone: phone.trim(),
-          consent_accepted: true,
+    signUp.mutate(
+      { email, password, name, lastName, phone },
+      {
+        onSuccess: ({ signedIn }) => {
+          handleClearValues();
+          // With email confirmation enabled in Supabase there is no session
+          // until the user confirms; otherwise the root layout opens the app.
+          Alert.alert(
+            "Registro exitoso",
+            signedIn
+              ? "Tu cuenta fue creada."
+              : "Revisa tu correo para confirmar la cuenta antes de iniciar sesión.",
+            [{ text: "Continuar" }],
+          );
+        },
+        onError: (error) => {
+          console.error("Sign-up error:", error);
+          const message =
+            error.code === "user_already_exists" || error.code === "email_exists"
+              ? "Ya existe una cuenta con este correo. Inicia sesión o recupera tu contraseña."
+              : error.code === "weak_password"
+                ? "La contraseña es muy débil. Usa una más segura."
+                : "No se pudo registrar el usuario. Inténtalo de nuevo.";
+          Alert.alert("Error", message, [{ text: "OK" }]);
         },
       },
-    });
-    setSubmitting(false);
-
-    if (error) {
-      console.error("Sign-up error:", error);
-      const message =
-        error.code === "user_already_exists" || error.code === "email_exists"
-          ? "Ya existe una cuenta con este correo. Inicia sesión o recupera tu contraseña."
-          : error.code === "weak_password"
-            ? "La contraseña es muy débil. Usa una más segura."
-            : "No se pudo registrar el usuario. Inténtalo de nuevo.";
-      Alert.alert("Error", message, [{ text: "OK" }]);
-      return;
-    }
-
-    handleClearValues();
-    // With email confirmation enabled in Supabase there is no session until the
-    // user confirms; otherwise the root layout opens the app right away.
-    Alert.alert(
-      "Registro exitoso",
-      data.session
-        ? "Tu cuenta fue creada."
-        : "Revisa tu correo para confirmar la cuenta antes de iniciar sesión.",
-      [{ text: "Continuar" }],
     );
   };
 
@@ -128,7 +119,8 @@ const SignIn = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 justify-center items-center px-5 bg-black w-full">
+    <SafeAreaView className="flex-1 bg-black w-full">
+      <FormScrollView contentContainerClassName="flex-grow justify-center items-center px-5">
       <View className="bg-gray-900 w-full max-w-md rounded-3xl p-7 gap-4 shadow-lg border border-gray-800">
         <View className="gap-1">
           <Text className="text-2xl font-bold text-white">
@@ -257,7 +249,8 @@ const SignIn = () => {
           )}
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+      </FormScrollView>
+2    </SafeAreaView>
   );
 };
 

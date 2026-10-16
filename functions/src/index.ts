@@ -216,13 +216,13 @@ export const sendExpoPushNotification = onCall(async (data) => {
       throw new Error("Missing title, body or UserRole");
     }
 
-    let tokens = [];
     const snapShot =
       userRole !== "all"
         ? await db.collection("pushTokens").where("role", "==", userRole).get()
         : await db.collection("pushTokens").get();
+    // Declared once (a shadowed copy used to make this always report 0 sent).
+    const tokens: string[] = snapShot.docs.map((doc) => doc.get("token"));
     if (snapShot.docs) {
-      const tokens = snapShot.docs.map((doc) => doc.get("token"));
       const messages = tokens.map((token) => ({
         to: token,
         sound: "default",
@@ -260,7 +260,7 @@ export const sendExpoPushNotification = onCall(async (data) => {
       batch.commit();
     }
     return { success: tokens.length, failed: 0 };
-  } catch (er: any) {
+  } catch (er) {
     logger.error("Error sending push notification", er);
   }
 });

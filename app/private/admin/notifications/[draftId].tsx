@@ -1,3 +1,4 @@
+import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
 import { DraftValidationSchema } from "@/constants/validationForms";
 import { functions } from "@/firebaseConfig";
@@ -10,7 +11,6 @@ import { httpsCallable } from "firebase/functions";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -134,7 +134,7 @@ export default function DraftScreen() {
     <SafeAreaView className="flex-1 bg-gray-950">
       <HeaderTitle title="Guardar Borrador" />
 
-      <ScrollView className="flex-1 p-5">
+      <FormScrollView className="flex-1 p-5">
         <View className="mb-4">
           <TextInput
             placeholder="Título"
@@ -198,7 +198,7 @@ export default function DraftScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </FormScrollView>
     </SafeAreaView>
   );
 }

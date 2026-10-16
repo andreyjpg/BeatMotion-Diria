@@ -1,28 +1,31 @@
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
+import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
 import { UserProfileValidationSchema } from "@/constants/validationForms";
+import { useDeleteAccount } from "@/hooks/auth/useDeleteAccount";
+import { useSignOut } from "@/hooks/auth/useSignOut";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useUpdateProfile } from "@/hooks/user/useUpdateProfile";
 import { useUserInfo } from "@/hooks/user/useUserInfo";
-import { supabase } from "@/lib/supabase";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
   Image,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { object } from "yup";
+import { object, ValidationError } from "yup";
 
 export default function ProfileScreen() {
   const { user: activeUser } = useActiveUser();
   const userInfo = useUserInfo(activeUser?.uid as string);
   const updateProfile = useUpdateProfile();
+  const signOut = useSignOut();
+  const deleteAccount = useDeleteAccount();
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
@@ -65,16 +68,16 @@ export default function ProfileScreen() {
         lastName: "",
         phone: "",
       });
-    } catch (err: any) {
+    } catch (err) {
+      if (!(err instanceof ValidationError)) throw err;
       const errors = {
         name: "",
         lastName: "",
         phone: "",
       };
-      err.inner.reduce((acc: any, curr: any) => {
-        acc[curr.path] = curr.message;
-        return acc;
-      }, errors);
+      err.inner.forEach((error) => {
+        errors[error.path as keyof typeof errors] = error.message;
+      });
       setFormErrors(errors);
       return false;
     }
@@ -95,30 +98,26 @@ export default function ProfileScreen() {
     }
   };
 
-  // Signing out clears the cached data (see AuthProvider) and the root layout
-  // switches back to the login screen.
+  // Signing out unmounts this screen (the root layout switches to the login
+  // stack), so await mutateAsync() instead of relying on mutate() callbacks.
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      await signOut.mutateAsync();
+      router.replace("/public/login");
+    } catch (error) {
       console.error("Logout error:", error);
       Alert.alert("Error", "No se pudo cerrar la sesión. Inténtalo de nuevo.");
-      return;
     }
-    router.replace("/public/login");
   };
 
-  // The function needs the current session to know whose account to delete,
-  // so call it before signing out.
   const handleDeleteAccount = async () => {
-    const { error } = await supabase.functions.invoke("delete-account");
-    if (error) {
+    try {
+      await deleteAccount.mutateAsync();
+      router.replace("/public/login");
+    } catch (error) {
       console.error("Delete account error:", error);
       Alert.alert("Error", "No se pudo eliminar la cuenta. Inténtalo de nuevo.");
-      return;
     }
-    // The account no longer exists on the server; just clear the local session.
-    await supabase.auth.signOut({ scope: "local" });
-    router.replace("/public/login");
   };
 
   const resetState = () => {
@@ -143,7 +142,7 @@ export default function ProfileScreen() {
     <SafeAreaView className="flex-1 bg-black">
       <HeaderTitle title="Mi Perfil" />
 
-      <ScrollView className="px-4">
+      <FormScrollView className="px-4">
         <View className="items-center mb-8">
           {photoUrl ? (
             <Image
@@ -272,7 +271,7 @@ export default function ProfileScreen() {
             Eliminar cuenta
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </FormScrollView>
       <DeleteAccountModal
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}

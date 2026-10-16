@@ -18,4 +18,18 @@ module.exports = defineConfig([
       'react-hooks/purity': 'warn',
     },
   },
+  {
+    // Project style: declare with const (let only when it's reassigned).
+    rules: {
+      'prefer-const': 'error',
+      'no-var': 'error',
+    },
+  },
+  {
+    // Type everything. A warning until the remaining older screens are typed.
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+    },
+  },
 ]);

@@ -41,14 +41,24 @@ function AppContent() {
   const router = useRouter();
   const lastNotificationResponse = Notifications.useLastNotificationResponse();
 
+  // Tapping an attendance reminder opens the RSVP screen for that class.
   useEffect(() => {
-    const data = lastNotificationResponse?.notification.request.content.data as any;
-    if (data?.type === "attendance_rsvp" && data.courseId && data.classId) {
-      router.push(
-        `/private/user/attendance/rsvp?courseId=${data.courseId}&classId=${data.classId}&courseTitle=${encodeURIComponent(data.courseTitle ?? "")}` as any
-      );
+    const data = lastNotificationResponse?.notification.request.content.data;
+    if (
+      data?.type === "attendance_rsvp" &&
+      typeof data.courseId === "string" &&
+      typeof data.classId === "string"
+    ) {
+      router.push({
+        pathname: "/private/user/attendance/rsvp",
+        params: {
+          courseId: data.courseId,
+          classId: data.classId,
+          courseTitle: typeof data.courseTitle === "string" ? data.courseTitle : "",
+        },
+      });
     }
-  }, [lastNotificationResponse]);
+  }, [lastNotificationResponse, router]);
 
   return (
     <Stack>

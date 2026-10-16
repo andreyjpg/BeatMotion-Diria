@@ -7,6 +7,7 @@ import { useCreateMarketplaceItem } from "@/hooks/marketplace/useCreateMarketpla
 import { useDeleteMarketplaceItem } from "@/hooks/marketplace/useDeleteMarketplaceItem";
 import { useUpdateMarketplaceItem } from "@/hooks/marketplace/useUpdateMarketplaceItem";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import FormScrollView from "@/components/FormScrollView";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,9 +15,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   Switch,
   Text,
   TextInput,
@@ -405,11 +403,7 @@ export default function MarketplaceAdminForm() {
 
   return (
     <SafeAreaView className="flex-1 bg-black">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
+        <FormScrollView
           contentContainerStyle={{ paddingBottom: 48 }}
           className="flex-1 px-6"
         >
@@ -651,8 +645,7 @@ export default function MarketplaceAdminForm() {
                 : "Guardar articulo"}
             </Text>
           </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </FormScrollView>
     </SafeAreaView>
   );
 }

@@ -1,5 +1,4 @@
-import { firestore } from "@/firebaseConfig";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
 
@@ -16,13 +15,15 @@ export const useAssignClass = () => {
       classId: string;
       adminId: string;
     }) => {
-      const ref = doc(firestore, "enrollments", enrollmentId);
-
-      await updateDoc(ref, {
-        assignedClass: classId,
-        classAssignedAt: serverTimestamp(),
-        classAssignedBy: adminId,
-      });
+      const { error } = await supabase
+        .from("enrollments")
+        .update({
+          assigned_class_id: classId,
+          class_assigned_at: new Date().toISOString(),
+          class_assigned_by: adminId,
+        })
+        .eq("id", enrollmentId);
+      if (error) throw error;
     },
 
     onSuccess: () => {
@@ -35,5 +36,4 @@ export const useAssignClass = () => {
       Alert.alert("Error", "No se pudo asignar la clase");
     },
   });
-  
 };

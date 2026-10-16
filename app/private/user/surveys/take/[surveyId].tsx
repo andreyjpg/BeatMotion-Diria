@@ -1,4 +1,5 @@
 import DataLoader from "@/components/DataLoader";
+import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
 import { useSurveyById } from "@/hooks/surveys/useSurveyById";
 import { useSubmitSurveyResponse } from "@/hooks/surveys/useSubmitSurveyResponse";
@@ -12,7 +13,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Alert,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -180,7 +180,7 @@ export default function TakeSurveyScreen() {
 
       <DataLoader query={surveyQuery} emptyMessage="Encuesta no encontrada">
         {(survey) => (
-          <ScrollView
+          <FormScrollView
             className="flex-1 px-6"
             contentContainerStyle={{ paddingBottom: 100 }}
           >
@@ -248,7 +248,7 @@ export default function TakeSurveyScreen() {
             >
               <Text className="text-white font-semibold">Cancelar</Text>
             </TouchableOpacity>
-          </ScrollView>
+          </FormScrollView>
         )}
       </DataLoader>
     </SafeAreaView>

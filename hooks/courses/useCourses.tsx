@@ -1,31 +1,17 @@
-import { firestore } from "@/firebaseConfig";
-import {
-  collection,
-  getDocs,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-} from "@firebase/firestore";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
 import { Alert } from "react-native";
-import { courseSchema } from "./schema/courseSchema";
-
-const courseQuery = query(
-  collection(firestore, "courses"),
-  where("isDeleted", "==", false),
-  orderBy("createdAt", "desc"),
-);
+import { COURSE_COLUMNS, courseSchema, toCourse } from "./schema/courseSchema";
 
 const fetchCourses = async () => {
   try {
-    const snapshot = await getDocs(courseQuery);
-    const courses = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    return courseSchema.parse(courses);
+    const { data, error } = await supabase
+      .from("courses")
+      .select(COURSE_COLUMNS)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return courseSchema.parse(data.map(toCourse));
   } catch (error) {
     console.error("Error fetching courses:", error);
     Alert.alert("Error fetching courses");
@@ -33,27 +19,13 @@ const fetchCourses = async () => {
   }
 };
 
+// Course changes made in the app refresh this list through the mutations'
+// invalidateQueries(["courses"]).
 export const useCourses = () => {
-  const queryClient = useQueryClient();
-  const query = useQuery({
+  return useQuery({
     queryKey: ["courses"],
     queryFn: fetchCourses,
     staleTime: 1000 * 60 * 15, // 15 minutes
     refetchOnWindowFocus: false,
   });
-
-  //Will do updates in real time
-  useEffect(() => {
-    const unsub = onSnapshot(courseQuery, (snapshot) => {
-      const courses = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      queryClient.setQueryData(["courses"], courses);
-    });
-
-    return () => unsub();
-  }, [queryClient]);
-
-  return query;
 };

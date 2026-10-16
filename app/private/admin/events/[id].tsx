@@ -1,3 +1,4 @@
+import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
 import { eventSchema } from "@/constants/validationForms";
 import { pickEventBanner, uploadEventBanner } from "@/hooks/events/eventMedia";
@@ -21,7 +22,6 @@ import {
   Alert,
   Image,
   Linking,
-  ScrollView,
   Switch,
   Text,
   TextInput,
@@ -341,7 +341,7 @@ const EditEvent = () => {
   return (
     <SafeAreaView className="flex-1 bg-black">
       <HeaderTitle title="Editar evento" />
-      <ScrollView
+      <FormScrollView
         className="flex-1 px-5 py-6"
         contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
       >
@@ -645,7 +645,7 @@ const EditEvent = () => {
         >
           <Text className="text-white font-semibold">Cancelar</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </FormScrollView>
     </SafeAreaView>
   );
 };

@@ -1,33 +1,25 @@
+import FieldError from "@/components/FieldError";
+import FormScrollView from "@/components/FormScrollView";
+import {
+  courseFormSchema,
+  FormErrors,
+  validationErrors,
+} from "@/constants/validationForms";
 import { useBranches } from "@/hooks/branches/useBranches";
 import { useCreateCourse } from "@/hooks/courses/useCreateCourse";
+import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { useTeachers } from "@/hooks/user/useTeachers";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
-import { getAuth } from "firebase/auth";
-import {
-  collection,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   Alert,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-type Teacher = {
-  id: string;
-  name: string;
-  lastName: string;
-  email: string;
-};
 
 const DAYS_OF_WEEK = [
   { label: "Lunes", value: "lunes" },
@@ -41,84 +33,52 @@ const DAYS_OF_WEEK = [
 
 export default function NewCourseScreen() {
   const [title, setTitle] = useState("");
-  const [teacher, setTeacher] = useState("");
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [teacherId, setTeacherId] = useState("");
   const [level, setLevel] = useState("0");
   const [description, setDescription] = useState("");
   const [day, setDay] = useState("lunes");
   const [branchId, setBranchId] = useState("");
-  const [loadingTeachers, setLoadingTeachers] = useState(true);
+  const [errors, setErrors] = useState<FormErrors<typeof courseFormSchema>>({});
 
+  const { user } = useActiveUser();
   const createCourse = useCreateCourse();
   const branchesQuery = useBranches();
+  const teachersQuery = useTeachers();
+  const teachers = teachersQuery.data ?? [];
+  const loadingTeachers = teachersQuery.isLoading;
+
+  // Preselect the first teacher once the list arrives.
+  useEffect(() => {
+    if (!teacherId && teachersQuery.data?.length) {
+      setTeacherId(teachersQuery.data[0].id);
+    }
+  }, [teacherId, teachersQuery.data]);
 
   useEffect(() => {
-    loadTeachers();
-  }, []);
-
-  const loadTeachers = async () => {
-    try {
-      setLoadingTeachers(true);
-      const db = getFirestore();
-      const q = query(
-        collection(db, "users"),
-        where("role", "==", "teacher"),
-        where("role", "==", "admin"),
-        where("isActive", "==", true),
-        orderBy("name", "asc"),
-      );
-
-      const snapshot = await getDocs(q);
-      const teachersList: Teacher[] = [];
-
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        teachersList.push({
-          id: doc.id,
-          name: data.name || "",
-          lastName: data.lastName || "",
-          email: data.email || "",
-        });
-      });
-
-      setTeachers(teachersList);
-
-      if (teachersList.length > 0) {
-        const firstTeacher = `${teachersList[0].name} ${teachersList[0].lastName}`;
-        setTeacher(firstTeacher);
-      }
-    } catch (error: any) {
-      console.error("Error loading teachers:", error);
-      if (error.code === "failed-precondition") {
-        Alert.alert(
-          "Configuración requerida",
-          "Se necesita crear un índice en Firestore. Revisa la consola para el enlace de creación del índice.",
-          [{ text: "OK" }],
-        );
-      } else {
-        Alert.alert("Error", "No se pudieron cargar los profesores.");
-      }
-    } finally {
-      setLoadingTeachers(false);
+    if (teachersQuery.isError) {
+      Alert.alert("Error", "No se pudieron cargar los profesores.");
     }
-  };
+  }, [teachersQuery.isError]);
 
   const handleSave = () => {
-    if (!title.trim() || !teacher.trim()) {
-      Alert.alert("Faltan datos", "Título y profesor son obligatorios.");
-      return;
-    }
+    const formErrors = validationErrors(courseFormSchema, {
+      title,
+      teacherId,
+      level,
+      description,
+    });
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0) return;
 
-    const uid = getAuth().currentUser?.uid ?? "unknown";
     createCourse.mutate(
       {
         title: title.trim(),
         description: description.trim(),
         level: level.trim(),
-        teacher: teacher.trim(),
+        teacherId,
         day,
         branchId: branchId || null,
-        createdBy: uid,
+        createdBy: user!.uid,
       },
       { onSuccess: () => router.back() },
     );
@@ -126,7 +86,7 @@ export default function NewCourseScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-black px-6 py-10">
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <FormScrollView showsVerticalScrollIndicator={false}>
         <Text className="text-white text-2xl font-bold mb-6">Nuevo curso</Text>
 
         <Text className="text-white mb-2 font-semibold">Título *</Text>
@@ -137,6 +97,7 @@ export default function NewCourseScreen() {
           placeholder="Título del curso"
           placeholderTextColor="#9CA3AF"
         />
+        <FieldError message={errors.title} className="-mt-3 mb-4" />
 
         <Text className="text-white mb-2 font-semibold">Profesor *</Text>
         {loadingTeachers ? (
@@ -155,8 +116,8 @@ export default function NewCourseScreen() {
         ) : (
           <View className="bg-gray-900 rounded-xl mb-4">
             <Picker
-              selectedValue={teacher}
-              onValueChange={(value) => setTeacher(String(value))}
+              selectedValue={teacherId}
+              onValueChange={(value) => setTeacherId(String(value))}
               dropdownIconColor="#ffffff"
               style={{ color: "white" }}
             >
@@ -164,12 +125,13 @@ export default function NewCourseScreen() {
                 <Picker.Item
                   key={t.id}
                   label={`${t.name} ${t.lastName}`}
-                  value={`${t.name} ${t.lastName}`}
+                  value={t.id}
                 />
               ))}
             </Picker>
           </View>
         )}
+        <FieldError message={errors.teacherId} className="-mt-3 mb-4" />
 
         <Text className="text-white mb-2 font-semibold">Nivel *</Text>
         <View className="bg-gray-900 rounded-xl mb-4">
@@ -224,6 +186,7 @@ export default function NewCourseScreen() {
           placeholderTextColor="#9CA3AF"
           multiline
         />
+        <FieldError message={errors.description} className="-mt-3 mb-4" />
 
         <TouchableOpacity
           className="bg-primary rounded-2xl px-5 py-4 active:opacity-80 mb-3"
@@ -243,7 +206,7 @@ export default function NewCourseScreen() {
         >
           <Text className="text-center text-white font-semibold">Cancelar</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </FormScrollView>
     </SafeAreaView>
   );
 }

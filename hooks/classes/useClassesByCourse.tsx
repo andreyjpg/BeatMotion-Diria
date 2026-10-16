@@ -1,43 +1,30 @@
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { firestore } from "@/firebaseConfig";
-import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import { CLASS_COLUMNS, toClass } from "./classesSchema";
 
-const fetchUserById = async (userid: string) => {
-  const ref = doc(firestore, "users", userid);
-  const snapshot = await getDoc(ref);
-  const data = snapshot.data();
-  if (!data) return null;
-  return {
-    name: data.name,
-    lastName: data.lastName,
-    role: data.role,
-  };
-};
+const CLASSES_WITH_TEACHER =
+  `${CLASS_COLUMNS}, course:courses!inner(teacher:profiles!courses_teacher_id_fkey(name, lastName:last_name))` as const;
 
+/**
+ * A course's classes with the teacher's name (for assigning a student to a
+ * class). The teacher belongs to the course, so every class shows the same one.
+ */
 export const useClassesByCourse = (courseId: string) => {
   return useQuery({
-    queryKey: ["classes", courseId],
+    // Different shape from useClassesByCourseId, so a different cache key.
+    queryKey: ["classes", courseId, "withTeacher"],
     queryFn: async () => {
-      const q = query(collection(firestore, "classes"), where("courseId", "==", courseId));
-      const snapshot = await getDocs(q);
-
-      const classes = await Promise.all(
-        snapshot.docs.map(async (doc) => {
-          const data = doc.data();
-          let teacherName = "Sin asignar";
-
-          if (data.teacherId) {
-            const teacher = await fetchUserById(data.teacherId);
-            if (teacher && teacher.role === "teacher") {
-              teacherName = `${teacher.name} ${teacher.lastName}`;
-            }
-          }
-
-          return { id: doc.id, ...data, teacherName };
-        })
-      );
-
-      return classes;
+      const { data, error } = await supabase
+        .from("classes")
+        .select(CLASSES_WITH_TEACHER)
+        .eq("course_id", courseId)
+        .eq("is_deleted", false)
+        .order("date", { ascending: true, nullsFirst: false });
+      if (error) throw error;
+      return data.map(({ course, ...row }) => ({
+        ...toClass(row),
+        teacherName: course.teacher ? `${course.teacher.name} ${course.teacher.lastName}`.trim() : "Sin asignar",
+      }));
     },
     enabled: !!courseId,
   });

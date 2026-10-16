@@ -4,12 +4,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { PROFILE_COLUMNS } from "./userSchema";
 
-export type UserType = {
-  uid: string;
-  email: string;
-  role: string;
-  [key: string]: any;
+const fetchActiveUser = async (userId: string) => {
+  const { data, error } = await supabase.from("profiles").select(PROFILE_COLUMNS).eq("id", userId).maybeSingle();
+  if (error) throw error;
+  return data ? { ...data, uid: data.id } : null;
 };
+
+/** The signed-in user's profile, with `uid` (same as `id`) for older screens. */
+export type UserType = NonNullable<Awaited<ReturnType<typeof fetchActiveUser>>>;
 
 // undefined = session not restored from storage yet; null = signed out.
 const SessionContext = createContext<Session | null | undefined>(undefined);
@@ -41,15 +43,11 @@ export const useActiveUser = () => {
   const session = useContext(SessionContext);
   const userId = session?.user.id;
 
-  const { data: user, isLoading } = useQuery<UserType | null>({
+  const { data: user, isLoading } = useQuery({
     queryKey: ["activeUser", userId],
     enabled: !!userId,
     staleTime: Infinity,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select(PROFILE_COLUMNS).eq("id", userId!).maybeSingle();
-      if (error) throw error;
-      return data ? { ...data, uid: data.id } : null;
-    },
+    queryFn: () => fetchActiveUser(userId!),
   });
 
   return {

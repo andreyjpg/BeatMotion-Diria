@@ -1,12 +1,12 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { doc, getDoc } from "firebase/firestore";
-import { branchSchema } from "./schema";
+import { BRANCH_COLUMNS, branchSchema } from "./schema";
 
 const fetchBranchById = async (id: string) => {
-  const snapshot = await getDoc(doc(firestore, "branches", id));
-  if (!snapshot.exists()) throw new Error("Sucursal no encontrada");
-  return branchSchema.parse({ id: snapshot.id, ...snapshot.data() });
+  const { data, error } = await supabase.from("branches").select(BRANCH_COLUMNS).eq("id", id).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error("Sucursal no encontrada");
+  return branchSchema.parse(data);
 };
 
 export const useBranchById = (id: string) => {

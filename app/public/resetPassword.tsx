@@ -1,7 +1,13 @@
+import FormScrollView from "@/components/FormScrollView";
 import { signInValidationSchema } from "@/constants/validationForms";
-import { supabase } from "@/lib/supabase";
+import {
+  InvalidResetCodeError,
+  useResetPassword,
+} from "@/hooks/auth/useResetPassword";
+import { useSendResetCode } from "@/hooks/auth/useSendResetCode";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { ValidationError } from "yup";
 import {
   ActivityIndicator,
   Alert,
@@ -22,22 +28,22 @@ const ResetPassword = () => {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const sendResetCode = useSendResetCode();
+  const resetPassword = useResetPassword();
+  const submitting = sendResetCode.isPending || resetPassword.isPending;
 
-  const sendCode = async () => {
+  const sendCode = () => {
     if (!email.trim()) {
       Alert.alert("Error", "Ingresa tu correo.");
       return;
     }
-    setSubmitting(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
-    setSubmitting(false);
-    if (error) {
-      console.error("Reset password error:", error);
-      Alert.alert("Error", "No se pudo enviar el código. Inténtalo de nuevo.");
-      return;
-    }
-    setStep("code");
+    sendResetCode.mutate(email, {
+      onSuccess: () => setStep("code"),
+      onError: (error) => {
+        console.error("Reset password error:", error);
+        Alert.alert("Error", "No se pudo enviar el código. Inténtalo de nuevo.");
+      },
+    });
   };
 
   const changePassword = async () => {
@@ -47,39 +53,34 @@ const ResetPassword = () => {
     }
     try {
       signInValidationSchema.password.validateSync(password);
-    } catch (err: any) {
+    } catch (err) {
+      if (!(err instanceof ValidationError)) throw err;
       Alert.alert("Contraseña no válida", err.message);
       return;
     }
 
-    setSubmitting(true);
-    // Verifying the code signs the user in; set the password in the same call
-    // chain, because the signed-in session makes the app leave this screen.
-    const { error: codeError } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token: code.trim(),
-      type: "recovery",
-    });
-    if (codeError) {
-      setSubmitting(false);
-      Alert.alert("Error", "El código no es válido o ya expiró.");
-      return;
+    // Verifying the code signs the user in, which unmounts this screen, and
+    // mutate()'s per-call callbacks don't run after unmount; awaiting
+    // mutateAsync() does, so the confirmation still shows.
+    try {
+      await resetPassword.mutateAsync({ email, code, password });
+      Alert.alert("Éxito", "Tu contraseña fue actualizada.");
+    } catch (error) {
+      if (error instanceof InvalidResetCodeError) {
+        Alert.alert("Error", "El código no es válido o ya expiró.");
+      } else {
+        console.error("Update password error:", error);
+        Alert.alert("Error", "No se pudo cambiar la contraseña. Inténtalo de nuevo.");
+      }
     }
-    const { error } = await supabase.auth.updateUser({ password });
-    setSubmitting(false);
-    if (error) {
-      console.error("Update password error:", error);
-      Alert.alert("Error", "No se pudo cambiar la contraseña. Inténtalo de nuevo.");
-      return;
-    }
-    Alert.alert("Éxito", "Tu contraseña fue actualizada.");
   };
 
   const inputClass =
     "border border-gray-800 bg-gray-950 text-white rounded-xl px-4 py-3 placeholder:text-gray-500";
 
   return (
-    <SafeAreaView className="flex-1 justify-center items-center px-5 bg-black w-full">
+    <SafeAreaView className="flex-1 bg-black w-full">
+      <FormScrollView contentContainerClassName="flex-grow justify-center items-center px-5">
       <View className="bg-gray-900 w-full max-w-md rounded-3xl p-7 gap-5 shadow-lg border border-gray-800">
         <View className="gap-1">
           <Text className="text-2xl font-bold text-white">Restablecer contraseña</Text>
@@ -153,6 +154,7 @@ const ResetPassword = () => {
           <Text className="text-sm text-gray-400 text-center">Volver a iniciar sesión</Text>
         </TouchableOpacity>
       </View>
+      </FormScrollView>
     </SafeAreaView>
   );
 };

@@ -1,3 +1,4 @@
+import FormScrollView from "@/components/FormScrollView";
 import { pickEventBanner, uploadEventBanner } from "@/hooks/events/eventMedia";
 import { useCreateEvent } from "@/hooks/events/useCreateEvent";
 import {
@@ -12,7 +13,6 @@ import { useState } from "react";
 import {
   Alert,
   Image,
-  ScrollView,
   Switch,
   Text,
   TextInput,
@@ -84,7 +84,7 @@ const NewEvent = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-black">
-      <ScrollView
+      <FormScrollView
         className="flex-1 px-5 py-6"
         contentContainerStyle={{ gap: 12, paddingBottom: 32 }}
       >
@@ -335,7 +335,7 @@ const NewEvent = () => {
         >
           <Text className="text-white font-semibold">Cancelar</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </FormScrollView>
     </SafeAreaView>
   );
 };
