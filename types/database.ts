@@ -312,13 +312,42 @@ export type Database = {
           },
         ]
       }
+      enrollment_courses: {
+        Row: {
+          course_id: string
+          enrollment_id: string
+        }
+        Insert: {
+          course_id: string
+          enrollment_id: string
+        }
+        Update: {
+          course_id?: string
+          enrollment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_courses_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_courses_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollments: {
         Row: {
           annual_fee_year: number | null
           assigned_class_id: string | null
           class_assigned_at: string | null
           class_assigned_by: string | null
-          course_id: string
           id: string
           legacy_id: string | null
           payment_proof_deleted_at: string | null
@@ -337,7 +366,6 @@ export type Database = {
           assigned_class_id?: string | null
           class_assigned_at?: string | null
           class_assigned_by?: string | null
-          course_id: string
           id?: string
           legacy_id?: string | null
           payment_proof_deleted_at?: string | null
@@ -356,7 +384,6 @@ export type Database = {
           assigned_class_id?: string | null
           class_assigned_at?: string | null
           class_assigned_by?: string | null
-          course_id?: string
           id?: string
           legacy_id?: string | null
           payment_proof_deleted_at?: string | null
@@ -383,13 +410,6 @@ export type Database = {
             columns: ["class_assigned_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollments_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
             referencedColumns: ["id"]
           },
           {
@@ -1115,12 +1135,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_student_to_course: {
+        Args: { p_course_id: string; p_user_id: string }
+        Returns: string
+      }
       mark_receipts_purged: { Args: { p_paths: string[] }; Returns: undefined }
       receipts_due_for_purge: {
         Args: { p_limit?: number; p_retention?: string }
         Returns: {
           path: string
         }[]
+      }
+      request_enrollment: {
+        Args: {
+          p_annual_fee_year?: number
+          p_course_ids: string[]
+          p_receipt_path: string
+          p_total_amount: number
+        }
+        Returns: string
       }
       send_broadcast: {
         Args: {

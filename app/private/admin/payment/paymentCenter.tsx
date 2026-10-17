@@ -5,52 +5,45 @@ import ImageModal from "@/components/ImageModal";
 import PhotoCard from "@/components/PhotoCard";
 import {
   formatCurrency,
-  formatDate,
+  formatDDMMYYYY,
   getEnrollmentColor,
   statusTranslations,
 } from "@/constants/helpers";
-import { useCourses } from "@/hooks/courses/useCourses";
-import { PaymentType } from "@/hooks/payment/schema";
-import { useMarkPayment } from "@/hooks/payment/useMarkPayment";
+import { ReviewStatus } from "@/hooks/enrollment/schema";
+import { PaymentDetail } from "@/hooks/payment/schema";
 import { usePayments } from "@/hooks/payment/usePayments";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { useUsers } from "@/hooks/user/useUsers";
+import { useReviewPayment } from "@/hooks/payment/useReviewPayment";
 import { Ionicons } from "@expo/vector-icons";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Alert, FlatList, RefreshControl, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const FILTER_OPTIONS = [
+const FILTER_OPTIONS: { label: string; value: ReviewStatus }[] = [
   { label: "Pendientes", value: "pending" },
   { label: "Aceptadas", value: "approved" },
   { label: "Rechazadas", value: "rejected" },
 ];
 
-enum StatusType {
-  "pending" = "pending",
-  "approved" = "approved",
-  "rejected" = "rejected",
-}
-
-const statusBg: Record<string, string> = {
+const statusBg: Record<ReviewStatus, string> = {
   pending: "bg-yellow-950",
   approved: "bg-green-950",
   rejected: "bg-red-950",
 };
 
+const studentName = (payment: PaymentDetail) =>
+  payment.user ? `${payment.user.name} ${payment.user.lastName}`.trim() : "";
+
 const PaymentCenter = () => {
-  const [filterSelected, setFilterSelected] = useState("pending");
+  const [filterSelected, setFilterSelected] = useState<ReviewStatus>("pending");
   const [image, setImage] = useState("");
   const [isModalImageOpen, setIsModalImageOpen] = useState(false);
 
-  const paymentsQuery = usePayments(filterSelected as StatusType);
-  const coursesQuery = useCourses();
-  const usersQuery = useUsers();
-  const markMutation = useMarkPayment();
-  const { user: activeUser } = useActiveUser();
+  const paymentsQuery = usePayments(filterSelected);
+  const reviewPayment = useReviewPayment();
 
   const handleFilterChange = (value: string) => {
-    setFilterSelected(value);
+    const option = FILTER_OPTIONS.find((o) => o.value === value);
+    if (option) setFilterSelected(option.value);
   };
 
   const handleClickImage = (url: string) => {
@@ -62,36 +55,15 @@ const PaymentCenter = () => {
     setIsModalImageOpen((prev) => !prev);
   };
 
-  const getCourseName = useCallback(
-    (cid: string) => {
-      if (!coursesQuery.data || coursesQuery.isLoading) return;
-
-      const course = coursesQuery.data.find((course) => course.id === cid);
-      return course ? course.title : "";
-    },
-    [coursesQuery.data, coursesQuery.isLoading]
-  );
-
-  const getUser = useCallback(
-    (cid: string) => {
-      if (!usersQuery.data || usersQuery.isLoading) return;
-
-      const userName = usersQuery.data.find((u) => u.id === cid);
-      return userName ? `${userName.name}${userName.lastName}` : "";
-    },
-    [usersQuery.data, usersQuery.isLoading]
-  );
-
   const handleClickStatusChange = (
-    payment: PaymentType,
+    payment: PaymentDetail,
     action: "approve" | "reject"
   ) => {
-    const user = getUser(payment.userId);
     Alert.alert(
       `Confirmar ${action === "approve" ? "aprobar" : "rechazar"}`,
       `¿Estás seguro de que deseas ${
         action === "approve" ? "aprobar" : "rechazar"
-      } la matrícula de ${user}?`,
+      } el pago de ${studentName(payment)}?`,
       [
         {
           text: "Cancelar",
@@ -99,21 +71,14 @@ const PaymentCenter = () => {
         },
         {
           text: "Confirmar",
-          onPress: () => handleClickOption(payment, action),
+          onPress: () =>
+            reviewPayment.mutate({
+              paymentId: payment.id,
+              status: action === "approve" ? "approved" : "rejected",
+            }),
         },
       ]
     );
-  };
-
-  const handleClickOption = (
-    item: PaymentType,
-    action: "approve" | "reject"
-  ) => {
-    markMutation.mutateAsync({
-      paymentId: item.id,
-      status: action === "approve" ? "approved" : "rejected",
-      reviewedBy: activeUser?.uid || null,
-    });
   };
 
   return (
@@ -145,7 +110,7 @@ const PaymentCenter = () => {
             renderItem={({ item }) => (
               <View className="px-3">
                 <PhotoCard
-                  image={item.photoProofURL}
+                  image={item.receiptUrl}
                   item={item}
                   onClickImage={handleClickImage}
                   showStatusApprovement
@@ -172,7 +137,7 @@ const PaymentCenter = () => {
                           color="#6b7280"
                         />
                         <Text className="text-gray-400 text-xs">
-                          {formatDate(item.createdAt)}
+                          {formatDDMMYYYY(item.createdAt)}
                         </Text>
                       </View>
                     </View>
@@ -180,7 +145,7 @@ const PaymentCenter = () => {
                     {/* Student */}
                     <View className="flex-row items-center gap-2">
                       <Ionicons name="person-outline" size={16} color="#9ca3af" />
-                      <Text className="text-white">{getUser(item.userId)}</Text>
+                      <Text className="text-white">{studentName(item)}</Text>
                     </View>
 
                     <View className="h-px bg-gray-800" />
@@ -197,9 +162,9 @@ const PaymentCenter = () => {
                       </View>
                       <View className="flex-row justify-between items-start ml-6">
                         <View className="flex-1">
-                          {item.coursesId.map((cid) => (
-                            <Text className="text-gray-300 text-sm" key={cid}>
-                              · {getCourseName(cid)}
+                          {item.courses.map((course) => (
+                            <Text className="text-gray-300 text-sm" key={course.id}>
+                              · {course.title}
                             </Text>
                           ))}
                         </View>
@@ -217,7 +182,7 @@ const PaymentCenter = () => {
                     </View>
 
                     {/* Late fee warning */}
-                    {item.isLatePayment && (
+                    {item.isLate && (
                       <View className="bg-red-950 rounded-xl p-3 gap-2">
                         <View className="flex-row items-center gap-2">
                           <Ionicons
@@ -231,14 +196,22 @@ const PaymentCenter = () => {
                         </View>
                         <View className="flex-row justify-between items-center">
                           <Text className="text-red-300 text-xs">
-                            {item.daysAfterPayment} día(s) de atraso
+                            {item.daysLate} día(s) de atraso
                           </Text>
                           <Text className="text-red-400 font-bold">
-                            {formatCurrency(item.lateFare || 0)}
+                            {formatCurrency(item.lateFare)}
                           </Text>
                         </View>
                       </View>
                     )}
+
+                    {/* Total: what the receipt should show */}
+                    <View className="flex-row justify-between items-center">
+                      <Text className="text-white font-semibold">Total</Text>
+                      <Text className="text-white font-bold">
+                        {formatCurrency(item.totalAmount)}
+                      </Text>
+                    </View>
                   </View>
                 </PhotoCard>
               </View>

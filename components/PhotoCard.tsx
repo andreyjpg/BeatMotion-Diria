@@ -2,27 +2,27 @@ import { AntDesign, Ionicons } from "@expo/vector-icons";
 import { JSX } from "react";
 import { Image, Text, TouchableHighlight, View } from "react-native";
 
-type PhotoCardProps = {
+type PhotoCardProps<T extends { status: string }> = {
   onClickImage: (img: string) => void;
   showStatusApprovement?: boolean;
-  onConfirmation?: (item: any, status: "approve" | "reject") => void;
+  onConfirmation?: (item: T, status: "approve" | "reject") => void;
   children: JSX.Element;
-  item: any;
-  image: string;
+  item: T;
+  image: string | null;
 };
-const PhotoCard = ({
+const PhotoCard = <T extends { status: string }>({
   onClickImage,
   image,
   item,
   showStatusApprovement,
   onConfirmation = () => {},
   children,
-}: PhotoCardProps) => {
+}: PhotoCardProps<T>) => {
   return (
     <TouchableHighlight
       className="bg-gray-900 rounded-3xl overflow-hidden flex-1"
       onPress={() => {
-        onClickImage(image || "");
+        if (image) onClickImage(image);
       }}
     >
       <>

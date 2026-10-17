@@ -1,30 +1,26 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
-import { PaymentSchema } from "./schema";
+import { ReviewStatus } from "../enrollment/schema";
+import { signReceiptUrls } from "../receipts/receiptStorage";
+import { PAYMENT_DETAIL_COLUMNS, PaymentDetailSchema, toPayment } from "./schema";
 
-export const usePayments = (status?: "pending" | "approved" | "rejected") => {
-  const fetchPayment = async () => {
-    try {
-      const qRef = query(
-        collection(firestore, "payments"),
-        where("status", "==", status),
-        orderBy("createdAt", "desc")
-      );
-      const snapShots = await getDocs(qRef);
-      const payments = snapShots.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      return PaymentSchema.parse(payments);
-    } catch (error: any) {
-      console.error("Error in UsePayment", error);
-    }
+/** Admin list: payments in one status, newest first, with receipt URLs. */
+export const usePayments = (status: ReviewStatus) => {
+  const fetchPayments = async () => {
+    const { data, error } = await supabase
+      .from("payments")
+      .select(PAYMENT_DETAIL_COLUMNS)
+      .eq("status", status)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+
+    const urls = await signReceiptUrls(data.map((row) => row.receiptPath));
+    return PaymentDetailSchema.parse(data.map((row) => toPayment(row, urls)));
   };
-  const paymentQuery = useQuery({
-    queryKey: ["payments", status],
-    queryFn: fetchPayment,
-  });
 
-  return paymentQuery;
+  return useQuery({
+    queryKey: ["payments", "byStatus", status],
+    queryFn: fetchPayments,
+    staleTime: 1000 * 60 * 10, // under the signed URLs' hour
+  });
 };

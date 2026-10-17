@@ -386,6 +386,11 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Called by pg_cron with CRON_SECRET, not by a signed-in user, so it can't
+# require a user JWT. (delete-account keeps the default: signed-in users only.)
+[functions.purge-receipts]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

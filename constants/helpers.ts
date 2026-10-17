@@ -94,6 +94,42 @@ const timeToDate = (value: string) => {
   return date;
 };
 
+/** Whole calendar days from `from` to `to` (negative when `to` is earlier). */
+const daysBetween = (from: Date, to: Date) => {
+  const start = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
+  const end = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
+  return Math.round((end - start) / 86_400_000);
+};
+
+// ---- Fares ------------------------------------------------------------------
+
+type FareRow = { type: string; fare: number; numCourse: number };
+
+/** Monthly price for a number of courses; from 5 courses on it's the flat `course_5` fare. */
+const monthlyFareFor = (fares: FareRow[] | undefined, courseCount: number) => {
+  if (!fares || courseCount <= 0) return 0;
+  if (courseCount >= 5) return fares.find((f) => f.type === "course_5")?.fare ?? 0;
+  return fares.find((f) => f.numCourse === courseCount)?.fare ?? 0;
+};
+
+/** Days after the due date students can still pay without the late fee. */
+const LATE_FEE_GRACE_DAYS = 5;
+
+/** Late fee owed today for a payment due on `dueDate` (per day, after the grace days). */
+const lateFeeFor = (fares: FareRow[] | undefined, dueDate: Date | null, today = new Date()) => {
+  if (!dueDate) return { days: 0, amount: 0 };
+  const days = Math.max(0, daysBetween(dueDate, today) - LATE_FEE_GRACE_DAYS);
+  const perDay = fares?.find((f) => f.type === "late_fee")?.fare ?? 800;
+  return { days, amount: days * perDay };
+};
+
+/** The annual fee isn't charged in November and December. */
+const isAnnualFeeExemptMonth = (date = new Date()) => date.getMonth() >= 10;
+
+/** Postgres unique_violation (e.g. a second live enrollment in the same course). */
+const isUniqueViolation = (error: unknown) =>
+  typeof error === "object" && error !== null && "code" in error && error.code === "23505";
+
 export const sanitizeVimeoUrl = (url: string) => {
   const match = url.match(/(?:vimeo\.com\/(?:video\/)?)(\d+)/);
   return match ? match[1] : null;
@@ -108,12 +144,17 @@ export const sanitizeYouTubeUrl = (url: string) => {
 
 export {
   capitalize,
+  daysBetween,
   emptyToNull,
   formatCurrency,
   formatDate,
   formatDDMMYYYY,
   formatYYYYMMDD,
   getEnrollmentColor,
+  isAnnualFeeExemptMonth,
+  isUniqueViolation,
+  lateFeeFor,
+  monthlyFareFor,
   parseLocalDate,
   statusTranslations,
   timeToDate,

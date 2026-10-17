@@ -12,6 +12,19 @@ These rules apply to all new and edited code.
 - Create branches from a remote ref with `git switch --no-track -c <name> origin/<base>`
   and push with `git push -u origin <name>`, so a branch never pushes to its base.
 
+## Database changes
+
+- Every schema change is a new file in `supabase/migrations/` (never edit one
+  that has been applied, never change the schema from the dashboard).
+- CI applies them and deploys the Edge Functions
+  (`.github/workflows/supabase-deploy.yml`): merging into `dev` deploys to the
+  preview project, pushing to `main` to production. Don't `supabase db push`
+  or deploy functions to production by hand.
+- Production migrates as soon as `main` changes, while the app in the stores
+  is still the previous build: a migration must keep that build working. Add
+  columns/tables first; remove or rename only in a later release, once no
+  store build uses them.
+
 ## Data access
 
 - All reads and writes go through **TanStack Query hooks**, **one hook per file**

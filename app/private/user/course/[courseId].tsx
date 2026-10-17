@@ -2,6 +2,7 @@ import ClassItem from "@/components/ClassItem";
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
 import {
+  formatDDMMYYYY,
   getEnrollmentColor,
   statusTranslations,
 } from "@/constants/helpers";
@@ -21,7 +22,7 @@ const CourseDetail = () => {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
   const { user: activeUser } = useActiveUser();
   const classesQuery = useClassesByCourseId(courseId as string);
-  const attendanceQuery = useAttendanceByUser(activeUser?.uid || "", courseId);
+  const attendanceQuery = useAttendanceByUser(activeUser?.uid ?? "", courseId);
   const courseDetailQuery = useCourseDetail(
     activeUser?.uid || "",
     courseId as string,
@@ -127,8 +128,8 @@ const CourseDetail = () => {
                       <Text className="text-gray-400">Próximo pago</Text>
                     </View>
                     <Text className="text-yellow-400">
-                      {course?.nextPaymentDate
-                        ? new Date(course.nextPaymentDate).toLocaleDateString()
+                      {course.nextPaymentDate instanceof Date
+                        ? formatDDMMYYYY(course.nextPaymentDate)
                         : "N/A"}
                     </Text>
                   </View>

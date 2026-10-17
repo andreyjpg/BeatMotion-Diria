@@ -4,21 +4,16 @@ import { FareSchema } from "./schema";
 
 export const useFares = () => {
   const fetchFares = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("fares")
-        .select("id, description, fare:amount, type, numCourse:num_courses");
-      if (error) throw error;
-      return FareSchema.parse(data);
-    } catch (error) {
-      console.error("Error in Fares", error instanceof Error ? error.message : error);
-    }
+    const { data, error } = await supabase
+      .from("fares")
+      .select("id, description, fare:amount, type, numCourse:num_courses");
+    if (error) throw error;
+    return FareSchema.parse(data);
   };
-  const faresQuery = useQuery({
+
+  return useQuery({
     queryKey: ["fares"],
     queryFn: fetchFares,
     staleTime: Infinity,
   });
-
-  return faresQuery;
 };

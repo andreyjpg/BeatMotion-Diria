@@ -524,8 +524,10 @@ class Importer {
   // ---------------------------------------------------------------- enrollment & money
 
   private async enrollments() {
-    // Only one pending/approved enrollment per student and course is allowed now;
-    // when Firestore has duplicates, the approved (then the oldest) one wins.
+    // Firestore had one enrollment per course; each becomes a one-course request
+    // (enrollments + enrollment_courses). Only one pending/approved request per
+    // student and course is allowed now; when Firestore has duplicates, the
+    // approved (then the oldest) one wins.
     const rank: Record<string, number> = { approved: 0, pending: 1, rejected: 2 };
     const ordered = [...this.docs("enrollments")].sort(
       (a, b) =>
@@ -533,6 +535,7 @@ class Importer {
         (toDate(a.data.submittedAt)?.getTime() ?? 0) - (toDate(b.data.submittedAt)?.getTime() ?? 0),
     );
 
+    const live = new Set<string>();
     for (const { id, data: d } of ordered) {
       this.read("enrollments");
       const userId = this.user(d.userId);
@@ -542,18 +545,23 @@ class Importer {
         continue;
       }
       const status = oneOf(d.status, REVIEW);
+      const liveKey = `${userId}:${courseId}`;
+      if (status !== "rejected" && live.has(liveKey)) {
+        this.skip("enrollments", `enrollments/${id}: student already has a live enrollment in course ${d.courseId}`);
+        continue;
+      }
       if (!status) this.warn("enrollments", `enrollments/${id}: unknown status "${d.status}", set to pending`);
       const proof = str(d.paymentProofImage);
       const proofPath = this.ctx.files.pathFor(proof);
       if (proof && !proofPath) this.warn("enrollments", `enrollments/${id}: receipt not copied, left empty`);
 
-      await this.put(
+      const enrollmentId = idFor("enrollments", id);
+      const ok = await this.put(
         "enrollments",
         {
-          id: idFor("enrollments", id),
+          id: enrollmentId,
           legacy_id: id,
           user_id: userId,
-          course_id: courseId,
           status: status ?? "pending",
           source: d.assignmentType === "manual" ? "manual" : "self",
           total_amount: Math.max(0, num(d.totalAmount) ?? 0),
@@ -568,6 +576,14 @@ class Importer {
         },
         `enrollments/${id}`,
       );
+      if (!ok) continue;
+
+      this.read("enrollment_courses");
+      await this.put("enrollment_courses", { enrollment_id: enrollmentId, course_id: courseId }, `enrollments/${id}`, [
+        "enrollment_id",
+        "course_id",
+      ]);
+      if (status !== "rejected") live.add(liveKey);
     }
   }
 

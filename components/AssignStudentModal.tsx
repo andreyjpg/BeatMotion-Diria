@@ -1,7 +1,7 @@
 import DataLoader from "@/components/DataLoader";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { useAvailableStudents } from "@/hooks/enrollment/useAvailableStudents";
+import { useManualEnrollment } from "@/hooks/enrollment/useManualEnrollment";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -13,10 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import {
-  useAvailableStudents,
-  useManualEnrollment,
-} from "@/hooks/enrollment/useManualEnrollment";
 
 type AssignStudentModalProps = {
   visible: boolean;
@@ -31,46 +27,33 @@ export default function AssignStudentModal({
   courseName,
   onClose,
 }: AssignStudentModalProps) {
-  const { user: activeUser } = useActiveUser();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
 
-  const availableStudentsQuery = useQuery(
-    useAvailableStudents(courseId)
-  );
-
+  const availableStudentsQuery = useAvailableStudents(courseId);
   const manualEnrollment = useManualEnrollment();
 
   const filteredStudents =
-    availableStudentsQuery.data?.filter((student: any) => {
+    availableStudentsQuery.data?.filter((student) => {
       const fullName =
         `${student.name} ${student.lastName} ${student.email}`.toLowerCase();
       return fullName.includes(searchQuery.toLowerCase());
-    }) || [];
+    }) ?? [];
 
   const handleAssignStudent = async () => {
-    if (!selectedStudent) {
-      return;
-    }
-
-    if (!activeUser?.uid) {
-      alert("No se pudo identificar al administrador.");
-      return;
-    }
+    if (!selectedStudent) return;
 
     try {
       await manualEnrollment.mutateAsync({
         userId: selectedStudent,
         courseId,
-        assignedBy: activeUser.uid,
-        totalAmount: 0,
       });
 
       setSelectedStudent(null);
       setSearchQuery("");
       onClose();
-    } catch (error) {
-      console.error("Error al asignar estudiante:", error);
+    } catch {
+      // useManualEnrollment already showed the error.
     }
   };
 
@@ -124,7 +107,7 @@ export default function AssignStudentModal({
               query={availableStudentsQuery}
               emptyMessage="No hay estudiantes disponibles para asignar a este curso."
             >
-              {(data) => (
+              {() => (
                 <>
                   {filteredStudents.length === 0 ? (
                     <View className="flex-1 items-center justify-center">
@@ -140,9 +123,9 @@ export default function AssignStudentModal({
                   ) : (
                     <FlatList
                       data={filteredStudents}
-                      keyExtractor={(item: any) => item.id}
+                      keyExtractor={(item) => item.id}
                       showsVerticalScrollIndicator={false}
-                      renderItem={({ item }: any) => {
+                      renderItem={({ item }) => {
                         const isSelected = selectedStudent === item.id;
                         return (
                           <Pressable

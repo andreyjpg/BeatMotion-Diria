@@ -1,20 +1,18 @@
 import DataLoader from "@/components/DataLoader";
-import {
-  askForCameraPermission,
-  uploadImage,
-} from "@/components/enrollment/askCameraPermision";
+import { pickReceiptImage } from "@/components/enrollment/pickReceiptImage";
 import HeaderTitle from "@/components/headerTitle";
-import { capitalize } from "@/constants/helpers";
+import HelperInfo from "@/components/HelperInfo";
+import { capitalize, monthlyFareFor } from "@/constants/helpers";
 import { useBranches } from "@/hooks/branches/useBranches";
 import { useCoursesAvailable } from "@/hooks/courses/useCoursesAvailable";
-import { Enrollment as EnrollmentType } from "@/hooks/enrollment/schema";
 import { useCreateEnrollment } from "@/hooks/enrollment/useCreateEnrollment";
 import { useEnrollmentByUserId } from "@/hooks/enrollment/useEnrollmentByUserId";
 import { useFares } from "@/hooks/fares/useFares";
-import { usePaymentsByUser } from "@/hooks/payment/usePaymentsByUser";
+import { useAnnualFeeDue } from "@/hooks/payment/useAnnualFeeDue";
+import type { ReceiptImage } from "@/hooks/receipts/receiptStorage";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Image,
   SectionList,
@@ -22,66 +20,43 @@ import {
   TouchableHighlight,
   View,
 } from "react-native";
+import BouncyCheckbox from "react-native-bouncy-checkbox";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import HelperInfo from "@/components/HelperInfo";
-import BouncyCheckbox from "react-native-bouncy-checkbox";
-
 const CreateEnrollment = () => {
-  const createEnrollment = useCreateEnrollment();
+  const router = useRouter();
   const { user } = useActiveUser();
+  const createEnrollment = useCreateEnrollment();
   const coursesQuery = useCoursesAvailable();
-  const enrollmentsQuery = useEnrollmentByUserId(user!.uid);
+  const enrollmentsQuery = useEnrollmentByUserId(user?.uid);
+  const annualFeeQuery = useAnnualFeeDue(user?.uid);
   const faresQuery = useFares();
   const branchesQuery = useBranches();
 
-  const paymentsByUserQuery = usePaymentsByUser(user?.uid);
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [receipt, setReceipt] = useState<ReceiptImage | null>(null);
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const isExemptMonth = currentMonth === 10 || currentMonth === 11;
+  // Pending requests count too: they can't be requested twice.
+  const enrolledCourseIds = (enrollmentsQuery.data ?? []).flatMap((e) => e.courseIds);
+  const enrolledCourseNames = (coursesQuery.data ?? [])
+    .filter((course) => enrolledCourseIds.includes(course.id))
+    .map((course) => course.title);
+
+  // Without fares every price is 0; never let a request go out like that.
+  const faresReady = (faresQuery.data?.length ?? 0) > 0;
+  const shouldChargeAnnualFee = annualFeeQuery.data ?? false;
   const annualFare =
     faresQuery.data?.find((d) => d.type === "annual")?.fare ?? 0;
 
-  const paidInPayments =
-    paymentsByUserQuery.data?.some(
-      (p) =>
-        (p as any).annualFeeYear === currentYear && p.status !== "rejected",
-    ) ?? false;
-  const paidInEnrollments =
-    enrollmentsQuery.data?.some(
-      (e) =>
-        (e as any).annualFeeYear === currentYear && e.status !== "rejected",
-    ) ?? false;
-  const shouldChargeAnnualFee =
-    !isExemptMonth && !paidInPayments && !paidInEnrollments;
-
-  const router = useRouter();
-  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
-  const [image, setImage] = useState<string | null>(null);
-  const [paymentInProcess, setPaymentInProcess] = useState(false);
-  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
-  const [enrolledCourseNames, setEnrolledCourseNames] = useState<string[]>([]);
-
-  const [totalAmount, setTotalAmount] = useState(0);
-
-  useEffect(() => {
-    setSelectedCourses([]);
-  }, []);
-
-  useEffect(() => {
-    if (enrollmentsQuery.data && coursesQuery.data) {
-      const ids = enrollmentsQuery.data.map(
-        (enrollment: EnrollmentType) => enrollment.courseId,
-      );
-      const names: string[] = [];
-      coursesQuery.data.forEach((element) => {
-        if (ids.includes(element.id)) names.push(element.title);
-      });
-      setEnrolledCourseNames(names);
-      setEnrolledCourseIds(ids);
-    }
-  }, [enrollmentsQuery.data, coursesQuery.data]);
+  // The student already pays the fare for their current courses; adding
+  // courses costs the difference up to the fare for the new total.
+  const currentFare = monthlyFareFor(faresQuery.data, enrolledCourseIds.length);
+  const newFare = monthlyFareFor(
+    faresQuery.data,
+    enrolledCourseIds.length + selectedCourses.length,
+  );
+  const coursesAmount = selectedCourses.length > 0 ? newFare - currentFare : 0;
+  const totalAmount = coursesAmount + (shouldChargeAnnualFee ? annualFare : 0);
 
   const handleCheckboxToggle = (courseId: string, isChecked: boolean) => {
     if (isChecked) {
@@ -91,69 +66,24 @@ const CreateEnrollment = () => {
     }
   };
 
-  useEffect(() => {
-    const enrolledCourses = selectedCourses.length + enrolledCourseIds.length;
-    if (enrolledCourses >= 5)
-      return setTotalAmount(
-        faresQuery.data?.find((data) => data.type === "course_5")?.fare || 0,
-      );
-
-    const courseTierFares =
-      faresQuery.data?.filter((d) => d.numCourse > 0) ?? [];
-
-    const fareAccumulated =
-      courseTierFares.find((d) => d.numCourse === enrolledCourses)?.fare ?? 0;
-    const previousFare =
-      courseTierFares.find((d) => d.numCourse === enrolledCourseIds.length)
-        ?.fare ?? 0;
-
-    const courseDiff =
-      selectedCourses.length > 0 ? fareAccumulated - previousFare : 0;
-    setTotalAmount(courseDiff + (shouldChargeAnnualFee ? annualFare : 0));
-  }, [
-    selectedCourses,
-    faresQuery.data,
-    enrolledCourseIds,
-    shouldChargeAnnualFee,
-    annualFare,
-  ]);
-
   const handleImagePick = async () => {
-    const imageSelected = await askForCameraPermission();
-    setImage(imageSelected);
+    const picked = await pickReceiptImage();
+    if (picked) setReceipt(picked);
   };
 
   const handleConfirmEnrollment = async () => {
-    setPaymentInProcess(true);
-    if (selectedCourses.length === 0) {
-      alert("Selecciona al menos un curso para matricularte.");
-      return;
-    }
-    if (!image) {
-      alert("Por favor, sube el comprobante de pago.");
-      return;
-    }
+    if (!receipt || selectedCourses.length === 0) return;
     try {
-      const imageUrl = await uploadImage(image, user!.uid);
-      createEnrollment.mutate({
-        coursesIds: selectedCourses,
-        data: {
-          status: "pending",
-          paymentProofImage: imageUrl,
-          userId: user?.uid,
-          totalAmount,
-          reviewedBy: null,
-          reviewedAt: null,
-          annualFeeYear: shouldChargeAnnualFee ? currentYear : null,
-        },
+      await createEnrollment.mutateAsync({
+        courseIds: selectedCourses,
+        receipt,
+        totalAmount,
+        annualFeeYear: shouldChargeAnnualFee ? new Date().getFullYear() : null,
       });
-    } catch (error: any) {
-      alert("Error al subir la matricula. Por favor, intenta de nuevo.");
-      setPaymentInProcess(false);
-      return;
+      router.replace("/private/home");
+    } catch {
+      // useCreateEnrollment already told the student what went wrong.
     }
-    alert("Matrícula enviada con éxito. Será revisada pronto.");
-    router.replace("/private/home");
   };
 
   return (
@@ -181,7 +111,7 @@ const CreateEnrollment = () => {
       </Text>
 
       <DataLoader query={coursesQuery} emptyMessage="No hay cursos disponibles">
-        {(courses, isRefetching, refetch) => {
+        {(courses) => {
           const sections = (branchesQuery.data ?? [])
             .map((branch) => ({
               title: branch.name,
@@ -232,6 +162,12 @@ const CreateEnrollment = () => {
               )}
               ListFooterComponent={
                 <View className="ml-4 mt-5">
+                  {faresQuery.isFetched && !faresReady && (
+                    <Text className="text-red-400 mb-3">
+                      No se pudieron cargar las tarifas. Intenta más tarde o
+                      contacta a la academia.
+                    </Text>
+                  )}
                   {shouldChargeAnnualFee && (
                     <Text className="text-white text-base mb-1">
                       Matrícula anual:{" "}
@@ -263,21 +199,25 @@ const CreateEnrollment = () => {
                       Subir comprobante de pago
                     </Text>
                   </TouchableHighlight>
-                  {image && (
+                  {receipt && (
                     <Image
-                      source={{ uri: image }}
+                      source={{ uri: receipt.uri }}
                       className="self-center w-64 h-64 object-cover mt-4"
                     />
                   )}
                   <TouchableHighlight
                     disabled={
-                      !image || selectedCourses.length === 0 || paymentInProcess
+                      !receipt ||
+                      selectedCourses.length === 0 ||
+                      createEnrollment.isPending ||
+                      !annualFeeQuery.isSuccess ||
+                      !faresReady
                     }
                     className="bg-primary rounded-lg p-5 mt-4 w-50 self-center text-center disabled:bg-gray-500 disabled:opacity-50"
                     onPress={handleConfirmEnrollment}
                   >
                     <Text>
-                      {paymentInProcess
+                      {createEnrollment.isPending
                         ? "Confirmando matrícula..."
                         : "Confirmar matrícula"}
                     </Text>

@@ -1,28 +1,31 @@
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
-import { useAttendanceInfo } from "@/hooks/attendance/useAttendanceInfo";
+import { RsvpStatus } from "@/hooks/attendance/schema";
+import { useAttendanceByClass } from "@/hooks/attendance/useAttendanceByClass";
 import { useUpsertAttendance } from "@/hooks/attendance/useUpsertAttendance";
 import { useMembersByCourse } from "@/hooks/courseMember/useMembersByCourse";
-import { useQueryClient } from "@tanstack/react-query";
-import { useLocalSearchParams } from "expo-router/build/hooks";
-import { useEffect, useState } from "react";
-import { FlatList, Pressable, RefreshControl, Text, TouchableOpacity, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import BouncyCheckbox from "react-native-bouncy-checkbox";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type AttendanceProps = {
+type AttendanceParams = {
   classId: string;
   courseId: string;
 };
 
-type RsvpStatus = "leaders" | "followers" | "no_asistira";
-
-type ListUsers = {
-  id?: string;
-  userId: string;
+type StudentMark = {
   attended: boolean;
-  rsvpStatus?: RsvpStatus | null;
-  createdAt?: any;
+  rsvpStatus: RsvpStatus | null;
 };
 
 const RSVP_OPTIONS: { value: RsvpStatus; label: string }[] = [
@@ -37,79 +40,59 @@ const rsvpColor: Record<RsvpStatus, string> = {
   no_asistira: "bg-red-800",
 };
 
+const NO_MARK: StudentMark = { attended: false, rsvpStatus: null };
+
 const Attendance = () => {
-  const queryClient = useQueryClient();
-  const [attendancePerUser, SetAttendancePerUser] = useState<ListUsers[]>([]);
-  const { classId, courseId } = useLocalSearchParams<AttendanceProps>();
-  const updateAttendance = useUpsertAttendance();
-  const attendanceQuery = useAttendanceInfo(classId);
+  const { classId, courseId } = useLocalSearchParams<AttendanceParams>();
   const membersQuery = useMembersByCourse(courseId);
+  const attendanceQuery = useAttendanceByClass(classId);
+  const saveAttendance = useUpsertAttendance();
 
-  useEffect(() => {
-    if (attendanceQuery.data && attendanceQuery.data?.length > 0) {
-      const newAssitance = attendanceQuery.data.map((member) => member);
-      SetAttendancePerUser(newAssitance);
-    }
-  }, [attendanceQuery.data]);
+  // Only the students the teacher changed; everyone else shows what's saved.
+  // Saving just these rows keeps RSVPs that students sent meanwhile.
+  const [edits, setEdits] = useState<Record<string, StudentMark>>({});
 
-  const handleMarkStudent = (userId: string, isChecked: boolean) => {
-    const userToSave = attendancePerUser.find((att) => att.userId === userId);
-    if (!userToSave) {
-      attendancePerUser.push({ userId: userId, attended: isChecked });
-    } else {
-      SetAttendancePerUser((prev) =>
-        prev.map((att) =>
-          att.userId === userId ? { ...att, attended: isChecked } : att,
-        ),
-      );
-    }
+  const markFor = (userId: string): StudentMark => {
+    if (edits[userId]) return edits[userId];
+    const saved = attendanceQuery.data?.find((row) => row.userId === userId);
+    return saved ? { attended: saved.attended, rsvpStatus: saved.rsvpStatus } : NO_MARK;
   };
 
-  const handleSetRsvp = (userId: string, rsvpStatus: RsvpStatus) => {
-    const userToSave = attendancePerUser.find((att) => att.userId === userId);
-    if (!userToSave) {
-      attendancePerUser.push({ userId, attended: false, rsvpStatus });
-    } else {
-      SetAttendancePerUser((prev) =>
-        prev.map((att) =>
-          att.userId === userId ? { ...att, rsvpStatus } : att,
-        ),
-      );
+  const editStudent = (userId: string, change: Partial<StudentMark>) => {
+    setEdits((prev) => ({ ...prev, [userId]: { ...markFor(userId), ...change } }));
+  };
+
+  const handleSave = async () => {
+    try {
+      await saveAttendance.mutateAsync({
+        classId,
+        rows: Object.entries(edits).map(([userId, mark]) => ({ userId, ...mark })),
+      });
+      setEdits({});
+    } catch {
+      // useUpsertAttendance already showed the error; the edits stay to retry.
     }
   };
 
-  const handleUpdateAssitance = () => {
-    const attendance = attendancePerUser.map((att) => ({
-      id: att.id || "",
-      userId: att.userId,
-      classId,
-      courseId,
-      attended: att.attended,
-      rsvpStatus: att.rsvpStatus ?? null,
-      createdAt: att.createdAt || null,
-    }));
-    updateAttendance.mutate(attendance);
-    queryClient.invalidateQueries({ queryKey: ["attendanceInfo", classId] });
-  };
-
-  const rsvpCounts = attendancePerUser.reduce(
-    (acc, att) => {
-      if (att.rsvpStatus === "leaders") acc.leaders++;
-      else if (att.rsvpStatus === "followers") acc.followers++;
-      else if (att.rsvpStatus === "no_asistira") acc.no_asistira++;
+  const rsvpCounts = (membersQuery.data ?? []).reduce(
+    (acc, member) => {
+      const rsvp = markFor(member.userId).rsvpStatus;
+      if (rsvp) acc[rsvp]++;
       return acc;
     },
-    { leaders: 0, followers: 0, no_asistira: 0 },
+    { leaders: 0, followers: 0, no_asistira: 0 } as Record<RsvpStatus, number>,
   );
 
+  const pendingChanges = Object.keys(edits).length;
+
   return (
-    <SafeAreaView>
+    <SafeAreaView className="flex-1 bg-gray-950">
       <HeaderTitle title="Registro de asistencia" />
       <DataLoader
         query={membersQuery}
         emptyMessage="No hay estudiantes registrados en este curso"
       >
-        {(data, isRefreching, refrecht) => (
+        {(members, isRefetching, refetch) => (
           <FlatList
             ListHeaderComponent={
               <View>
@@ -135,18 +118,23 @@ const Attendance = () => {
               </View>
             }
             refreshControl={
-              <RefreshControl refreshing={isRefreching} onRefresh={refrecht} />
+              <RefreshControl
+                refreshing={isRefetching}
+                onRefresh={() => {
+                  refetch();
+                  attendanceQuery.refetch();
+                }}
+              />
             }
-            data={data}
+            data={members}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
-              const userAtt = attendancePerUser.find((att) => att.userId === item.userId);
-              const currentRsvp = userAtt?.rsvpStatus ?? null;
+              const mark = markFor(item.userId);
               return (
                 <View className="px-4 py-4 bg-gray-900 border border-gray-700 rounded-xl mb-3 mx-3">
                   <BouncyCheckbox
-                    isChecked={userAtt?.attended || false}
-                    onPress={(isChecked) => handleMarkStudent(item.userId, isChecked)}
+                    isChecked={mark.attended}
+                    onPress={(isChecked) => editStudent(item.userId, { attended: isChecked })}
                     fillColor="turquoise"
                     textComponent={
                       <Text className="text-white font-semibold text-lg ml-4">
@@ -156,11 +144,11 @@ const Attendance = () => {
                   />
                   <View className="flex-row mt-3 ml-10 gap-2">
                     {RSVP_OPTIONS.map((opt) => {
-                      const isSelected = currentRsvp === opt.value;
+                      const isSelected = mark.rsvpStatus === opt.value;
                       return (
                         <TouchableOpacity
                           key={opt.value}
-                          onPress={() => handleSetRsvp(item.userId, opt.value)}
+                          onPress={() => editStudent(item.userId, { rsvpStatus: opt.value })}
                           className={`px-3 py-1 rounded-full border ${
                             isSelected
                               ? `${rsvpColor[opt.value]} border-transparent`
@@ -184,13 +172,17 @@ const Attendance = () => {
           />
         )}
       </DataLoader>
-      <View className="items-center flex aboslute">
+      <View className="items-center py-4">
         <Pressable
-          className="bg-primary rounded-xl  :active=bg-secondary :active=text-white  p-5 w-1/2"
-          onPress={handleUpdateAssitance}
+          className="bg-primary rounded-xl p-5 w-1/2 flex-row items-center justify-center gap-2 disabled:opacity-50"
+          onPress={handleSave}
+          disabled={pendingChanges === 0 || saveAttendance.isPending}
         >
+          {saveAttendance.isPending && <ActivityIndicator color="#1f2937" />}
           <Text className="font-bold text-gray-800 text-center">
-            Guardar asistencia
+            {pendingChanges > 0
+              ? `Guardar asistencia (${pendingChanges})`
+              : "Guardar asistencia"}
           </Text>
         </Pressable>
       </View>

@@ -1,54 +1,31 @@
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { Alert } from "react-native";
-
-import { firestore } from "@/firebaseConfig";
+import { signReceiptUrls } from "../receipts/receiptStorage";
 import {
-  collection,
-  getDocs,
-  orderBy,
-  query,
-  where,
-} from "@firebase/firestore";
-import { useCourses } from "../courses/useCourses";
-import { useUsers } from "../user/useUsers";
-import { enrollmentSchema } from "./schema";
+  ENROLLMENT_DETAIL_COLUMNS,
+  enrollmentDetailSchema,
+  ReviewStatus,
+  toEnrollmentDetail,
+} from "./schema";
 
-export const useEnrollmentsByStatus = (status: string) => {
-  const { data: courses } = useCourses();
-  const { data: users } = useUsers();
+/** Admin list: enrollment requests in one status, newest first, with receipt URLs. */
+export const useEnrollmentsByStatus = (status: ReviewStatus) => {
+  const fetchEnrollments = async () => {
+    const { data, error } = await supabase
+      .from("enrollments")
+      .select(ENROLLMENT_DETAIL_COLUMNS)
+      .eq("status", status)
+      .order("submitted_at", { ascending: false });
+    if (error) throw error;
 
-  const getEnrollmentsByStatus = async () => {
-    try {
-      const queryRef = query(
-        collection(firestore, "enrollments"),
-        where("status", "==", status),
-        orderBy("submittedAt", "desc"),
-      );
-      const snapshot = await getDocs(queryRef);
-      const enrollments = snapshot.docs.map((doc) => {
-        const enrollmentData = doc.data();
-        const course = courses?.find((c) => c.id === enrollmentData.courseId);
-        const user = users?.find((u) => u.id === enrollmentData.userId);
-        return {
-          id: doc.id,
-          ...enrollmentData,
-          course,
-          user,
-        };
-      });
-      return enrollmentSchema.parse(enrollments);
-    } catch (error) {
-      console.error("Error fetching enrollments by status:", error);
-      Alert.alert("Error fetching enrollments by status");
-      throw error;
-    }
+    const urls = await signReceiptUrls(data.map((row) => row.receiptPath));
+    return enrollmentDetailSchema.parse(data.map((row) => toEnrollmentDetail(row, urls)));
   };
 
   return useQuery({
-    queryKey: ["enrollments", status, courses?.length ?? 0, users?.length ?? 0],
-    queryFn: getEnrollmentsByStatus,
-    staleTime: 1000 * 60 * 20, // 20 minutes
+    queryKey: ["enrollments", "byStatus", status],
+    queryFn: fetchEnrollments,
+    staleTime: 1000 * 60 * 10, // under the signed URLs' hour
     refetchOnWindowFocus: false,
-    enabled: !!courses && !!users,
   });
 };

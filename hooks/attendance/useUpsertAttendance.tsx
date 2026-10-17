@@ -1,42 +1,44 @@
-import { firestore } from "@/firebaseConfig";
-import { useMutation } from "@tanstack/react-query";
-import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
-import { AttendanceType } from "./schema";
+import { RsvpStatus } from "./schema";
 
-const updateAttendance = async (attendance: AttendanceType[]) => {
-  try {
-    const batch = writeBatch(firestore);
-
-    attendance.forEach((att) => {
-      const ref = doc(firestore, "attendance", `${att.classId}_${att.userId}`);
-      const isNew = !att.createdAt;
-      const data = {
-        ...att,
-        updatedAt: serverTimestamp(),
-      };
-      if (isNew) {
-        data.createdAt = serverTimestamp();
-      }
-
-      batch.set(ref, data, { merge: true });
-    });
-
-    await batch.commit();
-    Alert.alert("Éxito", "Asistencias guardadas exitosamente");
-  } catch (error: any) {
-    console.error("Error in useUpdateAttendance", error.message);
-    Alert.alert(
-      "Error",
-      "Asistencia no ha sido guardada. Intente de nuevo, por favor"
-    );
-  }
+type AttendanceRowInput = {
+  userId: string;
+  attended: boolean;
+  rsvpStatus: RsvpStatus | null;
 };
 
-export const useUpsertAttendance = () => {
-  const mutation = useMutation({
-    mutationFn: updateAttendance,
-  });
+type UpsertAttendanceInput = {
+  classId: string;
+  rows: AttendanceRowInput[];
+};
 
-  return mutation;
+/** The teacher (or an admin) saves the attendance sheet of a class. */
+export const useUpsertAttendance = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ classId, rows }: UpsertAttendanceInput) => {
+      if (rows.length === 0) return;
+      const { error } = await supabase.from("attendance").upsert(
+        rows.map((row) => ({
+          class_id: classId,
+          user_id: row.userId,
+          attended: row.attended,
+          rsvp_status: row.rsvpStatus,
+        })),
+        { onConflict: "class_id,user_id" }
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      Alert.alert("Éxito", "Asistencias guardadas exitosamente");
+    },
+    onError: (error) => {
+      console.error("Error saving attendance:", error);
+      Alert.alert("Error", "Asistencia no ha sido guardada. Intente de nuevo, por favor");
+    },
+  });
 };

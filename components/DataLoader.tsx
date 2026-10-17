@@ -5,8 +5,9 @@ import { ActivityIndicator, Text, View } from "react-native";
 
 type DataLoaderProps<T> = {
   query: UseQueryResult<T>;
+  /** Only called with data: loading, errors and empty/null results render a message instead. */
   children: (
-    data: T,
+    data: NonNullable<T>,
     isRefetching: boolean,
     refetch: () => void
   ) => React.ReactNode;

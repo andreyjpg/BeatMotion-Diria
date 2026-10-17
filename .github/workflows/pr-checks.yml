@@ -17,12 +17,8 @@ jobs:
           node-version: 20
           cache: "npm"
 
-      - name: Install dependencies (root)
+      - name: Install dependencies
         run: npm ci
-
-      - name: Install dependencies (functions)
-        run: npm ci
-        working-directory: functions
 
   typescript:
     runs-on: ubuntu-latest
@@ -36,8 +32,6 @@ jobs:
           cache: "npm"
 
       - run: npm ci
-      - run: npm ci
-        working-directory: functions
 
       - run: npx tsc --noEmit
 
@@ -53,9 +47,19 @@ jobs:
           cache: "npm"
 
       - run: npm ci
-      - run: npm ci
-        working-directory: functions
       - run: npx expo lint
+
+  # Supabase Edge Functions (Deno): type-check them as the edge runtime would.
+  edgeFunctions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - run: deno check supabase/functions/*/index.ts
 
   expoDoctor:
     runs-on: ubuntu-latest

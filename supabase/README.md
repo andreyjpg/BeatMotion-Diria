@@ -55,14 +55,17 @@ npx supabase secrets set CRON_SECRET=<random string>
 
 ## 4. Deploy the Edge Functions
 
+GitHub Actions deploys them (and applies new migrations) on every push to `dev`
+(preview) or `main` (production) that touches `supabase/`; see
+`.github/workflows/supabase-deploy.yml` for the repository secrets it needs.
+To deploy by hand, e.g. the first time:
+
 ```bash
-npx supabase functions deploy delete-account
-npx supabase functions deploy purge-receipts --no-verify-jwt
+npx supabase functions deploy --use-api
 ```
 
 `purge-receipts` is called by pg_cron with `CRON_SECRET`, not a user session,
-hence `--no-verify-jwt`. (Alternatively add `[functions.purge-receipts]` with
-`verify_jwt = false` to `config.toml`.)
+so `config.toml` turns off its JWT check (`[functions.purge-receipts]`).
 
 ## 5. Make yourself admin
 
@@ -125,5 +128,5 @@ select jobname, schedule from cron.job;
 select * from cron.job_run_details order by start_time desc limit 20;
 ```
 
-Times are UTC: attendance reminders 15:00 (09:00 Costa Rica), payment check
+Times are UTC: attendance reminders 20:00 (14:00 Costa Rica), payment check
 18:00 (12:00), receipt purge 09:00 (03:00).
