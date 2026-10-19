@@ -1,7 +1,6 @@
 import { parseLocalDate } from "@/constants/helpers";
 import zod from "zod";
 import { courseMemberSchema } from "../../courseMember/schema";
-import { timestampSchema } from "../../enrollment/schema";
 
 /**
  * public.courses columns renamed to the fields the app uses, plus the
@@ -44,7 +43,7 @@ export const courseSchema = zod.array(
     level: zod.enum(["0", "1", "2", "3"]),
     createdBy: zod.string().nullable(),
     day: zod.string().min(2).max(50).nullish(),
-    startDate: timestampSchema,
+    startDate: zod.date().nullable(), // local date from toCourse
     branchId: zod.string().nullable().optional(),
   }),
 );

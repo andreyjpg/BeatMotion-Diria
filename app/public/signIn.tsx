@@ -229,7 +229,7 @@ const SignIn = () => {
             </Text>{" "}
             y el tratamiento de mis datos conforme a las Leyes N.° 8.968 y N.°
             9.048 de Costa Rica, incluida la transferencia a servidores de
-            Firebase (Google LLC) fuera de Costa Rica.
+            Supabase (Supabase Inc.) fuera de Costa Rica.
           </Text>
         </Pressable>
 

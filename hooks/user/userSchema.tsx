@@ -1,5 +1,5 @@
 import zod from "zod";
-import { timestampSchema } from "../enrollment/schema";
+import { dateTimeSchema } from "../common/schema";
 
 /**
  * Columns of public.profiles, renamed to the camelCase fields the app uses.
@@ -9,8 +9,8 @@ import { timestampSchema } from "../enrollment/schema";
 export const PROFILE_COLUMNS =
   "id, email, name, lastName:last_name, phone, role, photoURL:photo_url, isActive:is_active, consentAccepted:consent_accepted, consentAcceptedAt:consent_accepted_at, createdAt:created_at";
 
-// Name lengths are enforced by the forms; profiles created before that (or
-// imported from Firebase) may have shorter or empty names.
+// Name lengths are enforced by the forms; older profiles may have shorter or
+// empty names.
 export const userSchema = zod
   .object({
     id: zod.string(),
@@ -21,9 +21,9 @@ export const userSchema = zod
     role: zod.enum(["user", "admin", "teacher"]),
     photoURL: zod.string().url().nullish(),
     isActive: zod.boolean(),
-    createdAt: timestampSchema,
+    createdAt: dateTimeSchema,
     consentAccepted: zod.boolean().optional(),
-    consentAcceptedAt: timestampSchema.optional(),
+    consentAcceptedAt: dateTimeSchema.nullable().optional(),
   })
   .transform((user) => ({
     ...user,

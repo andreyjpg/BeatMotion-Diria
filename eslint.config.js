@@ -6,8 +6,8 @@ module.exports = defineConfig([
   expoConfig,
   {
     // supabase/ holds Deno Edge Functions and Node scripts with their own tooling.
-    // supabase/: Deno code, checked by the edgeFunctions PR job. functions/: retired Firebase Cloud Functions.
-    ignores: ['dist/*', '.expo/*', 'supabase/**', 'functions/**'],
+    // supabase/: Deno code, checked by the edgeFunctions PR job.
+    ignores: ['dist/*', '.expo/*', 'supabase/**'],
   },
   {
     // eslint-config-expo 57 enables the React Compiler rules as errors. Existing

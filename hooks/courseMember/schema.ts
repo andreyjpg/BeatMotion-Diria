@@ -1,6 +1,6 @@
 import { parseLocalDate } from "@/constants/helpers";
 import zod from "zod";
-import { timestampSchema } from "../enrollment/schema";
+import { dateTimeSchema } from "../common/schema";
 import { userSchema } from "../user/userSchema";
 
 /** public.course_members columns renamed to the fields the app uses. */
@@ -17,12 +17,12 @@ const memberFields = {
   userId: zod.string(),
   courseId: zod.string(),
   enrollmentId: zod.string().nullable(),
-  joinedAt: timestampSchema,
+  joinedAt: dateTimeSchema,
   active: zod.boolean(),
   paymentStatus: zod.enum(["pending", "late", "ok"]),
-  nextPaymentDate: timestampSchema.nullable(),
+  nextPaymentDate: zod.date().nullable(), // local date from toMember
   createdBy: zod.string().nullable(),
-  createdAt: timestampSchema,
+  createdAt: dateTimeSchema,
 };
 
 const courseMemberSchema = zod.array(zod.object(memberFields));

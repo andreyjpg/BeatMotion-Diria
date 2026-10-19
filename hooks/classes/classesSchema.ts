@@ -1,6 +1,6 @@
 import { toHHMM } from "@/constants/helpers";
 import zod from "zod";
-import { timestampSchema } from "../enrollment/schema";
+import { dateTimeSchema } from "../common/schema";
 
 /** public.classes columns renamed to the fields the app uses. */
 export const CLASS_COLUMNS =
@@ -16,13 +16,13 @@ export const ClassesSchema = zod.object({
   title: zod.string().nullable(),
   capacity: zod.number().nullish(),
   courseId: zod.string(),
-  createdAt: timestampSchema,
+  createdAt: dateTimeSchema,
   date: zod.string().nullable(), // "YYYY-MM-DD"
   description: zod.string().nullish(),
   objectives: zod.string().nullish(),
   startTime: zod.string().nullable(), // "HH:MM"
   endTime: zod.string().nullable(),
-  updatedAt: timestampSchema,
+  updatedAt: dateTimeSchema,
   isDeleted: zod.boolean(),
   content: zod.string().nullish(),
   videoLinks: zod

@@ -1,5 +1,5 @@
 import zod from "zod";
-import { dateTimeSchema } from "../enrollment/schema";
+import { dateTimeSchema } from "../common/schema";
 import type { PickedImage } from "../storage/compressImage";
 import { mediaUrl } from "../storage/mediaStorage";
 

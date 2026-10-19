@@ -1,5 +1,5 @@
 import zod from "zod";
-import { dateTimeSchema } from "../enrollment/schema";
+import { dateTimeSchema } from "../common/schema";
 
 /** public.notifications columns renamed to the fields the app uses. */
 export const NOTIFICATION_COLUMNS = "id, title, content, data, read, createdAt:created_at";

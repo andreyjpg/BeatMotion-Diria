@@ -1,29 +1,5 @@
 import zod from "zod";
-
-/**
- * Firestore-era timestamps (Timestamp objects, Dates or strings). Still used by
- * the sections that haven't moved to Supabase; new schemas use dateTimeSchema.
- */
-export const timestampSchema = zod
-  .any()
-  .nullish()
-  .transform((value) => {
-    if (!value) return null;
-    if (value instanceof Date) return value;
-    if (value.toDate) return value.toDate();
-    if (
-      typeof value === "object" &&
-      "seconds" in value &&
-      "nanoseconds" in value
-    ) {
-      return new Date(value.seconds * 1000 + value.nanoseconds / 1_000_000);
-    }
-    if (typeof value === "string") return new Date(value);
-    return null;
-  });
-
-/** Postgres timestamptz (ISO string) -> Date. */
-export const dateTimeSchema = zod.string().transform((value) => new Date(value));
+import { dateTimeSchema } from "../common/schema";
 
 export const reviewStatusSchema = zod.enum(["pending", "approved", "rejected"]);
 export type ReviewStatus = zod.infer<typeof reviewStatusSchema>;

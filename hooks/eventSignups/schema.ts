@@ -1,5 +1,5 @@
 import zod from "zod";
-import { dateTimeSchema } from "../enrollment/schema";
+import { dateTimeSchema } from "../common/schema";
 
 /**
  * public.event_signups columns renamed to the fields the app uses, plus the

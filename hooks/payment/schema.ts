@@ -1,5 +1,6 @@
 import zod from "zod";
-import { dateTimeSchema, reviewStatusSchema } from "../enrollment/schema";
+import { dateTimeSchema } from "../common/schema";
+import { reviewStatusSchema } from "../enrollment/schema";
 
 /**
  * public.payments columns renamed to the fields the app uses, plus the courses

@@ -106,12 +106,6 @@ export default function AdminLayout() {
         }}
       />
       {/* Encuestas*/}
-      <Stack.Screen
-        name="user/surveys/list"
-        options={{
-          headerShown: false,
-        }}
-      />
       {/* Encuestas*/}
       <Stack.Screen
         name="surveys/create"
@@ -119,13 +113,6 @@ export default function AdminLayout() {
           headerShown: false,
           title: "Nueva Encuesta",
           presentation: "modal",
-        }}
-      />
-      <Stack.Screen
-        name="surveys/edit/[surveyId]"
-        options={{
-          headerShown: false,
-          title: "Editar Encuesta",
         }}
       />
       <Stack.Screen

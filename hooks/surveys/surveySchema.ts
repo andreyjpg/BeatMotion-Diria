@@ -1,5 +1,5 @@
 import zod from "zod";
-import { dateTimeSchema } from "../enrollment/schema";
+import { dateTimeSchema } from "../common/schema";
 
 /**
  * public.surveys columns renamed to the fields the app uses, with the course

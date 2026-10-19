@@ -1,5 +1,5 @@
 import zod from "zod";
-import { timestampSchema } from "../enrollment/schema";
+import { dateTimeSchema } from "../common/schema";
 
 /** public.branches columns renamed to the fields the app uses. */
 export const BRANCH_COLUMNS =
@@ -10,8 +10,8 @@ export const branchSchema = zod.object({
   name: zod.string().min(2).max(100),
   location: zod.string().min(2).max(200),
   createdBy: zod.string().nullable(),
-  createdAt: timestampSchema,
-  updatedAt: timestampSchema,
+  createdAt: dateTimeSchema,
+  updatedAt: dateTimeSchema,
   isDeleted: zod.boolean(),
 });
 
