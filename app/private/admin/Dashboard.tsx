@@ -1,49 +1,39 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { Text, View } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
-import {
-  useActiveStudents,
-  useActiveTeachers,
-  useCoursesCount,
-  useClassesCount,
-  useApprovedEnrollments,
-} from "@/hooks/useDashboard";
+import { useDashboardCounts } from "@/hooks/dashboard/useDashboardCounts";
 
 const DashboardAdmin = () => {
-  const { data: activeStudents } = useActiveStudents();
-  const { data: activeTeachers } = useActiveTeachers();
-  const { data: totalCourses } = useCoursesCount();
-  const { data: totalClasses } = useClassesCount();
-  const { data: approvedEnrollments } = useApprovedEnrollments();
+  const { data: counts } = useDashboardCounts();
 
   const stats = [
     {
       title: "Estudiantes Activos",
-      value: activeStudents ?? 0,
+      value: counts?.activeStudents ?? 0,
       icon: "school",
       bg: "bg-blue-500",
     },
     {
       title: "Profesores Activos",
-      value: activeTeachers ?? 0,
+      value: counts?.activeTeachers ?? 0,
       icon: "person",
       bg: "bg-green-500",
     },
     {
       title: "Cursos",
-      value: totalCourses ?? 0,
+      value: counts?.courses ?? 0,
       icon: "menu-book",
       bg: "bg-purple-500",
     },
     {
       title: "Clases",
-      value: totalClasses ?? 0,
+      value: counts?.classes ?? 0,
       icon: "event",
       bg: "bg-orange-500",
     },
     {
       title: "Matrículas Aprobadas",
-      value: approvedEnrollments ?? 0,
+      value: counts?.approvedEnrollments ?? 0,
       icon: "check-circle",
       bg: "bg-teal-500",
     },

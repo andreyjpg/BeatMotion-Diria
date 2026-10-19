@@ -1,5 +1,5 @@
 import DataLoader from "@/components/DataLoader";
-import { pickReceiptImage } from "@/components/enrollment/pickReceiptImage";
+import { pickImage, RECEIPT_PERMISSION_MESSAGE } from "@/components/pickImage";
 import {
   formatCurrency,
   formatDDMMYYYY,
@@ -11,7 +11,7 @@ import { useFares } from "@/hooks/fares/useFares";
 import { useAnnualFeeDue } from "@/hooks/payment/useAnnualFeeDue";
 import { useCreatePayment } from "@/hooks/payment/useCreatePayment";
 import { usePaymentsByUser } from "@/hooks/payment/usePaymentsByUser";
-import type { ReceiptImage } from "@/hooks/receipts/receiptStorage";
+import type { PickedImage } from "@/hooks/storage/compressImage";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -24,7 +24,7 @@ const Detail = () => {
   const paymentsQuery = usePaymentsByUser(user?.uid);
   const annualFeeQuery = useAnnualFeeDue(user?.uid);
   const createPayment = useCreatePayment();
-  const [receipt, setReceipt] = useState<ReceiptImage | null>(null);
+  const [receipt, setReceipt] = useState<PickedImage | null>(null);
 
   const courses = coursesQuery.data ?? [];
   // New courses share the student's existing due date, so the earliest one is
@@ -51,7 +51,7 @@ const Detail = () => {
     false;
 
   const handleImagePick = async () => {
-    const picked = await pickReceiptImage();
+    const picked = await pickImage(RECEIPT_PERMISSION_MESSAGE);
     if (picked) setReceipt(picked);
   };
 

@@ -1,5 +1,5 @@
 import DataLoader from "@/components/DataLoader";
-import { pickReceiptImage } from "@/components/enrollment/pickReceiptImage";
+import { pickImage, RECEIPT_PERMISSION_MESSAGE } from "@/components/pickImage";
 import HeaderTitle from "@/components/headerTitle";
 import HelperInfo from "@/components/HelperInfo";
 import { capitalize, monthlyFareFor } from "@/constants/helpers";
@@ -9,7 +9,7 @@ import { useCreateEnrollment } from "@/hooks/enrollment/useCreateEnrollment";
 import { useEnrollmentByUserId } from "@/hooks/enrollment/useEnrollmentByUserId";
 import { useFares } from "@/hooks/fares/useFares";
 import { useAnnualFeeDue } from "@/hooks/payment/useAnnualFeeDue";
-import type { ReceiptImage } from "@/hooks/receipts/receiptStorage";
+import type { PickedImage } from "@/hooks/storage/compressImage";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -34,7 +34,7 @@ const CreateEnrollment = () => {
   const branchesQuery = useBranches();
 
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
-  const [receipt, setReceipt] = useState<ReceiptImage | null>(null);
+  const [receipt, setReceipt] = useState<PickedImage | null>(null);
 
   // Pending requests count too: they can't be requested twice.
   const enrolledCourseIds = (enrollmentsQuery.data ?? []).flatMap((e) => e.courseIds);
@@ -67,7 +67,7 @@ const CreateEnrollment = () => {
   };
 
   const handleImagePick = async () => {
-    const picked = await pickReceiptImage();
+    const picked = await pickImage(RECEIPT_PERMISSION_MESSAGE);
     if (picked) setReceipt(picked);
   };
 

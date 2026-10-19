@@ -1,80 +1,67 @@
 import zod from "zod";
+import { dateTimeSchema } from "../enrollment/schema";
+import type { PickedImage } from "../storage/compressImage";
+import { mediaUrl } from "../storage/mediaStorage";
 
-const timestampSchema = zod.any().transform((value) => {
-  if (!value) return null;
-  if (value instanceof Date) return value;
-  if (typeof value === "string" || typeof value === "number") {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-  if (typeof value === "object" && value !== null) {
-    if (typeof (value as { toDate?: () => Date }).toDate === "function") {
-      return (value as { toDate: () => Date }).toDate();
-    }
-    if ("seconds" in value && "nanoseconds" in value) {
-      const seconds = Number(
-        (value as { seconds: number; nanoseconds: number }).seconds,
-      );
-      const nanos = Number(
-        (value as { seconds: number; nanoseconds: number }).nanoseconds,
-      );
-      const date = new Date(seconds * 1000 + nanos / 1_000_000);
-      return Number.isNaN(date.getTime()) ? null : date;
-    }
-  }
-  return null;
+/** public.events columns renamed to the fields the app uses. */
+export const EVENT_COLUMNS =
+  "id, title, description, bannerPath:banner_path, datetime:starts_at, location, category, capacity, price, isPublic:is_public, status, createdBy:created_by, isDeleted:is_deleted, createdAt:created_at, updatedAt:updated_at";
+
+export const eventStatusSchema = zod.enum(["draft", "published"]);
+export type EventStatus = zod.infer<typeof eventStatusSchema>;
+
+/** Database row -> screen shape: the banner's public URL ("" without banner). */
+export function toEvent<T extends { bannerPath: string | null }>(row: T) {
+  return { ...row, bannerUrl: row.bannerPath ? mediaUrl(row.bannerPath) : "" };
+}
+
+export const eventSchema = zod.object({
+  id: zod.string(),
+  title: zod.string(),
+  description: zod.string(),
+  bannerPath: zod.string().nullable(),
+  bannerUrl: zod.string(),
+  datetime: dateTimeSchema,
+  location: zod.string(),
+  category: zod.string(),
+  capacity: zod.number().nullable(),
+  price: zod.number().nullable(),
+  isPublic: zod.boolean(),
+  status: eventStatusSchema,
+  createdBy: zod.string().nullable(),
+  isDeleted: zod.boolean(),
+  createdAt: dateTimeSchema,
+  updatedAt: dateTimeSchema,
 });
-
-const nullableNumber = zod
-  .union([zod.number(), zod.null(), zod.undefined(), zod.string()])
-  .transform((value) => {
-    if (value === null || value === undefined || value === "") return null;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  });
-
-export const eventSchema = zod
-  .object({
-    id: zod.string(),
-    title: zod.string(),
-    description: zod.string().optional().default(""),
-    bannerUrl: zod.string().optional().nullable().default(""),
-    datetime: timestampSchema,
-    capacity: nullableNumber,
-    isPublic: zod.boolean().default(true),
-    price: nullableNumber,
-    status: zod.enum(["draft", "published"]).default("draft"),
-    category: zod.string().optional().default("general"),
-    location: zod.string().optional().default(""),
-    createdAt: timestampSchema,
-    updatedAt: timestampSchema,
-    createdBy: zod.string().optional().default(""),
-  })
-  .transform((value) => {
-    const datetime = value.datetime ?? new Date();
-    const createdAt = value.createdAt ?? datetime;
-    const updatedAt = value.updatedAt ?? datetime;
-    const capacity = value.capacity ?? null;
-    const price = value.price ?? null;
-    const bannerUrl = value.bannerUrl ?? "";
-    const description = value.description ?? "";
-    const category = value.category ?? "general";
-    const location = value.location ?? "";
-
-    return {
-      ...value,
-      datetime,
-      createdAt,
-      updatedAt,
-      capacity,
-      price,
-      bannerUrl,
-      description,
-      category,
-      location,
-    };
-  });
 
 export const eventCollectionSchema = zod.array(eventSchema);
 
 export type Event = zod.infer<typeof eventSchema>;
+
+/** What the event form saves (useCreateEvent / useUpdateEvent). */
+export type EventInput = {
+  title: string;
+  description: string;
+  datetime: Date;
+  location: string;
+  category: string;
+  capacity: number | null;
+  price: number | null;
+  isPublic: boolean;
+  status: EventStatus;
+  /** A new banner picked on the device; null keeps the current one. */
+  banner: PickedImage | null;
+};
+
+/** EventInput -> public.events columns (everything but the banner). */
+export const toEventRow = (input: EventInput) => ({
+  title: input.title.trim(),
+  description: input.description.trim(),
+  starts_at: input.datetime.toISOString(),
+  location: input.location.trim(),
+  category: input.category,
+  capacity: input.capacity,
+  price: input.price,
+  is_public: input.isPublic,
+  status: input.status,
+});

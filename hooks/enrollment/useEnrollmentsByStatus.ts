@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { signReceiptUrls } from "../receipts/receiptStorage";
+import { signReceiptUrls } from "../storage/receiptStorage";
 import {
   ENROLLMENT_DETAIL_COLUMNS,
   enrollmentDetailSchema,

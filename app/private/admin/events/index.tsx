@@ -40,7 +40,6 @@ const AdminEventsList = () => {
     d.setMonth(now.getMonth() - 6);
     return d;
   }, [now]);
-  const currentYear = now.getFullYear();
 
   const filterByTab = (events: Event[]) => {
     if (tab === "programados") {

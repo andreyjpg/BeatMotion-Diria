@@ -1,11 +1,12 @@
 import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
-import { ReceiptImage, uploadReceipt } from "../receipts/receiptStorage";
+import type { PickedImage } from "../storage/compressImage";
+import { uploadReceipt } from "../storage/receiptStorage";
 
 type CreatePaymentInput = {
   courseIds: string[];
-  receipt: ReceiptImage;
+  receipt: PickedImage;
   monthlyFare: number;
   lateFare: number;
   daysLate: number;

@@ -1,10 +1,9 @@
 import DataLoader from "@/components/DataLoader";
-import { formatDate } from "@/constants/helpers";
-import { firestore } from "@/firebaseConfig";
-import { useDraft } from "@/hooks/notifications/useDraft";
+import { formatDDMMYYYY } from "@/constants/helpers";
+import { useDeleteDraft } from "@/hooks/notifications/useDeleteDraft";
+import { useDrafts } from "@/hooks/notifications/useDrafts";
 import { EvilIcons, MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { deleteDoc, doc } from "firebase/firestore";
 import React from "react";
 import {
   Alert,
@@ -30,18 +29,9 @@ const RightOptions = (prog: SharedValue<number>, drag: SharedValue<number>) => {
 };
 
 export default function DraftHistoryScreen() {
-  const useDraftQuery = useDraft();
+  const draftsQuery = useDrafts();
+  const deleteDraft = useDeleteDraft();
   const router = useRouter();
-
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteDoc(doc(firestore, "drafts", id));
-      Alert.alert("Éxito", "Borrador eliminado");
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "No se pudo eliminar el borrador");
-    }
-  };
 
   const confirmDelete = (id: string) => {
     Alert.alert(
@@ -52,7 +42,7 @@ export default function DraftHistoryScreen() {
         {
           text: "Eliminar",
           style: "destructive",
-          onPress: () => handleDelete(id),
+          onPress: () => deleteDraft.mutate(id),
         },
       ]
     );
@@ -67,20 +57,16 @@ export default function DraftHistoryScreen() {
 
   return (
     <DataLoader
-      query={useDraftQuery}
+      query={draftsQuery}
       emptyMessage="No hay borradores guardados."
     >
-      {(draft, isFetching, refetch) => (
+      {(drafts, isRefetching, refetch) => (
         <FlatList
-          contentContainerStyle={{
-            paddingLeft: 8,
-            paddingEnd: 8,
-            width: 390,
-          }}
-          data={draft}
+          contentContainerStyle={{ paddingBottom: 96 }}
+          data={drafts}
           keyExtractor={(item) => item.id}
           refreshControl={
-            <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+            <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
           }
           renderItem={({ item }) => (
             <GestureHandlerRootView>
@@ -102,7 +88,7 @@ export default function DraftHistoryScreen() {
                   </Text>
                   <Text className="text-gray-300">{item.content}</Text>
                   <Text className="text-gray-300">
-                    Creado: {formatDate(item.createdAt)}
+                    Creado: {formatDDMMYYYY(item.createdAt)}
                   </Text>
                 </Pressable>
               </ReanimatedSwipeable>

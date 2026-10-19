@@ -1,6 +1,8 @@
 import DataLoader from "@/components/DataLoader";
 import FilterPills from "@/components/FilterPills";
 import HeaderTitle from "@/components/headerTitle";
+import { pickImage, RECEIPT_PERMISSION_MESSAGE } from "@/components/pickImage";
+import { statusTranslations } from "@/constants/helpers";
 import type { Event } from "@/hooks/events/schema";
 import { useEvents } from "@/hooks/events/useEvents";
 import {
@@ -9,19 +11,12 @@ import {
   formatEventDateTime,
   formatEventPrice,
 } from "@/hooks/events/utils";
-import {
-  pickEventReceiptImage,
-  uploadEventReceiptImage,
-} from "@/hooks/eventSignups/media";
+import { useCancelEventSignup } from "@/hooks/eventSignups/useCancelEventSignup";
 import { useCreateEventSignup } from "@/hooks/eventSignups/useCreateEventSignup";
-import {
-  useEventActiveAttendees,
-  useMyEventSignup,
-} from "@/hooks/eventSignups/useEventSignups";
-import { useCancelEventSignup } from "@/hooks/eventSignups/useUpdateEventSignup";
+import { useEventSpotsTaken } from "@/hooks/eventSignups/useEventSpotsTaken";
+import { useMyEventSignup } from "@/hooks/eventSignups/useMyEventSignup";
 import { computeTotals, isActiveSignup } from "@/hooks/eventSignups/utils";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { useRouter } from "expo-router";
+import type { PickedImage } from "@/hooks/storage/compressImage";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -46,9 +41,7 @@ const TABS = [
 ];
 
 const EventsList = () => {
-  const router = useRouter();
   const eventsQuery = useEvents({ includePrivate: true }); // published + include members-only
-  const { user } = useActiveUser();
   const [tab, setTab] = useState<Tab>("proximos");
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const now = useMemo(() => new Date(), []);
@@ -176,17 +169,7 @@ const EventsList = () => {
         )}
       </DataLoader>
 
-      <SignupModal
-        event={selectedEvent}
-        onClose={() => setSelectedEvent(null)}
-        currentUserEmail={user?.email ?? ""}
-        currentUserName={
-          user?.name || user?.lastName
-            ? `${user?.name ?? ""} ${user?.lastName ?? ""}`.trim()
-            : (user?.email ?? "Invitado")
-        }
-        currentUserId={user?.uid ?? ""}
-      />
+      <SignupModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
     </SafeAreaView>
   );
 };
@@ -194,29 +177,22 @@ const EventsList = () => {
 const SignupModal = ({
   event,
   onClose,
-  currentUserEmail,
-  currentUserName,
-  currentUserId,
 }: {
   event: Event | null;
   onClose: () => void;
-  currentUserEmail: string;
-  currentUserName: string;
-  currentUserId: string;
 }) => {
   const [inviteeCount, setInviteeCount] = useState(0);
-  const [receiptUri, setReceiptUri] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [receipt, setReceipt] = useState<PickedImage | null>(null);
   const createSignup = useCreateEventSignup();
   const cancelSignup = useCancelEventSignup();
 
   const isVisible = !!event;
   const isMembersOnly = event ? !event.isPublic : false;
-  const isFree = event ? !event.price || Number(event.price) === 0 : false;
+  const isFree = event ? !event.price : false;
   const pricePerHead = event?.price ?? 0;
 
-  const activeAttendees = useEventActiveAttendees(event?.id);
-  const mySignup = useMyEventSignup(event?.id, currentUserId);
+  const spotsTaken = useEventSpotsTaken(event?.id);
+  const mySignup = useMyEventSignup(event?.id);
   const alreadyRegistered =
     !!mySignup.data && isActiveSignup(mySignup.data.status);
   const status = mySignup.data?.status;
@@ -224,48 +200,44 @@ const SignupModal = ({
   const isApprovedLike = status === "approved" || status === "autoApproved";
   const isCancelable = isPending || isApprovedLike;
 
+  // Guests only for public events; the database applies the same rule.
+  const desiredInvitees = event?.isPublic ? inviteeCount : 0;
   const { totalAttendees, totalPrice } = computeTotals({
-    inviteeCount: event && event.isPublic ? inviteeCount : 0,
+    inviteeCount: desiredInvitees,
     pricePerHead,
   });
 
   const capacity = event?.capacity ?? null;
-  const used = activeAttendees.data ?? 0;
-  const available = capacity ? Math.max(capacity - used, 0) : null;
-  const isFull = capacity !== null && available !== null && available <= 0;
+  const available =
+    capacity === null ? null : Math.max(capacity - (spotsTaken.data ?? 0), 0);
+  const isFull = available !== null && available <= 0;
   const isPast = event ? event.datetime < new Date() : false;
   const isClosed = event ? event.status !== "published" : false;
 
+  const resetAndClose = () => {
+    setInviteeCount(0);
+    setReceipt(null);
+    onClose();
+  };
+
   const handlePickImage = async () => {
-    const uri = await pickEventReceiptImage();
-    if (uri) setReceiptUri(uri);
+    const picked = await pickImage(RECEIPT_PERMISSION_MESSAGE);
+    if (picked) setReceipt(picked);
   };
 
   const handleSubmit = async () => {
     if (!event) return;
-    if (!currentUserId) {
-      Alert.alert(
-        "Sesion requerida",
-        "Inicia sesion para registrarte al evento.",
-      );
-      return;
-    }
 
-    const desiredInvitees = event.isPublic ? inviteeCount : 0;
-    const { totalAttendees: desiredTotal } = computeTotals({
-      inviteeCount: desiredInvitees,
-      pricePerHead,
-    });
-
-    if (capacity && available !== null && desiredTotal > available) {
+    // Quick checks with what the screen knows; the database checks again
+    // (spots can run out while the modal is open).
+    if (available !== null && totalAttendees > available) {
       Alert.alert(
         "Lo sentimos",
         "Ya se agotaron los cupos disponibles, pero favor contactar al director de la academia para consultar disponibilidad.",
       );
       return;
     }
-
-    if (!isFree && !receiptUri) {
+    if (!isFree && !receipt) {
       Alert.alert(
         "Comprobante requerido",
         "Sube la imagen del comprobante de pago.",
@@ -274,69 +246,14 @@ const SignupModal = ({
     }
 
     try {
-      let receiptUrl: string | null = null;
-      if (!isFree && receiptUri) {
-        setUploading(true);
-        receiptUrl = await uploadEventReceiptImage({
-          uri: receiptUri,
-          eventId: event.id,
-          userId: currentUserId,
-        });
-      }
-
       await createSignup.mutateAsync({
         eventId: event.id,
-        userId: currentUserId,
-        userName: currentUserName || "Usuario",
-        userEmail: currentUserEmail || "sin-email",
         inviteeCount: desiredInvitees,
-        pricePerHead,
-        isPublic: event.isPublic,
-        isFree,
-        capacity,
-        receiptUrl,
+        receipt: isFree ? null : receipt,
       });
-
-      setInviteeCount(0);
-      setReceiptUri(null);
-      onClose();
-      Alert.alert(
-        "Registro enviado",
-        isFree
-          ? "Registro confirmado."
-          : "Solicitud enviada. Espera la validacion del pago.",
-      );
-    } catch (error) {
-      console.error("Error enviando registro de evento:", error);
-      const message = (error as Error)?.message;
-      if (message === "NO_AVAILABLE_SLOTS") {
-        Alert.alert(
-          "Lo sentimos",
-          "Ya se agotaron los cupos disponibles, pero favor contactar al director de la academia para consultar disponibilidad.",
-        );
-      } else if (message === "missing-receipt-uri") {
-        Alert.alert(
-          "Comprobante requerido",
-          "La imagen del comprobante es obligatoria para este evento.",
-        );
-      } else if (message === "missing-user-id") {
-        Alert.alert(
-          "Sesion requerida",
-          "Inicia sesion para registrarte al evento.",
-        );
-      } else if (message === "storage-not-initialized") {
-        Alert.alert(
-          "Error",
-          "No se pudo acceder al almacenamiento. Intenta de nuevo.",
-        );
-      } else {
-        Alert.alert(
-          "Error",
-          "No se pudo completar el registro. Intenta de nuevo o contacta al administrador.",
-        );
-      }
-    } finally {
-      setUploading(false);
+      resetAndClose();
+    } catch {
+      // useCreateEventSignup already told the student what went wrong.
     }
   };
 
@@ -346,11 +263,11 @@ const SignupModal = ({
     isClosed ||
     isFull ||
     alreadyRegistered ||
-    createSignup.isPending ||
-    uploading;
+    createSignup.isPending;
 
-  const handleCancel = async () => {
+  const handleCancel = () => {
     if (!event || !mySignup.data || !isCancelable) return;
+    const signupId = mySignup.data.id;
     Alert.alert(
       "Cancelar registro",
       "Si es necesario un reembolso, favor contactar al director.",
@@ -361,24 +278,10 @@ const SignupModal = ({
           style: "destructive",
           onPress: async () => {
             try {
-              await cancelSignup.mutateAsync({
-                signupId: mySignup?.data?.id || "",
-                eventId: event.id,
-                userId: currentUserId,
-              });
-              setInviteeCount(0);
-              setReceiptUri(null);
-              onClose();
-              Alert.alert(
-                "Registro cancelado",
-                "Tu registro ha sido cancelado.",
-              );
-            } catch (error) {
-              console.error("Error cancelando registro de evento:", error);
-              Alert.alert(
-                "Error",
-                "No se pudo cancelar el registro. Intenta de nuevo.",
-              );
+              await cancelSignup.mutateAsync({ signupId, eventId: event.id });
+              resetAndClose();
+            } catch {
+              // useCancelEventSignup already showed the error.
             }
           },
         },
@@ -445,9 +348,7 @@ const SignupModal = ({
               >
                 <Text className="text-white text-lg">-</Text>
               </TouchableOpacity>
-              <Text className="text-white text-lg">
-                {event?.isPublic ? inviteeCount : 0}
-              </Text>
+              <Text className="text-white text-lg">{desiredInvitees}</Text>
               <TouchableOpacity
                 className="px-3 py-2 rounded-full bg-gray-800"
                 onPress={() => setInviteeCount((prev) => prev + 1)}
@@ -482,17 +383,17 @@ const SignupModal = ({
               <TouchableOpacity
                 className="bg-gray-800 rounded-full px-4 py-3 items-center"
                 onPress={handlePickImage}
-                disabled={uploading}
+                disabled={createSignup.isPending}
               >
                 <Text className="text-white font-semibold">
-                  {receiptUri
+                  {receipt
                     ? "Cambiar comprobante"
                     : "Subir comprobante de pago"}
                 </Text>
               </TouchableOpacity>
-              {receiptUri && (
+              {receipt && (
                 <Image
-                  source={{ uri: receiptUri }}
+                  source={{ uri: receipt.uri }}
                   className="w-full h-40 rounded-xl"
                   resizeMode="cover"
                 />
@@ -504,7 +405,7 @@ const SignupModal = ({
             <View className="gap-2">
               <Text className="text-green-400">
                 Ya te registraste para este evento. (Estado:{" "}
-                {mySignup.data?.status})
+                {status ? statusTranslations[status] : ""})
               </Text>
               {isCancelable ? (
                 <TouchableOpacity
@@ -538,7 +439,7 @@ const SignupModal = ({
               onPress={handleSubmit}
               disabled={disableSubmit}
             >
-              {createSignup.isPending || uploading ? (
+              {createSignup.isPending ? (
                 <ActivityIndicator color={disableSubmit ? "#ccc" : "#000"} />
               ) : (
                 <Icon

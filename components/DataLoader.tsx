@@ -19,10 +19,11 @@ export default function DataLoader<T>({
   children,
   emptyMessage = "No data available",
 }: DataLoaderProps<T>) {
-  const { data, isLoading, isError, error, isFetching, isRefetching, refetch } =
-    query;
+  const { data, isLoading, isError, error, isRefetching, refetch } = query;
 
-  if (isLoading || isFetching) {
+  // Spinner only until there's data: background refetches (pull to refresh,
+  // invalidations) keep the content on screen, so forms keep their edits.
+  if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center p-4">
         <ActivityIndicator size="large" />

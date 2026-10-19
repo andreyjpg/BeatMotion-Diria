@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { signReceiptUrls } from "../receipts/receiptStorage";
+import { signReceiptUrls } from "../storage/receiptStorage";
 import { PAYMENT_COLUMNS, PaymentSchema, toPayment } from "./schema";
 
 /** The student's payments, newest first, with receipt URLs. */

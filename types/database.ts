@@ -1139,7 +1139,11 @@ export type Database = {
         Args: { p_course_id: string; p_user_id: string }
         Returns: string
       }
+      attendance_report: { Args: never; Returns: Json }
+      enrollment_report: { Args: { p_months?: number }; Returns: Json }
+      event_spots_taken: { Args: { p_event_id: string }; Returns: number }
       mark_receipts_purged: { Args: { p_paths: string[] }; Returns: undefined }
+      payment_report: { Args: { p_months?: number }; Returns: Json }
       receipts_due_for_purge: {
         Args: { p_limit?: number; p_retention?: string }
         Returns: {
@@ -1155,6 +1159,17 @@ export type Database = {
         }
         Returns: string
       }
+      save_survey: {
+        Args: {
+          p_course_id: string
+          p_description?: string
+          p_expires_at?: string
+          p_questions: Json
+          p_survey_id?: string
+          p_title: string
+        }
+        Returns: string
+      }
       send_broadcast: {
         Args: {
           p_content: string
@@ -1162,6 +1177,14 @@ export type Database = {
           p_title: string
         }
         Returns: number
+      }
+      submit_survey_response: {
+        Args: {
+          p_answers: Json
+          p_completion_time_seconds?: number
+          p_survey_id: string
+        }
+        Returns: string
       }
     }
     Enums: {

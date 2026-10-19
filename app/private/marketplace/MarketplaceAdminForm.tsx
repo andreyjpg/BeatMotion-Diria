@@ -1,13 +1,18 @@
-﻿import {
-  pickMarketplaceImage,
-  uploadMarketplaceImage,
-} from "@/hooks/marketplace/marketplaceMedia";
-import { useMarketplaceItems } from "@/hooks/marketplace/useMarketplaceItems";
+import FieldError from "@/components/FieldError";
+import FormScrollView from "@/components/FormScrollView";
+import { pickImage } from "@/components/pickImage";
+import {
+  FormErrors,
+  marketplaceFormSchema,
+  validationErrors,
+} from "@/constants/validationForms";
+import type { MarketplaceImageInput, MarketplaceItemInput } from "@/hooks/marketplace/schema";
 import { useCreateMarketplaceItem } from "@/hooks/marketplace/useCreateMarketplaceItem";
 import { useDeleteMarketplaceItem } from "@/hooks/marketplace/useDeleteMarketplaceItem";
+import { useMarketplaceItems } from "@/hooks/marketplace/useMarketplaceItems";
 import { useUpdateMarketplaceItem } from "@/hooks/marketplace/useUpdateMarketplaceItem";
+import type { PickedImage } from "@/hooks/storage/compressImage";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import FormScrollView from "@/components/FormScrollView";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,14 +28,33 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+/** A photo in the form: `uri` is what's shown, `image` what gets saved. */
 type MarketplaceImageState = {
   id: string;
-  localUri?: string;
-  remoteUrl?: string;
+  uri: string;
+  image: MarketplaceImageInput;
 };
 
 const generateImageId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+const pickedImageState = (picked: PickedImage): MarketplaceImageState => ({
+  id: generateImageId(),
+  uri: picked.uri,
+  image: { picked },
+});
+
+const storedImageState = (path: string, url: string): MarketplaceImageState => ({
+  id: generateImageId(),
+  uri: url,
+  image: { path },
+});
+
+const PERMISSION_MESSAGE =
+  "Necesitamos acceso a tu galeria para que puedas seleccionar imagenes del marketplace.";
+
+/** Empty optional text is saved as NULL. */
+const optionalText = (value: string) => value.trim() || null;
 
 export default function MarketplaceAdminForm() {
   const { user } = useActiveUser();
@@ -63,38 +87,22 @@ export default function MarketplaceAdminForm() {
   const [category, setCategory] = useState("");
   const [itemCode, setItemCode] = useState("");
   const [active, setActive] = useState(true);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [errors, setErrors] = useState<FormErrors<typeof marketplaceFormSchema>>({});
 
   const createMarketplaceItemMutation = useCreateMarketplaceItem();
   const updateMarketplaceItemMutation = useUpdateMarketplaceItem();
   const deleteMarketplaceItemMutation = useDeleteMarketplaceItem();
 
+  // Photos upload inside the save mutations.
   const isSaving =
-    isUploadingImages ||
     createMarketplaceItemMutation.isPending ||
     updateMarketplaceItemMutation.isPending;
   const isDeleting = deleteMarketplaceItemMutation.isPending;
 
-  const uploadImageIfNeeded = async (image: MarketplaceImageState | null) => {
-    if (!image) return null;
-    if (image.localUri) {
-      return uploadMarketplaceImage(image.localUri);
-    }
-    return image.remoteUrl ?? null;
-  };
-
-  const uploadGalleryIfNeeded = async (images: MarketplaceImageState[]) => {
-    const uploads = await Promise.all(
-      images.map((entry) => uploadImageIfNeeded(entry))
-    );
-    return uploads.filter((url): url is string => Boolean(url));
-  };
-
   const handleSelectPrimaryImage = async () => {
     if (isSaving) return;
-    const uri = await pickMarketplaceImage();
-    if (!uri) return;
-    setPrimaryImage({ id: generateImageId(), localUri: uri });
+    const picked = await pickImage(PERMISSION_MESSAGE);
+    if (picked) setPrimaryImage(pickedImageState(picked));
   };
 
   const handleRemovePrimaryImage = () => {
@@ -104,12 +112,8 @@ export default function MarketplaceAdminForm() {
 
   const handleAddGalleryImage = async () => {
     if (isSaving) return;
-    const uri = await pickMarketplaceImage();
-    if (!uri) return;
-    setGalleryImages((prev) => [
-      ...prev,
-      { id: generateImageId(), localUri: uri },
-    ]);
+    const picked = await pickImage(PERMISSION_MESSAGE);
+    if (picked) setGalleryImages((prev) => [...prev, pickedImageState(picked)]);
   };
 
   const handleRemoveGalleryImage = (id: string) => {
@@ -129,45 +133,38 @@ export default function MarketplaceAdminForm() {
       return;
     }
 
-    setName(existingItem.name ?? "");
-    setPrice(existingItem.price != null ? String(existingItem.price) : "");
+    setName(existingItem.name);
+    setPrice(String(existingItem.price));
     setShortDescription(existingItem.shortDescription ?? "");
     setDescription(existingItem.description ?? "");
-    setPrimaryImage(
-      existingItem.imageUrl
-        ? { id: generateImageId(), remoteUrl: existingItem.imageUrl }
-        : null
+    // imagePaths[i] and images[i] are the same photo (path / public URL).
+    const stored = existingItem.imagePaths.map((path, index) =>
+      storedImageState(path, existingItem.images[index])
     );
-    const uniqueGallery = Array.from(
-      new Set(
-        (existingItem.gallery ?? []).filter(
-          (url): url is string => Boolean(url) && url !== existingItem.imageUrl
-        )
-      )
-    );
-    setGalleryImages(
-      uniqueGallery.map((url) => ({
-        id: generateImageId(),
-        remoteUrl: url,
-      }))
-    );
+    setPrimaryImage(stored[0] ?? null);
+    setGalleryImages(stored.slice(1));
     setCategory(existingItem.category ?? "");
     setItemCode(existingItem.itemId ?? "");
-    setActive(existingItem.active !== false);
+    setActive(existingItem.active);
 
     hasHydratedFromItem.current = true;
   }, [existingItem]);
 
+  const resetForm = () => {
+    setName("");
+    setPrice("");
+    setShortDescription("");
+    setDescription("");
+    setPrimaryImage(null);
+    setGalleryImages([]);
+    setCategory("");
+    setItemCode("");
+    setActive(true);
+    setErrors({});
+  };
+
   const handleSubmit = async () => {
     if (isSaving) return;
-
-    if (user?.role !== "admin") {
-      Alert.alert(
-        "Permisos",
-        "Solo los administradores pueden gestionar articulos."
-      );
-      return;
-    }
 
     if (isEditing && !existingItem) {
       if (isLoadingItems) {
@@ -190,91 +187,25 @@ export default function MarketplaceAdminForm() {
       return;
     }
 
-    if (!name.trim()) {
-      Alert.alert("Campos vacios", "Completa el nombre del articulo.");
-      return;
-    }
+    // "12,000" or "₡12000" are accepted as 12000.
+    const priceValue = price.replace(/[\s,₡]/g, "");
+    const formErrors = validationErrors(marketplaceFormSchema, {
+      name,
+      price: priceValue,
+      hasPrimaryImage: !!primaryImage,
+    });
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0 || !primaryImage) return;
 
-    const parsedPrice = Number(price.replace(/[^\d.-]/g, ""));
-    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
-      Alert.alert("Precio invalido", "Ingresa un precio en colones (CRC).");
-      return;
-    }
-
-    const normalizedDescription = description.trim();
-    const normalizedShortDescription = shortDescription.trim();
-    const normalizedCategory = category.trim();
-    const normalizedItemCode = itemCode.trim();
-
-    if (!primaryImage) {
-      Alert.alert(
-        "Imagen requerida",
-        "Selecciona una imagen principal para el articulo."
-      );
-      return;
-    }
-
-    let uploadedPrimaryUrl: string | null = null;
-    let uploadedGalleryUrls: string[] = [];
-    setIsUploadingImages(true);
-    try {
-      uploadedPrimaryUrl = await uploadImageIfNeeded(primaryImage);
-      if (!uploadedPrimaryUrl) {
-        Alert.alert(
-          "Imagen requerida",
-          "No pudimos preparar la imagen principal. Intenta nuevamente."
-        );
-        return;
-      }
-      uploadedGalleryUrls = await uploadGalleryIfNeeded(galleryImages);
-    } catch (error) {
-      console.error(
-        "No se pudieron subir las imagenes del marketplace:",
-        error
-      );
-      Alert.alert(
-        "Error",
-        "No pudimos preparar las imagenes seleccionadas. Intenta nuevamente en unos minutos."
-      );
-      return;
-    } finally {
-      setIsUploadingImages(false);
-    }
-
-    if (!uploadedPrimaryUrl) {
-      return;
-    }
-
-    const images = Array.from(
-      new Set([uploadedPrimaryUrl, ...uploadedGalleryUrls])
-    );
-
-    const payload = {
+    const payload: MarketplaceItemInput = {
       name: name.trim(),
-      shortDescription: normalizedShortDescription.length
-        ? normalizedShortDescription
-        : isEditing
-        ? null
-        : undefined,
-      description: normalizedDescription.length
-        ? normalizedDescription
-        : isEditing
-        ? null
-        : undefined,
-      price: parsedPrice,
-      currency: "CRC",
-      category: normalizedCategory.length
-        ? normalizedCategory
-        : isEditing
-        ? null
-        : undefined,
+      price: Number(priceValue),
+      description: optionalText(description),
+      shortDescription: optionalText(shortDescription),
+      category: optionalText(category),
+      itemId: optionalText(itemCode),
       active,
-      itemId: normalizedItemCode.length
-        ? normalizedItemCode
-        : isEditing
-        ? null
-        : undefined,
-      images,
+      images: [primaryImage, ...galleryImages].map((entry) => entry.image),
     };
 
     try {
@@ -290,25 +221,14 @@ export default function MarketplaceAdminForm() {
           },
         ]);
       } else {
-        await createMarketplaceItemMutation.mutateAsync({
-          ...payload,
-          createdBy: user?.uid ?? "desconocido",
-        });
+        await createMarketplaceItemMutation.mutateAsync(payload);
         Alert.alert("Marketplace", "Articulo agregado correctamente.", [
           {
             text: "Aceptar",
             onPress: () => router.back(),
           },
         ]);
-        setName("");
-        setPrice("");
-        setShortDescription("");
-        setDescription("");
-        setPrimaryImage(null);
-        setGalleryImages([]);
-        setCategory("");
-        setItemCode("");
-        setActive(true);
+        resetForm();
       }
     } catch (error) {
       console.error("No se pudo guardar el articulo:", error);
@@ -446,6 +366,7 @@ export default function MarketplaceAdminForm() {
                 value={name}
                 onChangeText={setName}
               />
+              <FieldError message={errors.name} />
             </View>
 
             <View>
@@ -472,6 +393,7 @@ export default function MarketplaceAdminForm() {
                 onChangeText={setPrice}
                 keyboardType="numeric"
               />
+              <FieldError message={errors.price} />
             </View>
 
             <View>
@@ -533,10 +455,7 @@ export default function MarketplaceAdminForm() {
                 <View className="bg-gray-900 rounded-2xl p-4 gap-4">
                   <View className="rounded-xl overflow-hidden h-40 bg-gray-950">
                     <Image
-                      source={{
-                        uri:
-                          primaryImage.localUri ?? primaryImage.remoteUrl ?? "",
-                      }}
+                      source={{ uri: primaryImage.uri }}
                       className="w-full h-full"
                       resizeMode="cover"
                     />
@@ -577,6 +496,7 @@ export default function MarketplaceAdminForm() {
                   </Text>
                 </TouchableOpacity>
               )}
+              <FieldError message={errors.hasPrimaryImage} />
             </View>
 
             <View>
@@ -584,12 +504,10 @@ export default function MarketplaceAdminForm() {
               {galleryImages.length > 0 ? (
                 <View className="flex-row flex-wrap gap-4">
                   {galleryImages.map((image) => {
-                    const uri = image.localUri ?? image.remoteUrl;
-                    if (!uri) return null;
                     return (
                       <View key={image.id} className="relative">
                         <Image
-                          source={{ uri }}
+                          source={{ uri: image.uri }}
                           className="w-28 h-28 rounded-xl"
                           resizeMode="cover"
                         />

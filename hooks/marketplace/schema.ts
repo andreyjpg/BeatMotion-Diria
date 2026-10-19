@@ -1,103 +1,76 @@
 import zod from "zod";
+import { dateTimeSchema } from "../enrollment/schema";
+import type { PickedImage } from "../storage/compressImage";
+import { mediaUrl } from "../storage/mediaStorage";
 
-const timestampSchema = zod
-  .any()
-  .nullable()
-  .transform((value) => {
-    if (!value) return null;
-    if (value instanceof Date) return value;
-    if (typeof value === "string" || typeof value === "number") {
-      const parsed = new Date(value);
-      return Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
-    if (typeof value === "object" && value !== null) {
-      if (typeof (value as { toDate?: () => Date }).toDate === "function") {
-        return (value as { toDate: () => Date }).toDate();
-      }
-      if ("seconds" in value && "nanoseconds" in value) {
-        const seconds = Number(
-          (value as { seconds: number; nanoseconds: number }).seconds,
-        );
-        const nanos = Number(
-          (value as { seconds: number; nanoseconds: number }).nanoseconds,
-        );
-        return new Date(seconds * 1000 + nanos / 1_000_000);
-      }
-    }
-    return null;
-  });
+/** public.marketplace_items columns renamed to the fields the app uses. */
+export const MARKETPLACE_COLUMNS =
+  "id, itemId:sku, name, description, shortDescription:short_description, category, price, currency, imagePaths:image_paths, active, createdBy:created_by, createdAt:created_at, updatedAt:updated_at";
 
-const priceSchema = zod
-  .union([zod.number(), zod.string()])
-  .transform((value, ctx) => {
-    if (typeof value === "number") return value;
-    const sanitized = value.replace(/[^\d.-]/g, "");
-    const parsed = parseFloat(sanitized);
-    if (!Number.isFinite(parsed)) {
-      ctx.addIssue({
-        code: zod.ZodIssueCode.custom,
-        message: "Precio invalido",
-      });
-      return zod.NEVER;
-    }
-    return parsed;
-  })
-  .pipe(zod.number().nonnegative());
+/**
+ * Database row -> screen shape: public image URLs (`imageUrl` is the primary
+ * one, `gallery` all of them) and a short description fallback.
+ */
+export function toMarketplaceItem<
+  T extends { imagePaths: string[]; description: string | null; shortDescription: string | null },
+>(row: T) {
+  const images = row.imagePaths.map(mediaUrl);
+  return {
+    ...row,
+    images,
+    imageUrl: images[0] ?? null,
+    gallery: images,
+    shortDescription: row.shortDescription ?? row.description?.slice(0, 100) ?? null,
+  };
+}
 
-const stringOrNullish = zod
-  .union([zod.string(), zod.null(), zod.undefined()])
-  .transform((value) => (value ?? undefined ? String(value) : undefined));
-
-const imagesSchema = zod
-  .union([
-    zod.array(zod.string()),
-    zod.record(zod.string(), zod.string()),
-    zod.null(),
-    zod.undefined(),
-  ])
-  .transform((value) => {
-    if (!value) return [];
-    if (Array.isArray(value)) return value.filter(Boolean);
-    return Object.values(value).filter(Boolean);
-  });
-
-export const marketplaceItemSchema = zod
-  .object({
-    id: zod.string(),
-    itemId: stringOrNullish,
-    name: zod.string(),
-    description: stringOrNullish,
-    shortDescription: stringOrNullish,
-    category: stringOrNullish,
-    currency: stringOrNullish,
-    createdBy: stringOrNullish,
-    active: zod.union([zod.boolean(), zod.undefined()]).default(true),
-    price: priceSchema,
-    images: imagesSchema,
-    imageUrl: stringOrNullish,
-    gallery: zod.array(zod.string()).optional(),
-    createdAt: timestampSchema,
-    updatedAt: timestampSchema,
-  })
-  .transform((value) => {
-    const imagesCandidate = value.images.length ? value.images : value.gallery ?? [];
-    const images = Array.from(new Set(imagesCandidate.filter(Boolean)));
-    const imageUrl = value.imageUrl ?? images[0];
-    const shortDescription =
-      value.shortDescription ??
-      (value.description ? value.description.slice(0, 100) : undefined);
-    const currency = value.currency ?? "CRC";
-
-    return {
-      ...value,
-      images,
-      imageUrl,
-      gallery: images,
-      shortDescription,
-      currency,
-    };
-  });
+export const marketplaceItemSchema = zod.object({
+  id: zod.string(),
+  itemId: zod.string().nullable(),
+  name: zod.string(),
+  description: zod.string().nullable(),
+  shortDescription: zod.string().nullable(),
+  category: zod.string().nullable(),
+  price: zod.number().nonnegative(),
+  currency: zod.string(),
+  imagePaths: zod.array(zod.string()),
+  images: zod.array(zod.string()),
+  imageUrl: zod.string().nullable(),
+  gallery: zod.array(zod.string()),
+  active: zod.boolean(),
+  createdBy: zod.string().nullable(),
+  createdAt: dateTimeSchema,
+  updatedAt: dateTimeSchema,
+});
 
 export const marketplaceCollectionSchema = zod.array(marketplaceItemSchema);
 
 export type MarketplaceItem = zod.infer<typeof marketplaceItemSchema>;
+
+/** A photo of the item: one already stored, or one just picked on the device. */
+export type MarketplaceImageInput = { path: string } | { picked: PickedImage };
+
+/** What the admin form saves (create and update). The first image is the primary one. */
+export type MarketplaceItemInput = {
+  name: string;
+  price: number;
+  description: string | null;
+  shortDescription: string | null;
+  category: string | null;
+  itemId: string | null;
+  active: boolean;
+  images: MarketplaceImageInput[];
+};
+
+/** MarketplaceItemInput -> public.marketplace_items columns (images handled by the hooks). */
+export const toMarketplaceRow = (input: MarketplaceItemInput) => ({
+  name: input.name.trim(),
+  price: input.price,
+  description: input.description,
+  // Same default as before: the first 100 characters of the description.
+  short_description: input.shortDescription ?? input.description?.slice(0, 100) ?? null,
+  category: input.category,
+  sku: input.itemId,
+  active: input.active,
+  currency: "CRC",
+});

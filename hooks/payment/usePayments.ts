@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { ReviewStatus } from "../enrollment/schema";
-import { signReceiptUrls } from "../receipts/receiptStorage";
+import { signReceiptUrls } from "../storage/receiptStorage";
 import { PAYMENT_DETAIL_COLUMNS, PaymentDetailSchema, toPayment } from "./schema";
 
 /** Admin list: payments in one status, newest first, with receipt URLs. */

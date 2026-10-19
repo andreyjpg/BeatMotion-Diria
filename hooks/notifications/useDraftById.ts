@@ -1,33 +1,23 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { doc, getDoc } from "firebase/firestore";
-import { draftSchema } from "./notificationSchemas";
+import { DRAFT_COLUMNS, draftSchema } from "./notificationSchemas";
 
-export const useDraftById = (uid: string) => {
+/** One draft, or null if it doesn't exist. */
+export const useDraftById = (draftId?: string) => {
   const fetchDraft = async () => {
-    if (uid === "new") return {};
-    try {
-      const querySnap = await getDoc(doc(firestore, "drafts", uid));
-      if (!querySnap.exists()) {
-        throw new Error("Draft not found");
-      }
-      const draft = {
-        id: querySnap.id,
-        ...querySnap.data(),
-      };
-      return draftSchema.parse(draft);
-    } catch (err) {
-      console.error(
-        "Error al solicitar datos de borrador. Por favor, Intentelo de nuevo"
-      );
-    }
+    const { data, error } = await supabase
+      .from("notification_drafts")
+      .select(DRAFT_COLUMNS)
+      .eq("id", draftId!)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? draftSchema.parse(data) : null;
   };
 
-  const query = useQuery({
-    queryKey: ["draftDetail"],
+  return useQuery({
+    // The id is part of the key (it wasn't: every draft shared one cache entry).
+    queryKey: ["drafts", "byId", draftId],
     queryFn: fetchDraft,
-    enabled: !!uid,
+    enabled: !!draftId,
   });
-
-  return query;
 };

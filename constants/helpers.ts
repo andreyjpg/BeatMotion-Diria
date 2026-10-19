@@ -7,6 +7,8 @@ const statusTranslations: { [key: string]: string } = {
   rejected: "Rechazada",
   ok: "Realizado",
   late: "Atrasado",
+  canceled: "Cancelada",
+  autoApproved: "Confirmada",
 };
 
 const getEnrollmentColor = (status: string) => {
@@ -101,6 +103,14 @@ const daysBetween = (from: Date, to: Date) => {
   return Math.round((end - start) / 86_400_000);
 };
 
+const MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+/** "2026-10" -> "oct 2026" (report months). */
+const formatMonthLabel = (yearMonth: string) => {
+  const [year, month] = yearMonth.split("-").map(Number);
+  return month >= 1 && month <= 12 ? `${MONTHS_SHORT[month - 1]} ${year}` : yearMonth;
+};
+
 // ---- Fares ------------------------------------------------------------------
 
 type FareRow = { type: string; fare: number; numCourse: number };
@@ -149,6 +159,7 @@ export {
   formatCurrency,
   formatDate,
   formatDDMMYYYY,
+  formatMonthLabel,
   formatYYYYMMDD,
   getEnrollmentColor,
   isAnnualFeeExemptMonth,

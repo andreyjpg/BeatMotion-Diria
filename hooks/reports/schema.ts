@@ -1,5 +1,10 @@
 import zod from "zod";
-import { timestampSchema } from "../enrollment/schema";
+
+/*
+ * Report totals as returned by the database functions payment_report,
+ * enrollment_report and attendance_report. `month` is "YYYY-MM" (Costa Rica),
+ * oldest first, including months with nothing.
+ */
 
 export const PaymentReportSchema = zod.object({
   totalPayments: zod.number(),

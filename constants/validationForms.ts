@@ -1,5 +1,6 @@
 import { string } from "yup";
 
+import type { SurveyQuestionInput } from "@/hooks/surveys/surveySchema";
 import * as yup from "yup";
 
 export const signInValidationSchema = {
@@ -34,10 +35,15 @@ export const ProfileAdminValidationSchema = {
     .required("El rol es obligatorio"),
 };
 
-export const DraftValidationSchema = {
-  title: string().required("El título es obligatorio"),
-  content: string().required("El contenido es obligatorio"),
-};
+/** Notification draft (admin notifications/[draftId]). */
+export const draftFormSchema = yup.object().shape({
+  title: yup.string().trim().required("El título es obligatorio"),
+  content: yup.string().trim().required("El contenido es obligatorio"),
+  recipients: yup
+    .string()
+    .oneOf(["all", "user", "teacher"], "Selecciona a quién enviar.")
+    .required("Selecciona a quién enviar."),
+});
 
 export const UserProfileValidationSchema = {
   name: string()
@@ -52,7 +58,8 @@ export const UserProfileValidationSchema = {
     .max(8, "Debe de ingresar un número válido"),
 };
 
-export const eventSchema = yup.object().shape({
+/** Event form (admin events new / edit). */
+export const eventFormSchema = yup.object().shape({
   title: yup
     .string()
     .trim()
@@ -62,7 +69,15 @@ export const eventSchema = yup.object().shape({
   datetime: yup
     .date()
     .required("La fecha del evento es obligatoria.")
-    .min(new Date(), "La fecha no puede ser en el pasado."),
+    .test("future", "La fecha no puede ser en el pasado.", function (value) {
+      // Checked against the time of saving (a schema-level `new Date()` would be
+      // the time the app opened). Editing may keep an event's past date.
+      if (!value) return true; // `required` reports it
+      const original: unknown = this.parent?.originalDatetime;
+      if (original instanceof Date && value.getTime() === original.getTime()) return true;
+      return value.getTime() > Date.now();
+    }),
+  originalDatetime: yup.date().nullable(),
   capacityInput: yup.string().when(["unlimited"], (values, schema) => {
     const [unlimited] = values as [boolean];
 
@@ -105,9 +120,67 @@ export const eventSchema = yup.object().shape({
     .trim()
     .required("La ubicación es obligatoria.")
     .min(3, "La ubicación es demasiado corta."),
-
-  bannerUrl: yup.string().url("La imagen debe ser una URL válida.").nullable(),
 });
+
+/** Marketplace item form. */
+export const marketplaceFormSchema = yup.object().shape({
+  name: yup.string().trim().required("Completa el nombre del artículo."),
+  price: yup
+    .string()
+    .trim()
+    .required("Ingresa un precio en colones (CRC).")
+    .matches(/^[0-9]+(\.[0-9]{1,2})?$/, "Ingresa un precio en colones (CRC)."),
+  hasPrimaryImage: yup
+    .boolean()
+    .oneOf([true], "Selecciona una imagen principal para el artículo."),
+});
+
+/** Survey editor (admin surveys/create). */
+export const surveyFormSchema = yup.object().shape({
+  title: yup
+    .string()
+    .trim()
+    .required("Debes ingresar un título para la encuesta.")
+    .min(3, "El título debe tener al menos 3 caracteres.")
+    .max(200, "El título puede tener hasta 200 caracteres."),
+  courseId: yup.string().required("Debes seleccionar un curso."),
+  questions: yup
+    .array()
+    .of(yup.mixed<SurveyQuestionInput>().required())
+    .min(1, "Debes agregar al menos una pregunta.")
+    .test("complete", "", function (questions = []) {
+      for (const [index, question] of questions.entries()) {
+        const label = `Pregunta ${index + 1}`;
+        const length = question.questionText.trim().length;
+        if (length < 3 || length > 500) {
+          return this.createError({ message: `${label}: escribe la pregunta (3 a 500 caracteres).` });
+        }
+        if (question.questionType === "multiple_choice") {
+          const options = question.options ?? [];
+          if (options.length < 2) {
+            return this.createError({ message: `${label}: agrega al menos 2 opciones.` });
+          }
+          if (options.some((option) => !option.trim())) {
+            return this.createError({ message: `${label}: todas las opciones deben tener texto.` });
+          }
+        }
+      }
+      return true;
+    }),
+});
+
+/** Answering a survey: one field per required question (by question id). */
+export const surveyAnswersSchema = (questions: { id: string; required: boolean }[]) =>
+  yup.object(
+    Object.fromEntries(
+      questions
+        .filter((question) => question.required)
+        .map((question) => [
+          question.id,
+          yup.string().trim().required("Esta pregunta es obligatoria."),
+        ]),
+    ),
+  );
 
 /** One message per invalid field, as shown under each input. */
 export type FormErrors<S extends yup.AnyObjectSchema> = Partial<

@@ -1,5 +1,6 @@
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
+import { formatDDMMYYYY, to12hLabel } from "@/constants/helpers";
 import { useSurveyResponses } from "@/hooks/surveys/useSurveyResponses";
 import { useSurveyResults } from "@/hooks/surveys/useSurveyResults";
 import { useSurveyById } from "@/hooks/surveys/useSurveyById";
@@ -209,21 +210,15 @@ export default function SurveyResultsScreen() {
                                 {response.userName || "Usuario"}
                               </Text>
                               <Text className="text-gray-400 text-xs">
-                                {new Date(
-                                  response.submittedAt
-                                ).toLocaleDateString()}{" "}
-                                -{" "}
-                                {new Date(
-                                  response.submittedAt
-                                ).toLocaleTimeString()}
+                                {formatDDMMYYYY(response.submittedAt)} -{" "}
+                                {to12hLabel(response.submittedAt)}
                               </Text>
                             </View>
-                            {response.completionTimeSeconds && (
+                            {response.completionTimeSeconds !== null && (
                               <Text className="text-gray-500 text-xs">
-                                {Math.round(
-                                  response.completionTimeSeconds / 60
-                                )}
-                                min
+                                {response.completionTimeSeconds < 60
+                                  ? "< 1 min"
+                                  : `${Math.round(response.completionTimeSeconds / 60)} min`}
                               </Text>
                             )}
                           </View>

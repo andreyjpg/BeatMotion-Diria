@@ -1,15 +1,18 @@
+import DataLoader from "@/components/DataLoader";
+import FieldError from "@/components/FieldError";
 import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
-import { useCourses } from "@/hooks/courses/useCourses";
-import { useCreateSurvey } from "@/hooks/surveys/useCreateSurvey";
-import { useUpdateSurvey } from "@/hooks/surveys/useUpdateSurvey";
-import { useSurveyById } from "@/hooks/surveys/useSurveyById";
+import { quickSurveyTemplate } from "@/constants/surveyTemplates";
 import {
-  SurveyQuestion,
-  QuestionType,
-  quickSurveyTemplate,
-} from "@/hooks/surveys/surveySchema";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
+  FormErrors,
+  surveyFormSchema,
+  validationErrors,
+} from "@/constants/validationForms";
+import { useCourses } from "@/hooks/courses/useCourses";
+import type { QuestionType, SurveyQuestionInput } from "@/hooks/surveys/surveySchema";
+import { useCreateSurvey } from "@/hooks/surveys/useCreateSurvey";
+import { useSurveyById } from "@/hooks/surveys/useSurveyById";
+import { useUpdateSurvey } from "@/hooks/surveys/useUpdateSurvey";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -23,7 +26,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import DataLoader from "@/components/DataLoader";
+
+const newQuestion = (type: QuestionType): SurveyQuestionInput => ({
+  questionText: "",
+  questionType: type,
+  required: true,
+  ...(type === "multiple_choice" ? { options: ["", ""] } : {}),
+});
 
 export default function CreateEditSurveyScreen() {
   const router = useRouter();
@@ -31,9 +40,8 @@ export default function CreateEditSurveyScreen() {
   const surveyId = params.surveyId;
   const isEditing = !!surveyId;
 
-  const { user } = useActiveUser();
   const coursesQuery = useCourses();
-  const surveyQuery = useSurveyById(surveyId || "");
+  const surveyQuery = useSurveyById(surveyId);
   const createSurvey = useCreateSurvey();
   const updateSurvey = useUpdateSurvey();
 
@@ -41,179 +49,119 @@ export default function CreateEditSurveyScreen() {
   const [description, setDescription] = useState("");
   const [courseId, setCourseId] = useState("");
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
-  const [questions, setQuestions] = useState<Omit<SurveyQuestion, "id">[]>([]);
+  const [questions, setQuestions] = useState<SurveyQuestionInput[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [errors, setErrors] = useState<FormErrors<typeof surveyFormSchema>>({});
 
+  // Prefill when editing. Saved questions keep their id so their answers stay.
   useEffect(() => {
     if (isEditing && surveyQuery.data) {
       const survey = surveyQuery.data;
       setTitle(survey.title);
-      setDescription(survey.description || "");
+      setDescription(survey.description ?? "");
       setCourseId(survey.courseId);
-      setExpiresAt(survey.expiresAt ? new Date(survey.expiresAt) : null);
+      setExpiresAt(survey.expiresAt);
       setQuestions(
-        survey.questions.map(({ id, ...rest }) => rest)
+        survey.questions.map((question) => ({
+          id: question.id,
+          questionText: question.questionText,
+          questionType: question.questionType,
+          required: question.required,
+          options: question.options ?? undefined,
+        })),
       );
     }
   }, [isEditing, surveyQuery.data]);
 
   const addQuestion = (type: QuestionType) => {
-    const newQuestion: Omit<SurveyQuestion, "id"> = {
-      questionText: "",
-      questionType: type,
-      required: true,
-      order: questions.length,
-      ...(type === "multiple_choice" ? { options: ["", ""] } : {}),
-    };
-    setQuestions([...questions, newQuestion]);
+    setQuestions((prev) => [...prev, newQuestion(type)]);
   };
 
-  const updateQuestion = (
-    index: number,
-    updates: Partial<Omit<SurveyQuestion, "id">>
-  ) => {
-    const updated = [...questions];
-    updated[index] = { ...updated[index], ...updates };
-    setQuestions(updated);
+  const updateQuestion = (index: number, updates: Partial<SurveyQuestionInput>) => {
+    setQuestions((prev) =>
+      prev.map((question, i) => (i === index ? { ...question, ...updates } : question)),
+    );
+  };
+
+  // A different type can't keep the old answers: it becomes a new question.
+  const changeQuestionType = (index: number, type: QuestionType) => {
+    setQuestions((prev) =>
+      prev.map((question, i) =>
+        i === index && question.questionType !== type
+          ? { ...newQuestion(type), questionText: question.questionText, required: question.required }
+          : question,
+      ),
+    );
   };
 
   const deleteQuestion = (index: number) => {
     Alert.alert(
       "Eliminar pregunta",
-      "¿Estás seguro de eliminar esta pregunta?",
+      isEditing
+        ? "¿Estás seguro de eliminar esta pregunta? Sus respuestas también se eliminarán."
+        : "¿Estás seguro de eliminar esta pregunta?",
       [
         { text: "Cancelar", style: "cancel" },
         {
           text: "Eliminar",
           style: "destructive",
-          onPress: () => {
-            const updated = questions.filter((_, i) => i !== index);
-            setQuestions(updated.map((q, i) => ({ ...q, order: i })));
-          },
+          onPress: () => setQuestions((prev) => prev.filter((_, i) => i !== index)),
         },
-      ]
+      ],
     );
   };
 
   const moveQuestion = (index: number, direction: "up" | "down") => {
-    if (
-      (direction === "up" && index === 0) ||
-      (direction === "down" && index === questions.length - 1)
-    ) {
-      return;
-    }
-
-    const updated = [...questions];
     const newIndex = direction === "up" ? index - 1 : index + 1;
-    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
-    setQuestions(updated.map((q, i) => ({ ...q, order: i })));
+    if (newIndex < 0 || newIndex >= questions.length) return;
+    setQuestions((prev) => {
+      const updated = [...prev];
+      [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+      return updated;
+    });
   };
 
-  const addOption = (questionIndex: number) => {
-    const updated = [...questions];
-    if (updated[questionIndex].options) {
-      updated[questionIndex].options = [
-        ...(updated[questionIndex].options || []),
-        "",
-      ];
-      setQuestions(updated);
-    }
+  const setOptions = (questionIndex: number, change: (options: string[]) => string[]) => {
+    setQuestions((prev) =>
+      prev.map((question, i) =>
+        i === questionIndex ? { ...question, options: change(question.options ?? []) } : question,
+      ),
+    );
   };
 
-  const updateOption = (
-    questionIndex: number,
-    optionIndex: number,
-    value: string
-  ) => {
-    const updated = [...questions];
-    if (updated[questionIndex].options) {
-      updated[questionIndex].options![optionIndex] = value;
-      setQuestions(updated);
-    }
-  };
+  const addOption = (questionIndex: number) => setOptions(questionIndex, (options) => [...options, ""]);
 
-  const deleteOption = (questionIndex: number, optionIndex: number) => {
-    const updated = [...questions];
-    if (updated[questionIndex].options) {
-      updated[questionIndex].options = updated[questionIndex].options!.filter(
-        (_, i) => i !== optionIndex
-      );
-      setQuestions(updated);
-    }
-  };
+  const updateOption = (questionIndex: number, optionIndex: number, value: string) =>
+    setOptions(questionIndex, (options) =>
+      options.map((option, i) => (i === optionIndex ? value : option)),
+    );
+
+  const deleteOption = (questionIndex: number, optionIndex: number) =>
+    setOptions(questionIndex, (options) => options.filter((_, i) => i !== optionIndex));
 
   const applyTemplate = (templateKey: keyof typeof quickSurveyTemplate) => {
     const template = quickSurveyTemplate[templateKey];
     setTitle(template.title);
     setDescription(template.description);
-    setQuestions(template.questions.map(({ id, ...rest }) => rest));
+    setQuestions(template.questions.map((question) => ({ ...question })));
     setShowTemplates(false);
   };
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      Alert.alert("Error", "Debes ingresar un título para la encuesta.");
-      return;
-    }
+    const formErrors = validationErrors(surveyFormSchema, { title, courseId, questions });
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0) return;
 
-    if (!courseId) {
-      Alert.alert("Error", "Debes seleccionar un curso.");
-      return;
-    }
-
-    if (questions.length === 0) {
-      Alert.alert("Error", "Debes agregar al menos una pregunta.");
-      return;
-    }
-
-    const emptyQuestions = questions.filter((q) => !q.questionText.trim());
-    if (emptyQuestions.length > 0) {
-      Alert.alert("Error", "Todas las preguntas deben tener texto.");
-      return;
-    }
-
-    for (const q of questions) {
-      if (q.questionType === "multiple_choice") {
-        if (!q.options || q.options.length < 2) {
-          Alert.alert(
-            "Error",
-            "Las preguntas de opción múltiple deben tener al menos 2 opciones."
-          );
-          return;
-        }
-        const emptyOptions = q.options.filter((opt) => !opt.trim());
-        if (emptyOptions.length > 0) {
-          Alert.alert("Error", "Todas las opciones deben tener texto.");
-          return;
-        }
-      }
-    }
-
+    const input = { courseId, title, description, expiresAt, questions };
     try {
       if (isEditing) {
-        await updateSurvey.mutateAsync({
-          surveyId: surveyId!,
-          title,
-          description,
-          questions: questions.map((q, i) => ({
-            ...q,
-            id: `q${i + 1}_${Date.now()}`,
-          })),
-          expiresAt,
-        });
+        await updateSurvey.mutateAsync({ ...input, surveyId });
       } else {
-        await createSurvey.mutateAsync({
-          title,
-          description,
-          courseId,
-          questions,
-          createdBy: user?.uid || "unknown",
-          expiresAt,
-        });
+        await createSurvey.mutateAsync(input);
       }
       router.back();
-    } catch (error) {
-      console.error("Error saving survey:", error);
+    } catch {
+      // The hook already showed the error.
     }
   };
 
@@ -307,6 +255,7 @@ export default function CreateEditSurveyScreen() {
           placeholder="Ej: Encuesta de Satisfacción - Salsa Inicial"
           placeholderTextColor="#9CA3AF"
         />
+        <FieldError message={errors.title} className="-mt-3 mb-4" />
 
         {/* Descripción */}
         <Text className="text-white font-semibold mb-2">Descripción</Text>
@@ -344,6 +293,7 @@ export default function CreateEditSurveyScreen() {
             </View>
           )}
         </DataLoader>
+        <FieldError message={errors.courseId} className="-mt-3 mb-4" />
 
         {/* Preguntas */}
         <View className="mb-6">
@@ -352,6 +302,7 @@ export default function CreateEditSurveyScreen() {
               Preguntas ({questions.length})
             </Text>
           </View>
+          <FieldError message={errors.questions} className="-mt-1 mb-3" />
 
           {questions.map((question, index) => (
             <View key={index} className="bg-gray-900 rounded-xl p-4 mb-3">
@@ -377,14 +328,7 @@ export default function CreateEditSurveyScreen() {
               <View className="bg-gray-800 rounded-xl mb-3">
                 <Picker
                   selectedValue={question.questionType}
-                  onValueChange={(value) =>
-                    updateQuestion(index, {
-                      questionType: value as QuestionType,
-                      ...(value === "multiple_choice"
-                        ? { options: ["", ""] }
-                        : {}),
-                    })
-                  }
+                  onValueChange={(value: QuestionType) => changeQuestionType(index, value)}
                   dropdownIconColor="#ffffff"
                   style={{ color: "white" }}
                 >
@@ -427,7 +371,7 @@ export default function CreateEditSurveyScreen() {
                         placeholder={`Opción ${optIndex + 1}`}
                         placeholderTextColor="#9CA3AF"
                       />
-                      {question.options!.length > 2 && (
+                      {(question.options ?? []).length > 2 && (
                         <TouchableOpacity
                           onPress={() => deleteOption(index, optIndex)}
                         >

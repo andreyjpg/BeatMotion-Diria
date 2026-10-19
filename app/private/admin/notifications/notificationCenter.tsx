@@ -26,19 +26,21 @@ const NotificationCenter = () => {
   return (
     <SafeAreaView className="flex-1 bg-gray-950">
       <HeaderTitle title="Centro de notificaciones" />
-      <View className="flex-col items-center">
+      {/* Only the tabs are centered: centering the list too made each card
+          as narrow as its text. */}
+      <View className="items-center">
         <FilterPills
           options={CENTER_OPTIONS}
           onSelect={handleTabPress}
           selected={activeTab}
         />
-        <View className="">
-          {activeTab === "drafts" ? (
-            <DraftHistoryScreen />
-          ) : (
-            <NotificationsHistory />
-          )}
-        </View>
+      </View>
+      <View className="flex-1 px-3">
+        {activeTab === "drafts" ? (
+          <DraftHistoryScreen />
+        ) : (
+          <NotificationsHistory />
+        )}
       </View>
       <Pressable
         onPress={() =>

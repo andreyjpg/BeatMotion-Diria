@@ -1,14 +1,9 @@
 import DataLoader from "@/components/DataLoader";
-import { formatDate } from "@/constants/helpers";
+import { formatDDMMYYYY, to12hLabel } from "@/constants/helpers";
+import { AUDIENCE_LABELS } from "@/hooks/notifications/notificationSchemas";
 import { useNotificationsHistory } from "@/hooks/notifications/useNotificationsHistory";
 import { SimpleLineIcons } from "@expo/vector-icons";
 import { FlatList, Text, View } from "react-native";
-
-const DICTIONARY_SENTS = {
-  all: "Todos los usuarios",
-  teacher: "Instructores",
-  user: "Estudiantes",
-};
 
 const NotificationsHistory = () => {
   const notificationsQuery = useNotificationsHistory();
@@ -21,6 +16,7 @@ const NotificationsHistory = () => {
       {(data) => (
         <FlatList
           data={data}
+          contentContainerStyle={{ paddingBottom: 96 }}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <View className="gap-2 p-2.5 bg-gray-800 rounded-xl mb-2">
@@ -37,10 +33,10 @@ const NotificationsHistory = () => {
 
               <Text className="text-gray-300">{item.content}</Text>
               <Text className="text-gray-300">
-                Enviado a: {DICTIONARY_SENTS[item.recipients]}
+                Enviado a: {AUDIENCE_LABELS[item.recipients]}
               </Text>
               <Text className="text-gray-300">
-                Creado: {formatDate(item.createdAt)}
+                Enviado: {formatDDMMYYYY(item.createdAt)} {to12hLabel(item.createdAt)}
               </Text>
             </View>
           )}
