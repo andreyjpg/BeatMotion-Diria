@@ -1,9 +1,9 @@
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { supabase } from "@/lib/supabase";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
+import { registerPushToken } from "./pushToken";
 
 /**
  * Registers this device's Expo push token for the signed-in user. Runs on
@@ -39,10 +39,9 @@ export const useCreateFCMToken = () => {
         projectId: Constants.expoConfig?.extra?.eas?.projectId,
       });
 
-      const { error } = await supabase
-        .from("push_tokens")
-        .upsert({ user_id: user.uid, token: expoToken }, { onConflict: "user_id" });
-      if (error) console.error("Error saving push token:", error);
+      // The device now belongs to this user (a previous user on it stops
+      // getting pushes here).
+      await registerPushToken(expoToken);
     };
 
     // Push tokens aren't available everywhere (Expo Go on Android throws since

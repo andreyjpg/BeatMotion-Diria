@@ -1,3 +1,4 @@
+import { unregisterPushToken } from "@/hooks/notifications/pushToken";
 import { supabase } from "@/lib/supabase";
 import { useMutation } from "@tanstack/react-query";
 
@@ -6,6 +7,8 @@ import { useMutation } from "@tanstack/react-query";
 export const useSignOut = () => {
   return useMutation({
     mutationFn: async () => {
+      // While still signed in: this device stops receiving this user's pushes.
+      await unregisterPushToken();
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     },

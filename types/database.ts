@@ -255,6 +255,7 @@ export type Database = {
           level: number
           start_date: string | null
           teacher_id: string | null
+          teacher_name: string | null
           title: string
           updated_at: string
         }
@@ -1150,6 +1151,7 @@ export type Database = {
           path: string
         }[]
       }
+      register_push_token: { Args: { p_token: string }; Returns: undefined }
       request_enrollment: {
         Args: {
           p_annual_fee_year?: number
@@ -1184,6 +1186,10 @@ export type Database = {
           p_completion_time_seconds?: number
           p_survey_id: string
         }
+        Returns: string
+      }
+      teacher_name: {
+        Args: { "": Database["public"]["Tables"]["courses"]["Row"] }
         Returns: string
       }
     }

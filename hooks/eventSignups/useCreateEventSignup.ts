@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
 import type { PickedImage } from "../storage/compressImage";
-import { uploadReceipt } from "../storage/receiptStorage";
+import { removeUnusedReceipt, uploadReceipt } from "../storage/receiptStorage";
 import { eventSignupsKeys, SIGNUP_ERROR_MESSAGES } from "./schema";
 
 type CreateEventSignupInput = {
@@ -38,7 +38,10 @@ export const useCreateEventSignup = () => {
         })
         .select("status")
         .single();
-      if (error) throw error;
+      if (error) {
+        if (receiptPath) await removeUnusedReceipt(receiptPath);
+        throw error;
+      }
       return data.status;
     },
     onSuccess: (status, { eventId }) => {

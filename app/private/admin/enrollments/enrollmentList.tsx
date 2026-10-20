@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -101,6 +102,16 @@ const EnrollmentList = () => {
             data={data}
             keyExtractor={(item) => item.id}
             numColumns={1}
+            // Loads the next 20 when nearing the end of the list.
+            onEndReached={() => {
+              if (enrollmentByStatusQuery.hasNextPage && !enrollmentByStatusQuery.isFetchingNextPage) {
+                enrollmentByStatusQuery.fetchNextPage();
+              }
+            }}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              enrollmentByStatusQuery.isFetchingNextPage ? <ActivityIndicator color="#facc15" /> : null
+            }
             contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
             refreshControl={
               <RefreshControl

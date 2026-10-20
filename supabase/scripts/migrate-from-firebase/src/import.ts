@@ -858,8 +858,9 @@ class Importer {
         this.skip("push_tokens", `pushTokens/${id}: ${userId ? "no token" : "user not imported"}`);
         continue;
       }
+      // push_tokens is keyed by token (one row per device).
       await this.put("push_tokens", { user_id: userId, token, updated_at: iso(d.timestamp) }, `pushTokens/${id}`, [
-        "user_id",
+        "token",
       ]);
     }
   }

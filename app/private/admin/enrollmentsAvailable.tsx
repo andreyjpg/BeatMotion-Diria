@@ -5,6 +5,7 @@ import {
   getEnrollmentColor,
   statusTranslations,
 } from "@/constants/helpers";
+import { useEnrollmentCount } from "@/hooks/enrollment/useEnrollmentCount";
 import { useEnrollmentsByStatus } from "@/hooks/enrollment/useEnrollmentsByStatus";
 import { useRouter } from "expo-router";
 import { FlatList, Text, TouchableHighlight, View } from "react-native";
@@ -12,6 +13,8 @@ import { FlatList, Text, TouchableHighlight, View } from "react-native";
 const EnrollmentAvailable = () => {
   const router = useRouter();
   const pendingEnrollmentsQuery = useEnrollmentsByStatus("pending");
+  // The list loads 20 at a time; the database counts all pending requests.
+  const pendingCountQuery = useEnrollmentCount("pending");
 
   const handleViewMoreEnrolls = () => {
     router.push("/private/admin/enrollments/enrollmentList");
@@ -25,7 +28,7 @@ const EnrollmentAvailable = () => {
             Matriculas
           </Text>
           <Text className="text-gray-400 text-lg font-semibold">
-            ({pendingEnrollmentsQuery.data?.length || 0} Pendientes)
+            ({pendingCountQuery.data ?? 0} Pendientes)
           </Text>
         </View>
         <TouchableHighlight

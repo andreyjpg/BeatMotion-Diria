@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
 import type { PickedImage } from "../storage/compressImage";
-import { uploadReceipt } from "../storage/receiptStorage";
+import { removeUnusedReceipt, uploadReceipt } from "../storage/receiptStorage";
 
 type CreateEnrollmentInput = {
   courseIds: string[];
@@ -30,7 +30,10 @@ export const useCreateEnrollment = () => {
         p_receipt_path: receiptPath,
         p_annual_fee_year: input.annualFeeYear ?? undefined,
       });
-      if (error) throw error;
+      if (error) {
+        await removeUnusedReceipt(receiptPath);
+        throw error;
+      }
       return enrollmentId;
     },
     onSuccess: () => {
@@ -40,11 +43,15 @@ export const useCreateEnrollment = () => {
     },
     onError: (error) => {
       console.error("Error creating enrollment:", error);
+      // A course may have been removed while the screen was open.
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
       Alert.alert(
         "Error",
         isUniqueViolation(error)
           ? "Ya tienes una matrícula activa o pendiente en uno de esos cursos."
-          : "No se pudo enviar la matrícula. Intenta de nuevo."
+          : error.message === "COURSE_NOT_AVAILABLE"
+            ? "Uno de los cursos ya no está disponible. Actualiza la lista e intenta de nuevo."
+            : "No se pudo enviar la matrícula. Intenta de nuevo."
       );
     },
   });

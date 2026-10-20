@@ -19,6 +19,15 @@ export async function uploadReceipt(userId: string, image: PickedImage) {
   return path;
 }
 
+/**
+ * Deletes a receipt that was uploaded but never saved with its row (the save
+ * failed). Best effort: the database only allows it while no row uses the file.
+ */
+export async function removeUnusedReceipt(path: string) {
+  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  if (error) console.warn("Could not remove the unused receipt:", error.message);
+}
+
 /** Signed URLs (valid for an hour) by path. Receipts already purged are left out. */
 export async function signReceiptUrls(paths: (string | null)[]) {
   const unique = [...new Set(paths.filter((path): path is string => !!path))];

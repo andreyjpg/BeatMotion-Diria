@@ -1,4 +1,5 @@
 // app/_layout.tsx
+import { useSignOut } from "@/hooks/auth/useSignOut";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { AuthProvider, useActiveUser } from "@/hooks/user/UseActiveUser";
 import {
@@ -12,6 +13,7 @@ import { Stack, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { Alert } from "react-native";
 import "react-native-reanimated";
 import "../global.css";
 
@@ -40,6 +42,20 @@ function AppContent() {
   const { user } = useActiveUser();
   const router = useRouter();
   const lastNotificationResponse = Notifications.useLastNotificationResponse();
+  const { mutate: signOut } = useSignOut();
+  const isActiveUser = !!user && user.isActive;
+
+  // A deactivated account can't use the app (the database already refuses its
+  // requests): tell the user and sign them out.
+  useEffect(() => {
+    if (user && !user.isActive) {
+      Alert.alert(
+        "Cuenta desactivada",
+        "Tu cuenta está desactivada. Contacta a la academia para más información.",
+      );
+      signOut();
+    }
+  }, [user, signOut]);
 
   // Tapping an attendance reminder opens the RSVP screen for that class.
   useEffect(() => {
@@ -62,10 +78,10 @@ function AppContent() {
 
   return (
     <Stack>
-      <Stack.Protected guard={!user}>
+      <Stack.Protected guard={!isActiveUser}>
         <Stack.Screen name="public" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={!!user}>
+      <Stack.Protected guard={isActiveUser}>
         <Stack.Screen name="private" options={{ headerShown: false }} />
       </Stack.Protected>
     </Stack>

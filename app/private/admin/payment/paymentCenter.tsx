@@ -15,7 +15,7 @@ import { usePayments } from "@/hooks/payment/usePayments";
 import { useReviewPayment } from "@/hooks/payment/useReviewPayment";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import { Alert, FlatList, RefreshControl, Text, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, RefreshControl, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const FILTER_OPTIONS: { label: string; value: ReviewStatus }[] = [
@@ -100,6 +100,16 @@ const PaymentCenter = () => {
             data={data}
             contentContainerStyle={{ gap: 15 }}
             keyExtractor={(item) => item.id}
+            // Loads the next 20 when nearing the end of the list.
+            onEndReached={() => {
+              if (paymentsQuery.hasNextPage && !paymentsQuery.isFetchingNextPage) {
+                paymentsQuery.fetchNextPage();
+              }
+            }}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              paymentsQuery.isFetchingNextPage ? <ActivityIndicator color="#facc15" /> : null
+            }
             refreshControl={
               <RefreshControl
                 refreshing={isRefetching}

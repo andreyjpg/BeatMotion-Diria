@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
 import type { PickedImage } from "../storage/compressImage";
-import { uploadReceipt } from "../storage/receiptStorage";
+import { removeUnusedReceipt, uploadReceipt } from "../storage/receiptStorage";
 
 type CreatePaymentInput = {
   courseIds: string[];
@@ -39,8 +39,12 @@ export const useCreatePayment = () => {
         })
         .select("id")
         .single();
-      if (error) throw error;
+      if (error) {
+        await removeUnusedReceipt(receiptPath);
+        throw error;
+      }
 
+      // From here the payment row uses the receipt, so it stays.
       if (input.courseIds.length > 0) {
         const { error: coursesError } = await supabase
           .from("payment_courses")
