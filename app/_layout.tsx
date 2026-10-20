@@ -1,6 +1,7 @@
 // app/_layout.tsx
+import { useSignOut } from "@/hooks/auth/useSignOut";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { AuthProvider, useActiveUser } from "@/hooks/user/UseActiveUser";
 import {
   DarkTheme,
   DefaultTheme,
@@ -12,6 +13,7 @@ import { Stack, useRouter } from "expo-router";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
+import { Alert } from "react-native";
 import "react-native-reanimated";
 import "../global.css";
 
@@ -40,22 +42,46 @@ function AppContent() {
   const { user } = useActiveUser();
   const router = useRouter();
   const lastNotificationResponse = Notifications.useLastNotificationResponse();
+  const { mutate: signOut } = useSignOut();
+  const isActiveUser = !!user && user.isActive;
 
+  // A deactivated account can't use the app (the database already refuses its
+  // requests): tell the user and sign them out.
   useEffect(() => {
-    const data = lastNotificationResponse?.notification.request.content.data as any;
-    if (data?.type === "attendance_rsvp" && data.courseId && data.classId) {
-      router.push(
-        `/private/user/attendance/rsvp?courseId=${data.courseId}&classId=${data.classId}&courseTitle=${encodeURIComponent(data.courseTitle ?? "")}` as any
+    if (user && !user.isActive) {
+      Alert.alert(
+        "Cuenta desactivada",
+        "Tu cuenta está desactivada. Contacta a la academia para más información.",
       );
+      signOut();
     }
-  }, [lastNotificationResponse]);
+  }, [user, signOut]);
+
+  // Tapping an attendance reminder opens the RSVP screen for that class.
+  useEffect(() => {
+    const data = lastNotificationResponse?.notification.request.content.data;
+    if (
+      data?.type === "attendance_rsvp" &&
+      typeof data.courseId === "string" &&
+      typeof data.classId === "string"
+    ) {
+      router.push({
+        pathname: "/private/user/attendance/rsvp",
+        params: {
+          courseId: data.courseId,
+          classId: data.classId,
+          courseTitle: typeof data.courseTitle === "string" ? data.courseTitle : "",
+        },
+      });
+    }
+  }, [lastNotificationResponse, router]);
 
   return (
     <Stack>
-      <Stack.Protected guard={!user}>
+      <Stack.Protected guard={!isActiveUser}>
         <Stack.Screen name="public" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={!!user}>
+      <Stack.Protected guard={isActiveUser}>
         <Stack.Screen name="private" options={{ headerShown: false }} />
       </Stack.Protected>
     </Stack>
@@ -67,10 +93,12 @@ export default Sentry.wrap(function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <AppContent />
-        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+          <AppContent />
+          <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 });

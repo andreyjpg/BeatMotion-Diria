@@ -1,10 +1,16 @@
+import FieldError from "@/components/FieldError";
+import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
+import {
+  branchFormSchema,
+  FormErrors,
+  validationErrors,
+} from "@/constants/validationForms";
 import { useBranchById } from "@/hooks/branches/useBranchById";
 import { useUpdateBranch } from "@/hooks/branches/useUpdateBranch";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -19,6 +25,7 @@ export default function EditBranchScreen() {
 
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
+  const [errors, setErrors] = useState<FormErrors<typeof branchFormSchema>>({});
 
   useEffect(() => {
     if (branchQuery.data) {
@@ -28,7 +35,9 @@ export default function EditBranchScreen() {
   }, [branchQuery.data]);
 
   const handleSave = () => {
-    if (!name.trim() || !location.trim()) return;
+    const formErrors = validationErrors(branchFormSchema, { name, location });
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0) return;
     updateBranch.mutate(
       { id, name: name.trim(), location: location.trim() },
       { onSuccess: () => router.back() },
@@ -46,7 +55,7 @@ export default function EditBranchScreen() {
   return (
     <SafeAreaView className="flex-1 bg-black">
       <HeaderTitle title="Editar sucursal" />
-      <ScrollView showsVerticalScrollIndicator={false} className="px-6">
+      <FormScrollView showsVerticalScrollIndicator={false} className="px-6">
         <Text className="text-white mb-2 font-semibold">Nombre *</Text>
         <TextInput
           className="bg-gray-900 text-white rounded-xl px-4 py-3 mb-4"
@@ -55,6 +64,7 @@ export default function EditBranchScreen() {
           placeholder="Nombre de la sucursal"
           placeholderTextColor="#9CA3AF"
         />
+        <FieldError message={errors.name} className="-mt-3 mb-4" />
 
         <Text className="text-white mb-2 font-semibold">Ubicación *</Text>
         <TextInput
@@ -65,11 +75,12 @@ export default function EditBranchScreen() {
           placeholderTextColor="#9CA3AF"
           multiline
         />
+        <FieldError message={errors.location} className="-mt-5 mb-6" />
 
         <TouchableOpacity
           className="bg-primary rounded-2xl px-5 py-4 active:opacity-80 mb-3"
           onPress={handleSave}
-          disabled={updateBranch.isPending || !name.trim() || !location.trim()}
+          disabled={updateBranch.isPending}
         >
           <Text className="text-center font-semibold">
             {updateBranch.isPending ? "Guardando..." : "Guardar cambios"}
@@ -82,7 +93,7 @@ export default function EditBranchScreen() {
         >
           <Text className="text-center text-white font-semibold">Cancelar</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </FormScrollView>
     </SafeAreaView>
   );
 }

@@ -1,35 +1,40 @@
-import { firestore } from "@/firebaseConfig";
-import { useMutation } from "@tanstack/react-query";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Alert } from "react-native";
+import { RsvpStatus } from "./schema";
 
-type RsvpStatus = "leaders" | "followers" | "no_asistira";
-
-type SetRsvpParams = {
+type SetRsvpInput = {
   classId: string;
-  courseId: string;
-  userId: string;
   rsvpStatus: RsvpStatus;
 };
 
-const setRsvp = async ({ classId, courseId, userId, rsvpStatus }: SetRsvpParams) => {
-  const ref = doc(firestore, "attendance", `${classId}_${userId}`);
-  const existing = await getDoc(ref);
-
-  if (existing.exists()) {
-    await setDoc(ref, { rsvpStatus, updatedAt: serverTimestamp() }, { merge: true });
-  } else {
-    await setDoc(ref, {
-      classId,
-      courseId,
-      userId,
-      attended: false,
-      rsvpStatus,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-};
-
+/**
+ * The student answers whether they'll attend a class. Creates their row or
+ * changes only the RSVP; `attended` stays as the teacher left it.
+ */
 export const useSetRsvp = () => {
-  return useMutation({ mutationFn: setRsvp });
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ classId, rsvpStatus }: SetRsvpInput) => {
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user.id;
+      if (!userId) throw new Error("No hay una sesión activa.");
+
+      const { error } = await supabase
+        .from("attendance")
+        .upsert(
+          { class_id: classId, user_id: userId, rsvp_status: rsvpStatus },
+          { onConflict: "class_id,user_id" }
+        );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+    },
+    onError: (error) => {
+      console.error("Error setting RSVP:", error);
+      Alert.alert("Error", "No se pudo guardar tu respuesta. Intenta de nuevo.");
+    },
+  });
 };

@@ -1,31 +1,31 @@
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
+import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
 import { UserProfileValidationSchema } from "@/constants/validationForms";
-import { auth, functions } from "@/firebaseConfig";
+import { useDeleteAccount } from "@/hooks/auth/useDeleteAccount";
+import { useSignOut } from "@/hooks/auth/useSignOut";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useUpdateProfile } from "@/hooks/user/useUpdateProfile";
 import { useUserInfo } from "@/hooks/user/useUserInfo";
-import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { signOut } from "firebase/auth";
-import { httpsCallable } from "firebase/functions";
 import { useEffect, useState } from "react";
 import {
+  Alert,
   Image,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { object } from "yup";
+import { object, ValidationError } from "yup";
 
 export default function ProfileScreen() {
   const { user: activeUser } = useActiveUser();
   const userInfo = useUserInfo(activeUser?.uid as string);
   const updateProfile = useUpdateProfile();
-  const queryClient = useQueryClient();
+  const signOut = useSignOut();
+  const deleteAccount = useDeleteAccount();
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
@@ -68,16 +68,16 @@ export default function ProfileScreen() {
         lastName: "",
         phone: "",
       });
-    } catch (err: any) {
+    } catch (err) {
+      if (!(err instanceof ValidationError)) throw err;
       const errors = {
         name: "",
         lastName: "",
         phone: "",
       };
-      err.inner.reduce((acc: any, curr: any) => {
-        acc[curr.path] = curr.message;
-        return acc;
-      }, errors);
+      err.inner.forEach((error) => {
+        errors[error.path as keyof typeof errors] = error.message;
+      });
       setFormErrors(errors);
       return false;
     }
@@ -98,26 +98,26 @@ export default function ProfileScreen() {
     }
   };
 
+  // Signing out unmounts this screen (the root layout switches to the login
+  // stack), so await mutateAsync() instead of relying on mutate() callbacks.
   const handleLogout = async () => {
     try {
-      await signOut(auth);
-      queryClient.invalidateQueries({ queryKey: ["activeUser"] });
+      await signOut.mutateAsync();
       router.replace("/public/login");
-    } catch (err) {
-      throw new Error(`Error loggin out ${err}`);
+    } catch (error) {
+      console.error("Logout error:", error);
+      Alert.alert("Error", "No se pudo cerrar la sesión. Inténtalo de nuevo.");
     }
   };
 
   const handleDeleteAccount = async () => {
-    const sendPush = httpsCallable(functions, "deleteUser");
-    await signOut(auth);
-
-    await sendPush({
-      userId: activeUser?.uid,
-    });
-
-    queryClient.invalidateQueries({ queryKey: ["activeUser"] });
-    router.replace("/public/login");
+    try {
+      await deleteAccount.mutateAsync();
+      router.replace("/public/login");
+    } catch (error) {
+      console.error("Delete account error:", error);
+      Alert.alert("Error", "No se pudo eliminar la cuenta. Inténtalo de nuevo.");
+    }
   };
 
   const resetState = () => {
@@ -142,7 +142,7 @@ export default function ProfileScreen() {
     <SafeAreaView className="flex-1 bg-black">
       <HeaderTitle title="Mi Perfil" />
 
-      <ScrollView className="px-4">
+      <FormScrollView className="px-4">
         <View className="items-center mb-8">
           {photoUrl ? (
             <Image
@@ -271,7 +271,7 @@ export default function ProfileScreen() {
             Eliminar cuenta
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </FormScrollView>
       <DeleteAccountModal
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}

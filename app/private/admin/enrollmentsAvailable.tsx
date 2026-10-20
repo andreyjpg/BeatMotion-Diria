@@ -1,9 +1,11 @@
 import DataLoader from "@/components/DataLoader";
 import {
   formatCurrency,
+  formatDDMMYYYY,
   getEnrollmentColor,
   statusTranslations,
 } from "@/constants/helpers";
+import { useEnrollmentCount } from "@/hooks/enrollment/useEnrollmentCount";
 import { useEnrollmentsByStatus } from "@/hooks/enrollment/useEnrollmentsByStatus";
 import { useRouter } from "expo-router";
 import { FlatList, Text, TouchableHighlight, View } from "react-native";
@@ -11,6 +13,8 @@ import { FlatList, Text, TouchableHighlight, View } from "react-native";
 const EnrollmentAvailable = () => {
   const router = useRouter();
   const pendingEnrollmentsQuery = useEnrollmentsByStatus("pending");
+  // The list loads 20 at a time; the database counts all pending requests.
+  const pendingCountQuery = useEnrollmentCount("pending");
 
   const handleViewMoreEnrolls = () => {
     router.push("/private/admin/enrollments/enrollmentList");
@@ -24,7 +28,7 @@ const EnrollmentAvailable = () => {
             Matriculas
           </Text>
           <Text className="text-gray-400 text-lg font-semibold">
-            ({pendingEnrollmentsQuery.data?.length || 0} Pendientes)
+            ({pendingCountQuery.data ?? 0} Pendientes)
           </Text>
         </View>
         <TouchableHighlight
@@ -41,7 +45,7 @@ const EnrollmentAvailable = () => {
         >
           {(data) => (
             <FlatList
-              data={data.filter((_, index) => index < 2)}
+              data={data.slice(0, 2)}
               keyExtractor={(item) => item.id}
               renderItem={({ item: enrollment }) => (
                 <View
@@ -49,7 +53,7 @@ const EnrollmentAvailable = () => {
                   className="border-b border-gray-600 py-2"
                 >
                   <Text className="text-white text-xl font-bold">
-                    {enrollment?.course?.title}
+                    {enrollment.courses.map((course) => course.title).join(", ")}
                   </Text>
                   <Text className="text-white">
                     Estado:{" "}
@@ -62,7 +66,7 @@ const EnrollmentAvailable = () => {
                   </Text>
                   <Text className="text-gray-400">
                     Fecha de solicitud:{" "}
-                    {new Date(enrollment.submittedAt).toLocaleDateString()}
+                    {formatDDMMYYYY(enrollment.submittedAt)}
                   </Text>
                   <Text className="text-gray-400">
                     Estudiante: {enrollment?.user?.name}{" "}

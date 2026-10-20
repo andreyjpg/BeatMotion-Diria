@@ -1,6 +1,7 @@
-﻿import { useActiveUser } from "@/hooks/user/UseActiveUser";
+﻿import FormScrollView from "@/components/FormScrollView";
+import { useSignIn } from "@/hooks/auth/useSignIn";
+import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useRouter } from "expo-router";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,6 +21,8 @@ const URL_POLICIES = "https://beatmotion-politica-privacidad.netlify.app";
 const LogIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const signIn = useSignIn();
+  const submitting = signIn.isPending;
   const { isLoading } = useActiveUser();
   const router = useRouter();
 
@@ -33,23 +36,29 @@ const LogIn = () => {
     }
   }, []);
 
-  const handleLogin = async () => {
-    const auth = getAuth();
-
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      console.error("Login error:", error);
-      Alert.alert(
-        "Error",
-        "Hubo un problema al iniciar sesión. Verifica tus credenciales o conexión.",
-        [{ text: "OK" }],
-      );
-    }
+  // On success the root layout sees the new session and opens the app.
+  const handleLogin = () => {
+    if (submitting) return;
+    signIn.mutate(
+      { email, password },
+      {
+        onError: (error) => {
+          console.error("Login error:", error);
+          const message =
+            error.code === "invalid_credentials"
+              ? "Correo o contraseña incorrectos."
+              : error.code === "email_not_confirmed"
+                ? "Confirma tu correo antes de iniciar sesión."
+                : "Hubo un problema al iniciar sesión. Verifica tus credenciales o conexión.";
+          Alert.alert("Error", message, [{ text: "OK" }]);
+        },
+      },
+    );
   };
 
   return (
-    <SafeAreaView className="flex-1 justify-center items-center px-5 bg-black w-full">
+    <SafeAreaView className="flex-1 bg-black w-full">
+      <FormScrollView contentContainerClassName="flex-grow justify-center items-center px-5">
       {isLoading ? (
         <ActivityIndicator size="large" color="#40E0D0" className="mb-4" />
       ) : (
@@ -87,12 +96,17 @@ const LogIn = () => {
             />
 
             <TouchableOpacity
-              className="bg-emerald-400 rounded-xl py-3 active:opacity-80"
+              className={`rounded-xl py-3 active:opacity-80 ${submitting ? "bg-emerald-700" : "bg-emerald-400"}`}
               onPress={handleLogin}
+              disabled={submitting}
             >
-              <Text className="text-center font-semibold text-black">
-                Ingresar
-              </Text>
+              {submitting ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <Text className="text-center font-semibold text-black">
+                  Ingresar
+                </Text>
+              )}
             </TouchableOpacity>
 
             <TouchableHighlight
@@ -130,6 +144,7 @@ const LogIn = () => {
           />
         </View>
       )}
+      </FormScrollView>
     </SafeAreaView>
   );
 };

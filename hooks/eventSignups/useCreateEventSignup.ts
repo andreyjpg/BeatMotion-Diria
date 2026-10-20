@@ -1,104 +1,67 @@
+import { isUniqueViolation } from "@/constants/helpers";
+import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
-import {
-  addDoc,
-  collection,
-  getDocs,
-  query,
-  serverTimestamp,
-  where,
-} from "firebase/firestore";
-import { firestore } from "@/firebaseConfig";
-import type { EventSignupStatus } from "./schema";
-import { ACTIVE_SIGNUP_STATUSES, computeTotals } from "./utils";
-import { eventSignupsKeys } from "./useEventSignups";
+import type { PickedImage } from "../storage/compressImage";
+import { removeUnusedReceipt, uploadReceipt } from "../storage/receiptStorage";
+import { eventSignupsKeys, SIGNUP_ERROR_MESSAGES } from "./schema";
 
 type CreateEventSignupInput = {
   eventId: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
   inviteeCount: number;
-  pricePerHead: number | null;
-  isPublic: boolean;
-  isFree: boolean;
-  capacity: number | null | undefined;
-  receiptUrl?: string | null;
+  /** Required for paid events. */
+  receipt: PickedImage | null;
 };
 
-const collectionRef = collection(firestore, "eventSignups");
-
-export const createEventSignup = async (input: CreateEventSignupInput) => {
-  const { totalAttendees, totalPrice, pricePerHead } = computeTotals({
-    inviteeCount: input.inviteeCount,
-    pricePerHead: input.pricePerHead,
-  });
-
-  const status: EventSignupStatus = input.isFree ? "autoApproved" : "pending";
-  const safeInviteeCount = Math.max(0, Math.floor(input.inviteeCount ?? 0));
-
-  // Capacity guard (best effort without transaction to avoid unsupported query-in-transaction issues)
-  if (input.capacity && input.capacity > 0) {
-    const activeQuery = query(
-      collectionRef,
-      where("eventId", "==", input.eventId),
-      where("status", "in", ACTIVE_SIGNUP_STATUSES)
-    );
-    const snapshot = await getDocs(activeQuery);
-    const used = snapshot.docs.reduce((sum, docSnap) => {
-      const data = docSnap.data() as { totalAttendees?: number };
-      const attendees = Number(data.totalAttendees ?? 0);
-      return sum + (Number.isFinite(attendees) ? attendees : 0);
-    }, 0);
-
-    if (used + totalAttendees > input.capacity) {
-      throw new Error("NO_AVAILABLE_SLOTS");
-    }
-  }
-
-  const ref = await addDoc(collectionRef, {
-    eventId: input.eventId,
-    userId: input.userId,
-    userName: input.userName,
-    userEmail: input.userEmail,
-    inviteeCount: safeInviteeCount,
-    totalAttendees,
-    pricePerHead,
-    totalPrice,
-    status,
-    receiptUrl: input.receiptUrl ?? null,
-    isFree: input.isFree,
-    isPublic: input.isPublic,
-    reviewedBy: null,
-    reviewedAt: null,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-
-  return { id: ref.id, status };
-};
-
+/**
+ * The student signs up (with guests on public events). The database sets the
+ * price and status from the event and checks the remaining capacity
+ * (trigger prepare_event_signup), so the app only sends who and how many.
+ */
 export const useCreateEventSignup = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: createEventSignup,
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: eventSignupsKeys.event(variables.eventId),
-        exact: false,
-      });
-      queryClient.invalidateQueries({
-        queryKey: eventSignupsKeys.myForEvent(variables.eventId, variables.userId),
-      });
+    mutationFn: async ({ eventId, inviteeCount, receipt }: CreateEventSignupInput) => {
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user.id;
+      if (!userId) throw new Error("No hay una sesión activa.");
+
+      const receiptPath = receipt ? await uploadReceipt(userId, receipt) : null;
+      const { data, error } = await supabase
+        .from("event_signups")
+        .insert({
+          event_id: eventId,
+          user_id: userId,
+          invitee_count: Math.max(0, Math.floor(inviteeCount)),
+          receipt_path: receiptPath,
+        })
+        .select("status")
+        .single();
+      if (error) {
+        if (receiptPath) await removeUnusedReceipt(receiptPath);
+        throw error;
+      }
+      return data.status;
     },
-    onError: (error) => {
-      const message =
-        (error as Error)?.message === "NO_AVAILABLE_SLOTS"
-          ? "Lo sentimos! Ya no hay cupos disponibles."
-          : "No se pudo completar el registro al evento.";
+    onSuccess: (status, { eventId }) => {
+      queryClient.invalidateQueries({ queryKey: eventSignupsKeys.event(eventId) });
+      Alert.alert(
+        "Registro enviado",
+        status === "autoApproved"
+          ? "Registro confirmado."
+          : "Solicitud enviada. Espera la validación del pago.",
+      );
+    },
+    onError: (error, { eventId }) => {
       console.error("Error creando inscripción de evento:", error);
-      Alert.alert("Error", message);
+      // Spots may have changed: show the current count.
+      queryClient.invalidateQueries({ queryKey: eventSignupsKeys.spotsTaken(eventId) });
+      const message = isUniqueViolation(error)
+        ? "Ya te registraste para este evento."
+        : (SIGNUP_ERROR_MESSAGES[error.message] ??
+          "No se pudo completar el registro. Intenta de nuevo o contacta al administrador.");
+      Alert.alert("Lo sentimos", message);
     },
   });
 };

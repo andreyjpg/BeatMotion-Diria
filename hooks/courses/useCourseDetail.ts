@@ -1,30 +1,28 @@
-import { firestore } from "@/firebaseConfig";
-import { doc, getDoc } from "@firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { Alert } from "react-native";
-import { useCourseMemberByUser } from "../courseMember/useCourseMemberByUser";
-import { courseWithMemberElement } from "./schema/courseSchema";
+import { MEMBER_COLUMNS, toMember } from "../courseMember/schema";
+import { COURSE_COLUMNS, courseWithMemberElement, toCourse } from "./schema/courseSchema";
 
-//Bring courses where the user is member
+const MEMBER_WITH_COURSE = `${MEMBER_COLUMNS}, course:courses!inner(${COURSE_COLUMNS})` as const;
+
+/** A course the user belongs to, merged with that membership; null if they don't. */
 export const useCourseDetail = (uid: string, courseId: string) => {
-  const { data: courseMembers } = useCourseMemberByUser(uid);
-
   const getMyCourseDetail = async () => {
     try {
-      if (!courseMembers || courseMembers.length === 0) {
-        return null;
-      }
-      const snapshot = await getDoc(doc(firestore, "courses", courseId));
-      if (!snapshot.exists()) {
-        throw new Error("Course not found");
-      }
-      const course = {
-        id: snapshot.id,
-        ...courseMembers.find((member) => member.courseId === snapshot.id),
-        ...snapshot.data(),
-      };
-
-      return courseWithMemberElement.parse(course);
+      const { data, error } = await supabase
+        .from("course_members")
+        .select(MEMBER_WITH_COURSE)
+        .eq("user_id", uid)
+        .eq("course_id", courseId)
+        .order("active", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const { course, ...member } = data;
+      const { id: _courseId, ...courseFields } = toCourse(course);
+      return courseWithMemberElement.parse({ ...toMember(member), ...courseFields, id: member.id });
     } catch (error) {
       console.error("Error fetching courses:", error);
       Alert.alert("Error", "No se pudieron cargar los cursos.");
@@ -32,12 +30,10 @@ export const useCourseDetail = (uid: string, courseId: string) => {
     }
   };
 
-  const query = useQuery({
+  return useQuery({
     queryKey: ["courseDetail", uid, courseId],
     queryFn: getMyCourseDetail,
-    enabled: !!uid && !!courseMembers,
+    enabled: !!uid && !!courseId,
     refetchOnWindowFocus: false,
   });
-
-  return query;
 };

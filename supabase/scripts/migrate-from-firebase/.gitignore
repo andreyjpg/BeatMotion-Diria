@@ -1,0 +1,9 @@
+node_modules/
+# Credentials: never commit these (.env, prod.env, preview.env, ...)
+.env
+*.env
+service-account*.json
+# The template has no secrets (the root .gitignore ignores .env*)
+!.env.example
+# Reports contain user emails
+migration-report-*.json

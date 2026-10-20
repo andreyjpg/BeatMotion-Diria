@@ -85,10 +85,11 @@ export const PrivacyConsentModal = ({ visible, onAccept }: Props) => {
               <Text className="text-sm leading-5 text-gray-700">
                 Sus datos se almacenan en{" "}
                 <Text className="font-semibold">
-                  Firebase (Google LLC), cuyos servidores se encuentran fuera de
-                  Costa Rica
+                  Supabase (Supabase Inc.), cuyos servidores se encuentran fuera
+                  de Costa Rica
                 </Text>{" "}
-                (principalmente en los Estados Unidos). Al aceptar esta
+                (en los Estados Unidos). Las notificaciones push se entregan a
+                través de los servicios de Expo, Google y Apple. Al aceptar esta
                 política, usted autoriza expresamente dicha transferencia
                 internacional conforme al{" "}
                 <Text className="font-semibold">
@@ -145,7 +146,7 @@ export const PrivacyConsentModal = ({ visible, onAccept }: Props) => {
                 He leído y acepto la política de privacidad y el tratamiento de
                 mis datos personales conforme a las Leyes N.° 8.968 y N.° 9.048
                 de Costa Rica, incluida la transferencia internacional a
-                servidores de Firebase (Google LLC) fuera de Costa Rica.
+                servidores de Supabase (Supabase Inc.) fuera de Costa Rica.
               </Text>
             </Pressable>
 

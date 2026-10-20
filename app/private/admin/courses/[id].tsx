@@ -1,8 +1,18 @@
 import AssignStudentModal from "@/components/AssignStudentModal";
+import DataLoader from "@/components/DataLoader";
+import FieldError from "@/components/FieldError";
+import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
-import { firestore } from "@/firebaseConfig";
+import {
+  courseFormSchema,
+  FormErrors,
+  validationErrors,
+} from "@/constants/validationForms";
 import { useBranches } from "@/hooks/branches/useBranches";
+import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
+import { useCourseById } from "@/hooks/courses/useCourseById";
 import { useUpdateCourse } from "@/hooks/courses/useUpdateCourse";
+import { useTeachers } from "@/hooks/user/useTeachers";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import type { Href } from "expo-router";
@@ -11,21 +21,9 @@ import {
   useLocalSearchParams,
   useRootNavigationState,
 } from "expo-router";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   Alert,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -33,126 +31,50 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-type Teacher = {
-  id: string;
-  name: string;
-  lastName: string;
-  email: string;
-};
+const INVALID_IDS = ["", "index", "list", "new"];
 
 export default function EditCourseScreen() {
-  const { id, tab } = useLocalSearchParams<{
+  const { id: rawId, tab } = useLocalSearchParams<{
     id: string;
     tab: string | string[];
   }>();
+  const id = (Array.isArray(rawId) ? rawId[0] : rawId) ?? "";
+  const validId = !INVALID_IDS.includes(id);
+
   const mutationCourse = useUpdateCourse();
   const navState = useRootNavigationState();
-  const [notFound, setNotFound] = useState(false);
+  const branchesQuery = useBranches();
+  const teachersQuery = useTeachers();
+  const courseQuery = useCourseById(validId ? id : undefined);
+  const classesQuery = useClassesByCourseId(validId ? id : "");
+  const teachers = teachersQuery.data ?? [];
 
   const [assignModalVisible, setAssignModalVisible] = useState(false);
-
-  useEffect(() => {
-    const invalid = [undefined, null, "", "index", "list", "new"];
-    const val = Array.isArray(id) ? id[0] : id;
-    if (invalid.includes(val as any)) {
-      setNotFound(true);
-    }
-  }, [id]);
-
-  const branchesQuery = useBranches();
-
-  const [loading, setLoading] = useState(true);
-  const [loadingTeachers, setLoadingTeachers] = useState(true);
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [title, setTitle] = useState("");
-  const [teacher, setTeacher] = useState("");
+  const [teacherId, setTeacherId] = useState("");
   const [level, setLevel] = useState("0");
   const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [branchId, setBranchId] = useState("");
+  const [errors, setErrors] = useState<FormErrors<typeof courseFormSchema>>({});
 
-  const [classes, setClasses] = useState<any[]>([]);
+  const notFound = !validId || (courseQuery.isSuccess && courseQuery.data === null);
+
+  // Fill the form once the course arrives.
+  useEffect(() => {
+    const course = courseQuery.data;
+    if (!course) return;
+    setTitle(course.title ?? "");
+    setTeacherId(course.teacherId ?? "");
+    setLevel(course.level ?? "0");
+    setDescription(course.description ?? "");
+    setBranchId(course.branchId ?? "");
+  }, [courseQuery.data]);
 
   useEffect(() => {
-    loadTeachers();
-  }, []);
-
-  const loadTeachers = async () => {
-    try {
-      setLoadingTeachers(true);
-      const q = query(
-        collection(firestore, "users"),
-        where("role", "==", "teacher"),
-        where("isActive", "==", true),
-        orderBy("name", "asc"),
-      );
-
-      const snapshot = await getDocs(q);
-      const teachersList: Teacher[] = [];
-
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        teachersList.push({
-          id: doc.id,
-          name: data.name || "",
-          lastName: data.lastName || "",
-          email: data.email || "",
-        });
-      });
-
-      setTeachers(teachersList);
-    } catch (error: any) {
-      console.error("Error loading teachers:", error);
-
-      if (error.code === "failed-precondition") {
-        Alert.alert(
-          "Configuración requerida",
-          "Se necesita crear un índice en Firestore. Revisa la consola para el enlace de creación del índice.",
-          [{ text: "OK" }],
-        );
-      } else {
-        Alert.alert("Error", "No se pudieron cargar los profesores.");
-      }
-    } finally {
-      setLoadingTeachers(false);
+    if (teachersQuery.isError) {
+      Alert.alert("Error", "No se pudieron cargar los profesores.");
     }
-  };
-
-  useEffect(() => {
-    const loadCourse = async () => {
-      setLoading(true);
-      const snap = await getDoc(doc(firestore, "courses", id));
-      if (!snap.exists()) {
-        setNotFound(true);
-        setLoading(false);
-        return;
-      }
-      const data = snap.data() as any;
-      setTitle(data.title ?? "");
-      setTeacher(data.teacher ?? "");
-      setLevel(data.level ?? "0");
-      setDescription(data.description ?? "");
-      setImageUrl(data.imageUrl ?? "");
-      setBranchId(data.branchId ?? "");
-      setLoading(false);
-    };
-    if (id) loadCourse();
-  }, [id]);
-
-  useEffect(() => {
-    if (!id) return;
-    const db = getFirestore();
-    const q = query(
-      collection(db, "classes"),
-      where("courseId", "==", String(id)),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const arr: any[] = [];
-      snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
-      setClasses(arr);
-    });
-    return () => unsub();
-  }, [id]);
+  }, [teachersQuery.isError]);
 
   useEffect(() => {
     if (notFound && navState?.key) {
@@ -160,24 +82,28 @@ export default function EditCourseScreen() {
     }
   }, [notFound, navState?.key]);
 
-  const handleUpdateCourse = async () => {
-    if (!title.trim() || !teacher.trim()) {
-      Alert.alert("Faltan datos", "Título y profesor son obligatorios.");
-      return;
-    }
-    const body = {
-      id: id as string,
-      title: title.trim(),
-      teacher: teacher.trim(),
-      level: level.trim(),
-      description: description.trim(),
-      isDeleted: false,
-      branchId: branchId || null,
-    };
-    mutationCourse.mutate({ id, patch: body });
+  const handleUpdateCourse = () => {
+    const formErrors = validationErrors(courseFormSchema, {
+      title,
+      teacherId,
+      level,
+      description,
+    });
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0) return;
+    mutationCourse.mutate({
+      id,
+      patch: {
+        title: title.trim(),
+        teacherId,
+        level: level.trim(),
+        description: description.trim(),
+        branchId: branchId || null,
+      },
+    });
   };
 
-  if (loading || loadingTeachers) {
+  if (courseQuery.isLoading || teachersQuery.isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
         <Text className="text-white">Cargando...</Text>
@@ -194,7 +120,7 @@ export default function EditCourseScreen() {
       <HeaderTitle
         title={showClassesTab ? "Clases del curso" : "Editar curso"}
       />
-      <ScrollView className="px-6">
+      <FormScrollView className="px-6">
         {!showClassesTab ? (
           <>
             <Text className="text-white mb-2 font-semibold">Título *</Text>
@@ -205,6 +131,7 @@ export default function EditCourseScreen() {
               placeholder="Título"
               placeholderTextColor="#9CA3AF"
             />
+            <FieldError message={errors.title} className="-mt-3 mb-4" />
 
             <Text className="text-white mb-2 font-semibold">Profesor *</Text>
             {teachers.length === 0 ? (
@@ -219,21 +146,23 @@ export default function EditCourseScreen() {
             ) : (
               <View className="bg-gray-900 rounded-xl mb-4">
                 <Picker
-                  selectedValue={teacher}
-                  onValueChange={(value) => setTeacher(String(value))}
+                  selectedValue={teacherId}
+                  onValueChange={(value) => setTeacherId(String(value))}
                   dropdownIconColor="#ffffff"
                   style={{ color: "white" }}
                 >
+                  {!teacherId && <Picker.Item label="Sin asignar" value="" />}
                   {teachers.map((t) => (
                     <Picker.Item
                       key={t.id}
                       label={`${t.name} ${t.lastName}`}
-                      value={`${t.name} ${t.lastName}`}
+                      value={t.id}
                     />
                   ))}
                 </Picker>
               </View>
             )}
+            <FieldError message={errors.teacherId} className="-mt-3 mb-4" />
 
             <Text className="text-white mb-2 font-semibold">Nivel *</Text>
             <View className="bg-gray-900 rounded-xl mb-4">
@@ -259,6 +188,7 @@ export default function EditCourseScreen() {
               placeholderTextColor="#9CA3AF"
               multiline
             />
+            <FieldError message={errors.description} className="-mt-3 mb-4" />
 
             <Text className="text-white mb-2 font-semibold">Sucursal</Text>
             <View className="bg-gray-900 rounded-xl mb-4">
@@ -278,7 +208,7 @@ export default function EditCourseScreen() {
             <TouchableOpacity
               className="bg-primary rounded-2xl px-5 py-4 active:opacity-80 mb-4"
               onPress={handleUpdateCourse}
-              disabled={teachers.length === 0}
+              disabled={teachers.length === 0 || mutationCourse.isPending}
             >
               <Text className="text-center font-semibold">Guardar cambios</Text>
             </TouchableOpacity>
@@ -300,52 +230,60 @@ export default function EditCourseScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/private/admin/classes/new",
-                  params: { courseId: String(id) },
+                  params: { courseId: id },
                 } as Href)
               }
             >
               <Text className="text-center font-semibold">Crear clase</Text>
             </TouchableOpacity>
 
-            {classes.map((cl) => (
-              <View
-                key={cl.id}
-                className="bg-gray-900 rounded-2xl px-4 py-3 mb-3"
-              >
-                <Text className="text-white font-semibold">
-                  {cl.title || `${cl.date} ${cl.startTime}-${cl.endTime}`}
-                </Text>
-                <Text className="text-gray-400">
-                  {cl.date && `Fecha: ${cl.date}`}
-                  {cl.room && ` • Sala: ${cl.room}`}
-                  {/* {cl.capacity && ` • Cupo: ${cl.capacity}`} */}
-                </Text>
+            <DataLoader
+              query={classesQuery}
+              emptyMessage="Este curso aún no tiene clases."
+            >
+              {(classes) => (
+                <>
+                  {classes.map((cl) => (
+                    <View
+                      key={cl.id}
+                      className="bg-gray-900 rounded-2xl px-4 py-3 mb-3"
+                    >
+                      <Text className="text-white font-semibold">
+                        {cl.title ||
+                          `${cl.date ?? ""} ${cl.startTime ?? ""}-${cl.endTime ?? ""}`}
+                      </Text>
+                      <Text className="text-gray-400">
+                        {cl.date && `Fecha: ${cl.date}`}
+                      </Text>
 
-                <View className="flex-row gap-2 mt-3">
-                  <TouchableOpacity
-                    className="bg-white rounded-xl px-4 py-2"
-                    onPress={() =>
-                      router.push({
-                        pathname: "/private/admin/classes/[id]",
-                        params: { id: String(cl.id) },
-                      } as Href)
-                    }
-                  >
-                    <Text className="font-semibold">Editar</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+                      <View className="flex-row gap-2 mt-3">
+                        <TouchableOpacity
+                          className="bg-white rounded-xl px-4 py-2"
+                          onPress={() =>
+                            router.push({
+                              pathname: "/private/admin/classes/[id]",
+                              params: { id: cl.id },
+                            } as Href)
+                          }
+                        >
+                          <Text className="font-semibold">Editar</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </>
+              )}
+            </DataLoader>
           </>
         )}
 
         <AssignStudentModal
           visible={assignModalVisible}
-          courseId={String(id)}
+          courseId={id}
           courseName={title}
           onClose={() => setAssignModalVisible(false)}
         />
-      </ScrollView>
+      </FormScrollView>
     </SafeAreaView>
   );
 }

@@ -1,38 +1,23 @@
-import { firestore } from "@/firebaseConfig";
-import { collection, getDocs, onSnapshot } from "@firebase/firestore";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { Alert } from "react-native";
-import { userListSchema } from "./userSchema";
+import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+import { toUserListItem, USER_LIST_COLUMNS, userListSchema } from "./userSchema";
 
-const fetchUsers = async () => {
-  try {
-    const snapshot = await getDocs(collection(firestore, "users"));
-    const users = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    return userListSchema.parse(users);
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    Alert.alert("Error", "No se pudieron obtener los usuarios.");
-  }
-};
-
+/** Admin: every profile by name, with current courses and payment status. */
 export const useUsers = () => {
-  const queryClient = useQueryClient();
-  const query = useQuery({
-    queryKey: ["users"],
+  const fetchUsers = async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(USER_LIST_COLUMNS)
+      .order("name")
+      .order("last_name");
+    if (error) throw error;
+    return userListSchema.parse(data.map(toUserListItem));
+  };
+
+  return useQuery({
+    queryKey: ["users", "list"],
     queryFn: fetchUsers,
-    staleTime: 1000 * 60 * 15, // 15 minutes
+    staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
   });
-
-  //Will do updates in real time
-  useEffect(() => {
-    const unsub = onSnapshot(collection(firestore, "users"), (snapshot) => {
-      const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      queryClient.setQueryData(["users"], data);
-    });
-    return () => unsub();
-  }, [queryClient]);
-
-  return query;
 };

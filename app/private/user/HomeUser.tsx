@@ -1,7 +1,4 @@
 import MenuButton from "@/components/MenuButton";
-import { useCourseMemberByUser } from "@/hooks/courseMember/useCourseMemberByUser";
-import { useAvailableSurveys } from "@/hooks/surveys/useAvailableSurveys";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import {
   FontAwesome5,
   MaterialCommunityIcons,
@@ -49,12 +46,7 @@ const MENU: MenuProps[] = [
 
 const HomeUser = () => {
   const router = useRouter();
-  const { user } = useActiveUser();
 
-  const courseMemberQuery = useCourseMemberByUser(user?.uid || "");
-  const courseIds = courseMemberQuery.data?.map((cm) => cm.courseId) || [];
-  const surveysQuery = useAvailableSurveys(user?.uid || "", courseIds);
-  const pendingSurveys = surveysQuery.data?.length || 0;
 
   const handleClickEnroll = () => {
     router.push("/private/user/enrollment/createEnrollment");

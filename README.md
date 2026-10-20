@@ -46,10 +46,10 @@ Teachers have a focused view for managing their classes:
 | Language | TypeScript |
 | Styling | NativeWind (Tailwind CSS for React Native) |
 | State / Data | TanStack Query (React Query) |
-| Backend | Firebase — Firestore, Auth, Storage |
-| Server logic | Firebase Cloud Functions (Node 22) |
-| Push notifications | Expo Push Notifications |
-| Schema validation | Zod |
+| Backend | Supabase — Postgres (row-level security), Auth, Storage |
+| Server logic | Postgres triggers and functions, pg_cron, Supabase Edge Functions (Deno) |
+| Push notifications | Expo Push Notifications (Android delivery through FCM) |
+| Schema validation | Zod (data), Yup (forms) |
 
 ---
 
@@ -73,12 +73,14 @@ hooks/                  # TanStack Query hooks (one hook per file)
   fares/
   marketplace/
   ...
-functions/              # Firebase Cloud Functions
-  src/
-    index.ts            # Triggers: onEnrollmentAccepted, onPaymentAccepted, checkPaymentStatus, etc.
-    utils/              # Helpers: payment date calculation, notifications, batch delete
+supabase/               # Backend (see supabase/README.md)
+  migrations/           # Schema, access rules, triggers, scheduled jobs, RPC functions
+  functions/            # Edge Functions: delete-account, purge-receipts
+  scripts/              # One-off Firebase -> Supabase data migration
 components/             # Shared UI components
-constants/              # Helpers, formatters
+constants/              # Helpers, formatters, Yup form schemas
+lib/supabase.ts         # Supabase client
+types/database.ts       # Generated database types (npm run db:types)
 ```
 
 ---
@@ -86,19 +88,19 @@ constants/              # Helpers, formatters
 ## Key Business Logic
 
 ### Fare system
-Courses are priced by the number of courses enrolled simultaneously. The `fares` Firestore collection defines:
+Courses are priced by the number of courses enrolled simultaneously. The `fares` table defines:
 - `numCourse` tiers (1–4 courses) with their monthly price
 - `type: "course_5"` — fixed rate for 5 or more courses
 - `type: "annual"` — yearly registration fee charged at enrollment or first monthly payment (not charged in November or December)
 - `type: "late_fee"` — daily penalty applied after the 5-day grace period past the payment due date
 
 ### Payment due dates
-Calculated by `getNextPaymentDate()`: if enrolled on or before the 15th, the next payment is the 15th of the following month; if after the 15th, the 30th.
+Calculated by `private.next_payment_date()` in the database: if enrolled on or before the 15th, the next payment is the 15th of the following month; if after the 15th, the 30th. New courses share the student's existing due date.
 
-### Scheduled payment checks (`checkPaymentStatus` — runs daily at 12:00 PM CR time)
+### Scheduled payment checks (`private.check_payment_status()` — pg_cron, daily at 12:00 PM CR time)
 - **10 days before due** — status set to `pending`, first reminder notification
 - **5 days before due** — second reminder notification
-- **1 day before due** — final reminder notification
+- **On the due date** — final reminder notification
 - **Past due date** — status set to `late`, overdue notification sent every 2 days until payment is received
 
 ---
@@ -108,7 +110,8 @@ Calculated by `getNextPaymentDate()`: if enrolled on or before the 15th, the nex
 ### Prerequisites
 - Node.js 18+
 - Expo CLI (`npm install -g expo-cli`)
-- A Firebase project with Firestore, Auth, Storage, and Cloud Functions enabled
+- A Supabase project set up as described in `supabase/README.md`
+- `.env.local` with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
 ### Install and run
 
@@ -122,10 +125,8 @@ Open the app in:
 - iOS simulator / physical device
 - Expo Go (limited, for quick preview)
 
-### Cloud Functions
+### Backend changes
 
-```bash
-cd functions
-npm install
-firebase deploy --only functions
-```
+Database migrations and Edge Functions deploy through GitHub Actions
+(`.github/workflows/supabase-deploy.yml`): merging into `dev` deploys to the
+preview project, pushing to `main` to production. See `supabase/README.md`.

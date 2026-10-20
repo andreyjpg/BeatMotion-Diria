@@ -1,18 +1,50 @@
+import { parseLocalDate } from "@/constants/helpers";
 import zod from "zod";
 import { courseMemberSchema } from "../../courseMember/schema";
-import { timestampSchema } from "../../enrollment/schema";
+
+/**
+ * public.courses columns renamed to the fields the app uses, plus the
+ * teacher's name. teacher_name is a computed field (database function): students
+ * can't read teachers' profiles, so embedding the profile came back empty.
+ */
+export const COURSE_COLUMNS =
+  "id, title, description, level, day, startDate:start_date, branchId:branch_id, teacherId:teacher_id, createdBy:created_by, isDeleted:is_deleted, createdAt:created_at, updatedAt:updated_at, teacherName:teacher_name";
+
+type CourseRow = {
+  level: number;
+  startDate: string | null;
+  teacherName: string | null;
+};
+
+type Course<T extends CourseRow> = Omit<T, "teacherName" | "level" | "startDate"> & {
+  level: string;
+  startDate: Date | null;
+  teacher: string;
+};
+
+/** Database row -> the shape screens use: teacher name, level as "0"-"3". */
+export function toCourse<T extends CourseRow>(row: T): Course<T> {
+  const { teacherName, ...course } = row;
+  return {
+    ...course,
+    level: String(row.level),
+    startDate: parseLocalDate(row.startDate),
+    teacher: teacherName ?? "Sin asignar",
+  } as Course<T>;
+}
 
 export const courseSchema = zod.array(
   zod.object({
     id: zod.string(),
     title: zod.string().min(2).max(200),
-    teacher: zod.string().min(2).max(100),
+    teacher: zod.string(),
+    teacherId: zod.string().nullable(),
     description: zod.string().min(0).max(1000),
     isDeleted: zod.boolean(),
     level: zod.enum(["0", "1", "2", "3"]),
-    createdBy: zod.string().min(2).max(100).nullable(),
+    createdBy: zod.string().nullable(),
     day: zod.string().min(2).max(50).nullish(),
-    startDate: timestampSchema,
+    startDate: zod.date().nullable(), // local date from toCourse
     branchId: zod.string().nullable().optional(),
   }),
 );

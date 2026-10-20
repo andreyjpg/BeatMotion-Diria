@@ -1,51 +1,23 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
 import { Alert } from "react-native";
-import { SurveyQuestion } from "./surveySchema";
+import { SurveyInput, toSaveSurveyArgs } from "./surveySchema";
 
-type CreateSurveyInput = {
-  title: string;
-  description?: string;
-  courseId: string;
-  questions: Omit<SurveyQuestion, "id">[];
-  createdBy: string;
-  expiresAt?: Date | null;
-};
-
-const createSurvey = async (input: CreateSurveyInput) => {
-  const questionsWithIds = input.questions.map((q, index) => ({
-    ...q,
-    id: `q${index + 1}_${Date.now()}`,
-  }));
-
-  const surveyData = {
-    title: input.title.trim(),
-    description: input.description?.trim() || null,
-    courseId: input.courseId,
-    questions: questionsWithIds,
-    isActive: true,
-    createdBy: input.createdBy,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    expiresAt: input.expiresAt ? Timestamp.fromDate(input.expiresAt) : null,
-    isDeleted: false,
-  };
-
-  const docRef = await addDoc(collection(firestore, "surveys"), surveyData);
-  return docRef.id;
-};
-
+/** Creates the survey and its questions in one transaction (save_survey). */
 export const useCreateSurvey = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: createSurvey,
+    mutationFn: async (input: SurveyInput) => {
+      const { data, error } = await supabase.rpc("save_survey", toSaveSurveyArgs(input));
+      if (error) throw error;
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["surveys"] });
       Alert.alert("Éxito", "Encuesta creada correctamente.");
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Error creating survey:", error);
       Alert.alert("Error", "No se pudo crear la encuesta.");
     },

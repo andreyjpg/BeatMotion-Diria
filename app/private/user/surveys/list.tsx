@@ -1,8 +1,7 @@
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
-import { useCourseMemberByUser } from "@/hooks/courseMember/useCourseMemberByUser";
+import { formatDDMMYYYY } from "@/constants/helpers";
 import { useAvailableSurveys } from "@/hooks/surveys/useAvailableSurveys";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
@@ -16,13 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function StudentSurveysScreen() {
   const router = useRouter();
-  const { user } = useActiveUser();
-
-  const courseMemberQuery = useCourseMemberByUser(user?.uid || "");
-
-  const courseIds = courseMemberQuery.data?.map((cm) => cm.courseId) || [];
-
-  const surveysQuery = useAvailableSurveys(user?.uid || "", courseIds);
+  const surveysQuery = useAvailableSurveys();
 
   const handleTakeSurvey = (surveyId: string) => {
     router.push(`/private/user/surveys/take/${surveyId}`);
@@ -98,7 +91,7 @@ export default function StudentSurveysScreen() {
                   <View className="flex-row items-center gap-2 mb-4">
                     <Ionicons name="time-outline" size={16} color="#facc15" />
                     <Text className="text-yellow-400 text-xs">
-                      Expira: {new Date(survey.expiresAt).toLocaleDateString()}
+                      Expira: {formatDDMMYYYY(survey.expiresAt)}
                     </Text>
                   </View>
                 )}

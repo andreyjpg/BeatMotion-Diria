@@ -1,4 +1,5 @@
 import DataLoader from "@/components/DataLoader";
+import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
 import { capitalize } from "@/constants/helpers";
 import { ProfileAdminValidationSchema } from "@/constants/validationForms";
@@ -9,7 +10,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Image,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -106,7 +106,7 @@ export default function AdminUserProfile() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-black px-6 py-10">
+    <FormScrollView className="flex-1 bg-black px-6 py-10">
       <HeaderTitle title="Perfil de usuario" />
 
       <DataLoader query={userQuery}>
@@ -293,6 +293,6 @@ export default function AdminUserProfile() {
           );
         }}
       </DataLoader>
-    </ScrollView>
+    </FormScrollView>
   );
 }

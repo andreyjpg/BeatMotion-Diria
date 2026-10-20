@@ -5,19 +5,18 @@ import ImageModal from "@/components/ImageModal";
 import PhotoCard from "@/components/PhotoCard";
 import {
   formatCurrency,
+  formatDDMMYYYY,
   getEnrollmentColor,
   statusTranslations,
 } from "@/constants/helpers";
-import { useBranches } from "@/hooks/branches/useBranches";
-import { useCourses } from "@/hooks/courses/useCourses";
-import { Enrollment as Enrollmentype } from "@/hooks/enrollment/schema";
+import { EnrollmentDetail, ReviewStatus } from "@/hooks/enrollment/schema";
 import { useEnrollmentsByStatus } from "@/hooks/enrollment/useEnrollmentsByStatus";
-import { useUpdateEnrollment } from "@/hooks/enrollment/useUpdateEnrollment";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { useReviewEnrollment } from "@/hooks/enrollment/useReviewEnrollment";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -27,32 +26,30 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const FILTER_OPTIONS = [
+const FILTER_OPTIONS: { label: string; value: ReviewStatus }[] = [
   { label: "Pendientes", value: "pending" },
   { label: "Aceptadas", value: "approved" },
   { label: "Rechazadas", value: "rejected" },
 ];
 
-const statusBg: Record<string, string> = {
+const statusBg: Record<ReviewStatus, string> = {
   pending: "bg-yellow-950",
   approved: "bg-green-950",
   rejected: "bg-red-950",
 };
 
 const EnrollmentList = () => {
-  const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [statusFilter, setStatusFilter] = useState<ReviewStatus>("pending");
   const enrollmentByStatusQuery = useEnrollmentsByStatus(statusFilter);
 
   const router = useRouter();
   const [imageSelected, setImageSelected] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const updateEnrollment = useUpdateEnrollment();
-  const { user: activeUser } = useActiveUser();
-  const coursesQuery = useCourses();
-  const branchesQuery = useBranches();
+  const reviewEnrollment = useReviewEnrollment();
 
   const handleFilterChange = (value: string) => {
-    setStatusFilter(value);
+    const option = FILTER_OPTIONS.find((o) => o.value === value);
+    if (option) setStatusFilter(option.value);
   };
 
   const handleViewUserProfile = (userId: string) => {
@@ -63,25 +60,8 @@ const EnrollmentList = () => {
     router.push(`/private/admin/courses/${courseId}`);
   };
 
-  const handleClickOption = async (
-    enrollment: Enrollmentype,
-    action: "approve" | "reject",
-  ) => {
-    const { course, user, ...rest } = enrollment;
-    try {
-      await updateEnrollment.mutateAsync({
-        ...rest,
-        status: action === "approve" ? "approved" : "rejected",
-        reviewedBy: activeUser?.uid || null,
-      });
-      Alert.alert("Matrícula actualizada");
-    } catch (error: any) {
-      Alert.alert("Error updating enrollment:", error.message);
-    }
-  };
-
   const handleConfirmationEnrollment = (
-    enrollment: Enrollmentype,
+    enrollment: EnrollmentDetail,
     action: "approve" | "reject",
   ) => {
     Alert.alert(
@@ -93,7 +73,11 @@ const EnrollmentList = () => {
         { text: "Cancelar", style: "cancel" },
         {
           text: "Confirmar",
-          onPress: () => handleClickOption(enrollment, action),
+          onPress: () =>
+            reviewEnrollment.mutate({
+              enrollmentId: enrollment.id,
+              status: action === "approve" ? "approved" : "rejected",
+            }),
         },
       ],
     );
@@ -118,6 +102,16 @@ const EnrollmentList = () => {
             data={data}
             keyExtractor={(item) => item.id}
             numColumns={1}
+            // Loads the next 20 when nearing the end of the list.
+            onEndReached={() => {
+              if (enrollmentByStatusQuery.hasNextPage && !enrollmentByStatusQuery.isFetchingNextPage) {
+                enrollmentByStatusQuery.fetchNextPage();
+              }
+            }}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              enrollmentByStatusQuery.isFetchingNextPage ? <ActivityIndicator color="#facc15" /> : null
+            }
             contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
             refreshControl={
               <RefreshControl
@@ -127,16 +121,10 @@ const EnrollmentList = () => {
               />
             }
             renderItem={({ item }) => {
-              const fullCourse = coursesQuery.data?.find(
-                (c) => c.id === item.course?.id,
-              );
-              const branch = fullCourse?.branchId
-                ? branchesQuery.data?.find((b) => b.id === fullCourse.branchId)
-                : undefined;
               return (
                 <View className="mb-3">
                   <PhotoCard
-                    image={item.paymentProofImage || ""}
+                    image={item.receiptUrl}
                     item={item}
                     onClickImage={(url) => {
                       setImageSelected(url);
@@ -151,7 +139,7 @@ const EnrollmentList = () => {
                       {/* Student */}
                       <Pressable
                         onPress={() =>
-                          handleViewUserProfile(item.user?.id || "")
+                          handleViewUserProfile(item.userId)
                         }
                       >
                         <View className="flex-row items-center gap-2">
@@ -168,48 +156,50 @@ const EnrollmentList = () => {
 
                       <View className="h-px bg-gray-800" />
 
-                      {/* Course */}
-                      <View className="gap-1">
-                        <Pressable
-                          onPress={() =>
-                            handleViewCourseDetails(item.course?.id || "")
-                          }
-                        >
-                          <View className="flex-row items-center gap-2">
-                            <Ionicons
-                              name="school-outline"
-                              size={16}
-                              color="#9ca3af"
-                            />
-                            <Text className="text-white font-semibold">
-                              {item.course?.title}
-                            </Text>
+                      {/* Courses: one request can cover several */}
+                      <View className="gap-2">
+                        {item.courses.map((course) => (
+                          <View key={course.id} className="gap-1">
+                            <Pressable
+                              onPress={() => handleViewCourseDetails(course.id)}
+                            >
+                              <View className="flex-row items-center gap-2">
+                                <Ionicons
+                                  name="school-outline"
+                                  size={16}
+                                  color="#9ca3af"
+                                />
+                                <Text className="text-white font-semibold">
+                                  {course.title}
+                                </Text>
+                              </View>
+                            </Pressable>
+                            {course.branch && (
+                              <View className="flex-row items-center gap-1 ml-6">
+                                <Ionicons
+                                  name="business-outline"
+                                  size={12}
+                                  color="turquoise"
+                                />
+                                <Text className="text-primary text-xs">
+                                  {course.branch.name}
+                                </Text>
+                              </View>
+                            )}
+                            {course.day && (
+                              <View className="flex-row items-center gap-1 ml-6">
+                                <Ionicons
+                                  name="calendar-outline"
+                                  size={12}
+                                  color="#6b7280"
+                                />
+                                <Text className="text-gray-500 text-xs capitalize">
+                                  {course.day}
+                                </Text>
+                              </View>
+                            )}
                           </View>
-                        </Pressable>
-                        {branch && (
-                          <View className="flex-row items-center gap-1 ml-6">
-                            <Ionicons
-                              name="business-outline"
-                              size={12}
-                              color="turquoise"
-                            />
-                            <Text className="text-primary text-xs">
-                              {branch.name}
-                            </Text>
-                          </View>
-                        )}
-                        {item.course?.day && (
-                          <View className="flex-row items-center gap-1 ml-6">
-                            <Ionicons
-                              name="calendar-outline"
-                              size={12}
-                              color="#6b7280"
-                            />
-                            <Text className="text-gray-500 text-xs capitalize">
-                              {item.course.day}
-                            </Text>
-                          </View>
-                        )}
+                        ))}
                       </View>
 
                       <View className="h-px bg-gray-800" />
@@ -256,7 +246,7 @@ const EnrollmentList = () => {
                             color="#6b7280"
                           />
                           <Text className="text-gray-400 text-xs">
-                            {new Date(item.submittedAt).toLocaleDateString()}
+                            {formatDDMMYYYY(item.submittedAt)}
                           </Text>
                         </View>
                       </View>

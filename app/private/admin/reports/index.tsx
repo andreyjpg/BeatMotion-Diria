@@ -1,7 +1,7 @@
 import DataLoader from "@/components/DataLoader";
 import FilterPills from "@/components/FilterPills";
 import HeaderTitle from "@/components/headerTitle";
-import { formatCurrency } from "@/constants/helpers";
+import { formatCurrency, formatMonthLabel } from "@/constants/helpers";
 import { useAttendanceReport } from "@/hooks/reports/useAttendanceReport";
 import { useEnrollmentReport } from "@/hooks/reports/useEnrollmentReport";
 import { usePaymentReport } from "@/hooks/reports/usePaymentReport";
@@ -187,7 +187,7 @@ const PaymentReportContent = () => {
                     key={index}
                     className="flex-row justify-between py-2 border-b border-gray-800"
                   >
-                    <Text className="text-gray-300">{item.month}</Text>
+                    <Text className="text-gray-300">{formatMonthLabel(item.month)}</Text>
                     <View className="flex-row gap-4">
                       <Text className="text-gray-400">{item.count} pagos</Text>
                       <Text className="text-green-400 font-semibold">
@@ -484,7 +484,7 @@ const EnrollmentReportContent = () => {
                     key={index}
                     className="flex-row justify-between py-2 border-b border-gray-800 last:border-b-0"
                   >
-                    <Text className="text-gray-300">{item.month}</Text>
+                    <Text className="text-gray-300">{formatMonthLabel(item.month)}</Text>
                     <Text className="text-primary font-semibold">
                       {item.count} solicitudes
                     </Text>

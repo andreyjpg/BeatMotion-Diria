@@ -1,18 +1,15 @@
 import DataLoader from "@/components/DataLoader";
+import FieldError from "@/components/FieldError";
+import FormScrollView from "@/components/FormScrollView";
 import HeaderTitle from "@/components/headerTitle";
-import { useSurveyById } from "@/hooks/surveys/useSurveyById";
+import { surveyAnswersSchema, validationErrors } from "@/constants/validationForms";
+import type { Survey, SurveyQuestion } from "@/hooks/surveys/surveySchema";
 import { useSubmitSurveyResponse } from "@/hooks/surveys/useSubmitSurveyResponse";
-import {
-  QuestionResponse,
-  SurveyQuestion,
-} from "@/hooks/surveys/surveySchema";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { useSurveyById } from "@/hooks/surveys/useSurveyById";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
-  Alert,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -20,90 +17,53 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+/** Answer per question id: 1-5 for ratings, text otherwise. */
+type Answers = Record<string, string | number>;
+
+const secondsSince = (start: number) => Math.round((Date.now() - start) / 1000);
+
 export default function TakeSurveyScreen() {
   const router = useRouter();
   const { surveyId } = useLocalSearchParams<{ surveyId: string }>();
-  const { user } = useActiveUser();
 
   const surveyQuery = useSurveyById(surveyId);
   const submitResponse = useSubmitSurveyResponse();
 
-  const [responses, setResponses] = useState<Record<string, any>>({});
-  const [startTime, setStartTime] = useState<number>(Date.now());
+  const [answers, setAnswers] = useState<Answers>({});
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  // When the screen opened, for the completion time.
+  const [startTime] = useState(() => Date.now());
 
-  useEffect(() => {
-    setStartTime(Date.now());
-  }, []);
-
-  const handleRatingChange = (questionId: string, rating: number) => {
-    setResponses({ ...responses, [questionId]: rating });
+  const setAnswer = (questionId: string, value: string | number) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
-  const handleMultipleChoiceChange = (questionId: string, option: string) => {
-    setResponses({ ...responses, [questionId]: option });
-  };
-
-  const handleTextChange = (questionId: string, text: string) => {
-    setResponses({ ...responses, [questionId]: text });
-  };
-
-  const validateResponses = (questions: SurveyQuestion[]) => {
-    for (const question of questions) {
-      if (question.required) {
-        const response = responses[question.id];
-        if (!response || (typeof response === "string" && !response.trim())) {
-          Alert.alert(
-            "Pregunta requerida",
-            `Por favor responde: "${question.questionText}"`
-          );
-          return false;
-        }
-      }
-    }
-    return true;
-  };
-
-  const handleSubmit = async () => {
-    if (!surveyQuery.data) return;
-
-    if (!validateResponses(surveyQuery.data.questions)) {
-      return;
-    }
-
-    const questionResponses: QuestionResponse[] =
-      surveyQuery.data.questions.map((q) => ({
-        questionId: q.id,
-        questionText: q.questionText,
-        questionType: q.questionType,
-        response: responses[q.id] || "",
-      }));
-
-    const completionTimeSeconds = Math.round((Date.now() - startTime) / 1000);
+  const handleSubmit = async (survey: Survey) => {
+    const formErrors = validationErrors(surveyAnswersSchema(survey.questions), answers);
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0) return;
 
     try {
       await submitResponse.mutateAsync({
-        surveyId: surveyQuery.data.id,
-        userId: user?.uid || "",
-        courseId: surveyQuery.data.courseId,
-        responses: questionResponses,
-        completionTimeSeconds,
+        surveyId: survey.id,
+        answers,
+        completionTimeSeconds: secondsSince(startTime),
       });
-
       router.back();
-    } catch (error) {
-      console.error("Error submitting survey:", error);
+    } catch {
+      // useSubmitSurveyResponse already told the student what went wrong.
     }
   };
 
   const renderRatingQuestion = (question: SurveyQuestion) => {
-    const currentRating = responses[question.id] || 0;
+    const currentRating = Number(answers[question.id] ?? 0);
 
     return (
       <View className="flex-row justify-center gap-2 mt-3">
         {[1, 2, 3, 4, 5].map((star) => (
           <TouchableOpacity
             key={star}
-            onPress={() => handleRatingChange(question.id, star)}
+            onPress={() => setAnswer(question.id, star)}
             className="p-2"
           >
             <Ionicons
@@ -118,7 +78,7 @@ export default function TakeSurveyScreen() {
   };
 
   const renderMultipleChoiceQuestion = (question: SurveyQuestion) => {
-    const currentSelection = responses[question.id];
+    const currentSelection = answers[question.id];
 
     return (
       <View className="mt-3 gap-2">
@@ -133,7 +93,7 @@ export default function TakeSurveyScreen() {
                   : "bg-gray-800 border-gray-700"
               }`}
               style={isSelected ? { backgroundColor: "rgba(64, 224, 208, 0.2)" } : undefined}
-              onPress={() => handleMultipleChoiceChange(question.id, option)}
+              onPress={() => setAnswer(question.id, option)}
             >
               <View className="flex-row items-center gap-3">
                 <View
@@ -164,8 +124,8 @@ export default function TakeSurveyScreen() {
     return (
       <TextInput
         className="bg-gray-800 text-white rounded-xl px-4 py-3 mt-3 min-h-24"
-        value={responses[question.id] || ""}
-        onChangeText={(text) => handleTextChange(question.id, text)}
+        value={String(answers[question.id] ?? "")}
+        onChangeText={(text) => setAnswer(question.id, text)}
         placeholder="Escribe tu respuesta aquí..."
         placeholderTextColor="#9CA3AF"
         multiline
@@ -180,7 +140,7 @@ export default function TakeSurveyScreen() {
 
       <DataLoader query={surveyQuery} emptyMessage="Encuesta no encontrada">
         {(survey) => (
-          <ScrollView
+          <FormScrollView
             className="flex-1 px-6"
             contentContainerStyle={{ paddingBottom: 100 }}
           >
@@ -228,13 +188,14 @@ export default function TakeSurveyScreen() {
                 {question.questionType === "multiple_choice" &&
                   renderMultipleChoiceQuestion(question)}
                 {question.questionType === "text" && renderTextQuestion(question)}
+                <FieldError message={errors[question.id]} className="mt-2" />
               </View>
             ))}
 
             {/* Botón enviar */}
             <TouchableOpacity
               className="bg-primary rounded-2xl py-4 items-center mb-4"
-              onPress={handleSubmit}
+              onPress={() => handleSubmit(survey)}
               disabled={submitResponse.isPending}
             >
               <Text className="text-black font-bold text-base">
@@ -248,7 +209,7 @@ export default function TakeSurveyScreen() {
             >
               <Text className="text-white font-semibold">Cancelar</Text>
             </TouchableOpacity>
-          </ScrollView>
+          </FormScrollView>
         )}
       </DataLoader>
     </SafeAreaView>

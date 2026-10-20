@@ -1,3 +1,16 @@
+import FieldError from "@/components/FieldError";
+import FormScrollView from "@/components/FormScrollView";
+import {
+  formatDDMMYYYY,
+  formatYYYYMMDD,
+  to12hLabel,
+  to24h,
+} from "@/constants/helpers";
+import {
+  classFormSchema,
+  FormErrors,
+  validationErrors,
+} from "@/constants/validationForms";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
@@ -6,20 +19,12 @@ import {
   useLocalSearchParams,
   useRootNavigationState,
 } from "expo-router";
+import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
 import { useCreateClass } from "@/hooks/classes/useCreateClass";
-import {
-  collection,
-  getDocs,
-  getFirestore,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
+import { useCourses } from "@/hooks/courses/useCourses";
 import { useEffect, useState } from "react";
 import {
   Alert,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -39,8 +44,10 @@ export default function NewClassScreen() {
   const preselectedCourseId = params.courseId as string | undefined;
   const createClass = useCreateClass();
 
-  const [courses, setCourses] = useState<any[]>([]);
+  const coursesQuery = useCourses();
+  const courses = coursesQuery.data ?? [];
   const [courseId, setCourseId] = useState<string>(preselectedCourseId || "");
+  const classesQuery = useClassesByCourseId(courseId);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
@@ -51,6 +58,7 @@ export default function NewClassScreen() {
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [errors, setErrors] = useState<FormErrors<typeof classFormSchema>>({});
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -63,45 +71,20 @@ export default function NewClassScreen() {
   const navState = useRootNavigationState();
   const [pendingNav, setPendingNav] = useState(false);
 
-  //todo: Code dev
+  // Default to the first (most recent) course once the list arrives.
   useEffect(() => {
-    const db = getFirestore();
-    const q = query(
-      collection(db, "courses"),
-      where("isDeleted", "==", false),
-      orderBy("createdAt", "desc"),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const arr: any[] = [];
-      snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
-      setCourses(arr);
-      if (arr.length > 0 && !courseId)
-        setCourseId(preselectedCourseId || arr[0].id);
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    if (courseId) {
-      getNextClassNumber(courseId);
+    if (!courseId && coursesQuery.data?.length) {
+      setCourseId(coursesQuery.data[0].id);
     }
-  }, [courseId]);
+  }, [courseId, coursesQuery.data]);
 
-  const getNextClassNumber = async (selectedCourseId: string) => {
-    try {
-      const db = getFirestore();
-      const q = query(
-        collection(db, "classes"),
-        where("courseId", "==", selectedCourseId),
-      );
-      const snapshot = await getDocs(q);
-      const classCount = snapshot.size;
+  // Suggest the next class number for the selected course.
+  const classCount = classesQuery.data?.length;
+  useEffect(() => {
+    if (courseId && classCount !== undefined) {
       setTitle(`Clase ${classCount + 1}`);
-    } catch (error) {
-      console.error("Error getting class count:", error);
-      setTitle("Clase 1");
     }
-  };
+  }, [courseId, classCount]);
 
   useEffect(() => {
     if (pendingNav && navState?.key) {
@@ -109,39 +92,6 @@ export default function NewClassScreen() {
       router.back();
     }
   }, [pendingNav, navState?.key]);
-
-  function pad(n: number) {
-    return n < 10 ? `0${n}` : String(n);
-  }
-  //Todo: use format already created
-  function formatYYYYMMDD(d: Date) {
-    const y = d.getFullYear();
-    const m = pad(d.getMonth() + 1);
-    const day = pad(d.getDate());
-    return `${y}-${m}-${day}`;
-  }
-
-  function formatDDMMYYYY(d: Date) {
-    const day = pad(d.getDate());
-    const m = pad(d.getMonth() + 1);
-    const y = d.getFullYear();
-    return `${day}/${m}/${y}`;
-  }
-
-  function to24h(d: Date) {
-    const hh = pad(d.getHours());
-    const mm = pad(d.getMinutes());
-    return `${hh}:${mm}`;
-  }
-
-  function to12hLabel(d: Date) {
-    let hours = d.getHours();
-    const minutes = pad(d.getMinutes());
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12;
-    if (hours === 0) hours = 12;
-    return `${hours}:${minutes} ${ampm}`;
-  }
 
   const detectPlatform = (url: string): "youtube" | "vimeo" | null => {
     if (url.includes("youtube.com") || url.includes("youtu.be")) {
@@ -182,18 +132,15 @@ export default function NewClassScreen() {
   };
 
   const handleSave = async () => {
-    if (!courseId) {
-      Alert.alert("Clase", "Debes seleccionar un curso.");
-      return;
-    }
-    if (!title.trim()) {
-      Alert.alert("Clase", "El título es obligatorio.");
-      return;
-    }
-    if (!content.trim()) {
-      Alert.alert("Clase", "El contenido es obligatorio.");
-      return;
-    }
+    const formErrors = validationErrors(classFormSchema, {
+      courseId,
+      title,
+      content,
+      startTime,
+      endTime,
+    });
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0) return;
 
     createClass.mutate(
       {
@@ -217,7 +164,7 @@ export default function NewClassScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-black px-6 py-10">
-      <ScrollView>
+      <FormScrollView>
         {/* Header */}
         <View className="flex-row items-center justify-between mb-6">
           <Text className="text-white text-2xl font-bold">Nueva clase</Text>
@@ -260,6 +207,7 @@ export default function NewClassScreen() {
                 ))}
               </Picker>
             </View>
+            <FieldError message={errors.courseId} className="-mt-3 mb-4" />
 
             {/* Title */}
             <Text className="text-white mb-2 font-semibold">
@@ -272,6 +220,7 @@ export default function NewClassScreen() {
               placeholder="Clase 1"
               placeholderTextColor="#9CA3AF"
             />
+            <FieldError message={errors.title} className="-mt-3 mb-4" />
 
             {/* Date and time */}
             <View className="bg-gray-800 rounded-2xl p-4 mb-4">
@@ -359,6 +308,7 @@ export default function NewClassScreen() {
                   }}
                 />
               )}
+              <FieldError message={errors.endTime} className="-mt-2" />
             </View>
 
             {/* Description */}
@@ -406,6 +356,7 @@ export default function NewClassScreen() {
               multiline
               textAlignVertical="top"
             />
+            <FieldError message={errors.content} className="-mt-3 mb-4" />
 
             {/* Videos */}
             <View className="mb-4">
@@ -497,7 +448,7 @@ export default function NewClassScreen() {
             </TouchableOpacity>
           </>
         )}
-      </ScrollView>
+      </FormScrollView>
     </SafeAreaView>
   );
 }

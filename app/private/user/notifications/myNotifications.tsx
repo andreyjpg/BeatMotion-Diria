@@ -1,18 +1,16 @@
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
-import { formatDate } from "@/constants/helpers";
+import { formatDDMMYYYY, to12hLabel } from "@/constants/helpers";
 import { Notification } from "@/hooks/notifications/notificationSchemas";
 import { useMarkNotificationAsSeen } from "@/hooks/notifications/useMarkNotificationAsSeen";
 import { useMyNotifications } from "@/hooks/notifications/useMyNotifications";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { SimpleLineIcons } from "@expo/vector-icons";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const MyNotifications = () => {
-  const { user } = useActiveUser();
-  const markNotification = useMarkNotificationAsSeen(user?.uid);
-  const notificationsQuery = useMyNotifications(user?.uid);
+  const markNotification = useMarkNotificationAsSeen();
+  const notificationsQuery = useMyNotifications();
 
   const handleMarkNotification = (item: Notification) => {
     if (item.read) return;
@@ -28,9 +26,11 @@ const MyNotifications = () => {
         query={notificationsQuery}
         emptyMessage="No hay notificaciones disponibles"
       >
-        {(data) => (
+        {(data, isRefetching, refetch) => (
           <FlatList
             data={data}
+            refreshing={isRefetching}
+            onRefresh={refetch}
             contentContainerStyle={{ paddingHorizontal: 5 }}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator
@@ -54,7 +54,7 @@ const MyNotifications = () => {
 
                 <Text className="text-gray-300">{item.content}</Text>
                 <Text className="text-white text-right">
-                  {formatDate(item.createdAt)}
+                  {formatDDMMYYYY(item.createdAt)} {to12hLabel(item.createdAt)}
                 </Text>
               </Pressable>
             )}

@@ -1,31 +1,26 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { PaymentSchema } from "./schema";
+import { signReceiptUrls } from "../storage/receiptStorage";
+import { PAYMENT_COLUMNS, PaymentSchema, toPayment } from "./schema";
 
+/** The student's payments, newest first, with receipt URLs. */
 export const usePaymentsByUser = (userId?: string) => {
-  const fetchPayment = async () => {
-    if (!userId) return [];
-    try {
-      const qRef = query(
-        collection(firestore, "payments"),
-        where("userId", "==", userId)
-      );
-      const snapShots = await getDocs(qRef);
+  const fetchPayments = async () => {
+    const { data, error } = await supabase
+      .from("payments")
+      .select(PAYMENT_COLUMNS)
+      .eq("user_id", userId!)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
 
-      const payments = snapShots.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      return PaymentSchema.parse(payments);
-    } catch (error: any) {
-      console.error("Error in UsePayment", error);
-    }
+    const urls = await signReceiptUrls(data.map((row) => row.receiptPath));
+    return PaymentSchema.parse(data.map((row) => toPayment(row, urls)));
   };
-  const paymentQuery = useQuery({
-    queryKey: ["paymentsByUser", userId],
-    queryFn: fetchPayment,
-  });
 
-  return paymentQuery;
+  return useQuery({
+    queryKey: ["payments", "byUser", userId],
+    queryFn: fetchPayments,
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 10,
+  });
 };

@@ -1,30 +1,40 @@
-import { firestore } from "@/firebaseConfig";
-import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
-import { PaymentSchema } from "./schema";
+import { supabase } from "@/lib/supabase";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { ReviewStatus } from "../enrollment/schema";
+import { signReceiptUrls } from "../storage/receiptStorage";
+import { PAYMENT_DETAIL_COLUMNS, PaymentDetailSchema, toPayment } from "./schema";
 
-export const usePayments = (status?: "pending" | "approved" | "rejected") => {
-  const fetchPayment = async () => {
-    try {
-      const qRef = query(
-        collection(firestore, "payments"),
-        where("status", "==", status),
-        orderBy("createdAt", "desc")
-      );
-      const snapShots = await getDocs(qRef);
-      const payments = snapShots.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      return PaymentSchema.parse(payments);
-    } catch (error: any) {
-      console.error("Error in UsePayment", error);
-    }
+const PAGE_SIZE = 20;
+
+/**
+ * Admin list: payments in one status, newest first, 20 at a time (the
+ * approved list grows every month). Only the loaded page's receipts get a
+ * signed URL. `data` is the flat list of loaded payments; call fetchNextPage
+ * at the end of the list.
+ */
+export const usePayments = (status: ReviewStatus) => {
+  const fetchPage = async ({ pageParam }: { pageParam: number }) => {
+    const from = pageParam * PAGE_SIZE;
+    const { data, error } = await supabase
+      .from("payments")
+      .select(PAYMENT_DETAIL_COLUMNS)
+      .eq("status", status)
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const urls = await signReceiptUrls(data.map((row) => row.receiptPath));
+    return PaymentDetailSchema.parse(data.map((row) => toPayment(row, urls)));
   };
-  const paymentQuery = useQuery({
-    queryKey: ["payments", status],
-    queryFn: fetchPayment,
-  });
 
-  return paymentQuery;
+  return useInfiniteQuery({
+    queryKey: ["payments", "byStatus", status],
+    queryFn: fetchPage,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length < PAGE_SIZE ? undefined : allPages.length,
+    select: (data) => data.pages.flat(),
+    staleTime: 1000 * 60 * 10, // under the signed URLs' hour
+  });
 };

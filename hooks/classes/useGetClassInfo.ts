@@ -1,28 +1,21 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { doc, getDoc } from "firebase/firestore";
-import { ClassesSchema } from "./classesSchema";
+import { CLASS_COLUMNS, ClassesSchema, toClass } from "./classesSchema";
 
+/** A single class, or null if it doesn't exist. */
 export const useGetClassInfo = (classId: string) => {
   const getClassInfo = async () => {
-    try {
-      const ref = doc(firestore, "classes", classId);
-      const snapshot = await getDoc(ref);
-      const classInfo = {
-        id: snapshot.id,
-        ...snapshot.data(),
-      };
-      return ClassesSchema.parse(classInfo);
-    } catch (error: any) {
+    const { data, error } = await supabase.from("classes").select(CLASS_COLUMNS).eq("id", classId).maybeSingle();
+    if (error) {
       console.error("Error in useGetClassInfo", error.message);
+      throw error;
     }
+    return data ? ClassesSchema.parse(toClass(data)) : null;
   };
 
-  const classQuery = useQuery({
+  return useQuery({
     queryKey: ["classInfo", classId],
     queryFn: getClassInfo,
     enabled: !!classId,
   });
-
-  return classQuery;
 };

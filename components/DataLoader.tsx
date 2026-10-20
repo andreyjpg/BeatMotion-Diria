@@ -1,12 +1,22 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import type { UseQueryResult } from "@tanstack/react-query";
 import React from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 
+/** What DataLoader reads from a query (useQuery, or useInfiniteQuery with `select`). */
+type LoadableQuery<T> = {
+  data: T | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  isRefetching: boolean;
+  refetch: () => unknown;
+};
+
 type DataLoaderProps<T> = {
-  query: UseQueryResult<T>;
+  query: LoadableQuery<T>;
+  /** Only called with data: loading, errors and empty/null results render a message instead. */
   children: (
-    data: T,
+    data: NonNullable<T>,
     isRefetching: boolean,
     refetch: () => void
   ) => React.ReactNode;
@@ -18,10 +28,11 @@ export default function DataLoader<T>({
   children,
   emptyMessage = "No data available",
 }: DataLoaderProps<T>) {
-  const { data, isLoading, isError, error, isFetching, isRefetching, refetch } =
-    query;
+  const { data, isLoading, isError, error, isRefetching, refetch } = query;
 
-  if (isLoading || isFetching) {
+  // Spinner only until there's data: background refetches (pull to refresh,
+  // invalidations) keep the content on screen, so forms keep their edits.
+  if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center p-4">
         <ActivityIndicator size="large" />

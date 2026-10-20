@@ -1,8 +1,9 @@
+import FormScrollView from "@/components/FormScrollView";
 import { signInValidationSchema } from "@/constants/validationForms";
-import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
-import { doc, getFirestore, setDoc } from "firebase/firestore";
+import { useSignUp } from "@/hooks/auth/useSignUp";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   Pressable,
@@ -22,6 +23,8 @@ const SignIn = () => {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const signUp = useSignUp();
+  const submitting = signUp.isPending;
 
   const [consentAccepted, setConsentAccepted] = useState(false);
 
@@ -47,7 +50,8 @@ const SignIn = () => {
         password: "",
       });
       return true;
-    } catch (err: any) {
+    } catch (err) {
+      if (!(err instanceof Yup.ValidationError)) throw err;
       const errors = {
         name: "",
         lastName: "",
@@ -55,7 +59,7 @@ const SignIn = () => {
         email: "",
         password: "",
       };
-      err.inner.forEach((error: any) => {
+      err.inner.forEach((error) => {
         errors[error.path as keyof typeof errors] = error.message;
       });
       setFormErrors(errors);
@@ -63,9 +67,8 @@ const SignIn = () => {
     }
   };
 
-  const register = async () => {
-    const auth = getAuth();
-    const db = getFirestore();
+  const register = () => {
+    if (submitting) return;
     if (!validateForm()) {
       return;
     }
@@ -77,37 +80,34 @@ const SignIn = () => {
       );
       return;
     }
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password,
-      );
-      const user = userCredential.user;
 
-      await setDoc(doc(db, "users", user.uid), {
-        name: name,
-        lastName: lastName,
-        phone: phone,
-        email: user.email,
-        createdAt: new Date(),
-        uid: user.uid,
-        role: "user",
-        isActive: true,
-        consentAccepted: true,
-        consentAcceptedAt: new Date(),
-      });
-      handleClearValues();
-      Alert.alert("Registro exitoso", "Usuario registrado y datos guardados", [
-        { text: "continuar", onPress: () => console.log("Continuar") },
-      ]);
-    } catch (error) {
-      Alert.alert(
-        "Error",
-        "No se pudo registrar el usuario. Inténtalo de nuevo.",
-        [{ text: "OK" }],
-      );
-    }
+    signUp.mutate(
+      { email, password, name, lastName, phone },
+      {
+        onSuccess: ({ signedIn }) => {
+          handleClearValues();
+          // With email confirmation enabled in Supabase there is no session
+          // until the user confirms; otherwise the root layout opens the app.
+          Alert.alert(
+            "Registro exitoso",
+            signedIn
+              ? "Tu cuenta fue creada."
+              : "Revisa tu correo para confirmar la cuenta antes de iniciar sesión.",
+            [{ text: "Continuar" }],
+          );
+        },
+        onError: (error) => {
+          console.error("Sign-up error:", error);
+          const message =
+            error.code === "user_already_exists" || error.code === "email_exists"
+              ? "Ya existe una cuenta con este correo. Inicia sesión o recupera tu contraseña."
+              : error.code === "weak_password"
+                ? "La contraseña es muy débil. Usa una más segura."
+                : "No se pudo registrar el usuario. Inténtalo de nuevo.";
+          Alert.alert("Error", message, [{ text: "OK" }]);
+        },
+      },
+    );
   };
 
   const handleClearValues = () => {
@@ -119,7 +119,8 @@ const SignIn = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 justify-center items-center px-5 bg-black w-full">
+    <SafeAreaView className="flex-1 bg-black w-full">
+      <FormScrollView contentContainerClassName="flex-grow justify-center items-center px-5">
       <View className="bg-gray-900 w-full max-w-md rounded-3xl p-7 gap-4 shadow-lg border border-gray-800">
         <View className="gap-1">
           <Text className="text-2xl font-bold text-white">
@@ -228,23 +229,28 @@ const SignIn = () => {
             </Text>{" "}
             y el tratamiento de mis datos conforme a las Leyes N.° 8.968 y N.°
             9.048 de Costa Rica, incluida la transferencia a servidores de
-            Firebase (Google LLC) fuera de Costa Rica.
+            Supabase (Supabase Inc.) fuera de Costa Rica.
           </Text>
         </Pressable>
 
         <TouchableOpacity
-          className={`rounded-xl py-3 active:opacity-80 ${consentAccepted ? "bg-emerald-400" : "bg-emerald-900"}`}
+          className={`rounded-xl py-3 active:opacity-80 ${consentAccepted && !submitting ? "bg-emerald-400" : "bg-emerald-900"}`}
           onPress={register}
-          disabled={!consentAccepted}
+          disabled={!consentAccepted || submitting}
         >
-          <Text
-            className={`text-center font-semibold ${consentAccepted ? "text-black" : "text-gray-500"}`}
-          >
-            Crear cuenta
-          </Text>
+          {submitting ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <Text
+              className={`text-center font-semibold ${consentAccepted ? "text-black" : "text-gray-500"}`}
+            >
+              Crear cuenta
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+      </FormScrollView>
+2    </SafeAreaView>
   );
 };
 

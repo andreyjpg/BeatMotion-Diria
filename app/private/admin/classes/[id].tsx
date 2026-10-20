@@ -1,12 +1,26 @@
+import FieldError from "@/components/FieldError";
+import FormScrollView from "@/components/FormScrollView";
+import {
+  formatDDMMYYYY,
+  formatYYYYMMDD,
+  parseLocalDate,
+  timeToDate,
+  to12hLabel,
+  to24h,
+} from "@/constants/helpers";
+import {
+  classFormSchema,
+  FormErrors,
+  validationErrors,
+} from "@/constants/validationForms";
+import { useGetClassInfo } from "@/hooks/classes/useGetClassInfo";
 import { useUpdateClass } from "@/hooks/classes/useUpdateClass";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router, useLocalSearchParams } from "expo-router";
-import { doc, getDoc, getFirestore } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   Alert,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -24,7 +38,8 @@ type VideoLink = {
 export default function EditClassScreen() {
   const updateClassMutation = useUpdateClass();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [loading, setLoading] = useState(true);
+  const classQuery = useGetClassInfo(id ?? "");
+  const loading = classQuery.isLoading;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [content, setContent] = useState("");
@@ -35,6 +50,7 @@ export default function EditClassScreen() {
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [errors, setErrors] = useState<FormErrors<typeof classFormSchema>>({});
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -45,106 +61,35 @@ export default function EditClassScreen() {
   const [endObj, setEndObj] = useState<Date | null>(null);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const db = getFirestore();
-      const snap = await getDoc(doc(db, "classes", id!));
+    if (classQuery.isSuccess && classQuery.data === null) {
+      Alert.alert("Clase", "No encontrada");
+      router.back();
+    }
+  }, [classQuery.isSuccess, classQuery.data]);
 
-      if (!snap.exists()) {
-        Alert.alert("Clase", "No encontrada");
-        router.back();
-        return;
-      }
-
-      const data = snap.data();
-      setTitle(data.title ?? "");
-      setDescription(data.description ?? "");
-      setContent(data.content ?? "");
-      setObjectives(data.objectives ?? "");
-      setDate(data.date ?? "");
-      setStartTime(data.startTime ?? "");
-      setEndTime(data.endTime ?? "");
-
-      if (data.date) {
-        try {
-          const [year, month, day] = data.date.split("-");
-          setDateObj(
-            new Date(parseInt(year), parseInt(month) - 1, parseInt(day)),
-          );
-        } catch (e) {
-          console.error("Error parsing date:", e);
-        }
-      }
-
-      if (data.startTime) {
-        try {
-          const [hours, minutes] = data.startTime.split(":");
-          const d = new Date();
-          d.setHours(parseInt(hours), parseInt(minutes));
-          setStartObj(d);
-        } catch (e) {
-          console.error("Error parsing start time:", e);
-        }
-      }
-
-      if (data.endTime) {
-        try {
-          const [hours, minutes] = data.endTime.split(":");
-          const d = new Date();
-          d.setHours(parseInt(hours), parseInt(minutes));
-          setEndObj(d);
-        } catch (e) {
-          console.error("Error parsing end time:", e);
-        }
-      }
-
-      if (data.videoLinks && Array.isArray(data.videoLinks)) {
-        const videos = data.videoLinks.map((v: any, index: number) => ({
-          id: `${Date.now()}-${index}`,
-          url: v.url || "",
-          platform: v.platform || "youtube",
-          title: v.title || undefined,
-        }));
-        setVideoLinks(videos);
-      }
-
-      setLoading(false);
-    };
-    if (id) load();
-  }, [id]);
-
-  function pad(n: number) {
-    return n < 10 ? `0${n}` : String(n);
-  }
-
-  function formatYYYYMMDD(d: Date) {
-    const y = d.getFullYear();
-    const m = pad(d.getMonth() + 1);
-    const day = pad(d.getDate());
-    return `${y}-${m}-${day}`;
-  }
-
-  function formatDDMMYYYY(d: Date) {
-    const day = pad(d.getDate());
-    const m = pad(d.getMonth() + 1);
-    const y = d.getFullYear();
-    return `${day}/${m}/${y}`;
-  }
-
-  function to24h(d: Date) {
-    const hh = pad(d.getHours());
-    const mm = pad(d.getMinutes());
-    return `${hh}:${mm}`;
-  }
-
-  function to12hLabel(d: Date) {
-    let hours = d.getHours();
-    const minutes = pad(d.getMinutes());
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12;
-    if (hours === 0) hours = 12;
-    return `${hours}:${minutes} ${ampm}`;
-  }
+  // Fill the form once the class arrives.
+  useEffect(() => {
+    const data = classQuery.data;
+    if (!data) return;
+    setTitle(data.title ?? "");
+    setDescription(data.description ?? "");
+    setContent(data.content ?? "");
+    setObjectives(data.objectives ?? "");
+    setDate(data.date ?? "");
+    setStartTime(data.startTime ?? "");
+    setEndTime(data.endTime ?? "");
+    setDateObj(parseLocalDate(data.date));
+    setStartObj(data.startTime ? timeToDate(data.startTime) : null);
+    setEndObj(data.endTime ? timeToDate(data.endTime) : null);
+    setVideoLinks(
+      (data.videoLinks ?? []).map((v, index) => ({
+        id: `${Date.now()}-${index}`,
+        url: v.url,
+        platform: v.platform === "vimeo" ? "vimeo" : "youtube",
+        title: v.title || undefined,
+      })),
+    );
+  }, [classQuery.data]);
 
   const detectPlatform = (url: string): "youtube" | "vimeo" | null => {
     if (url.includes("youtube.com") || url.includes("youtu.be")) {
@@ -185,32 +130,32 @@ export default function EditClassScreen() {
   };
 
   const handleUpdate = async () => {
-    if (!title.trim()) {
-      Alert.alert("Clase", "El título es obligatorio.");
-      return;
-    }
-    if (!content.trim()) {
-      Alert.alert("Clase", "El contenido es obligatorio.");
-      return;
-    }
-    //Todo change those undefined
-    const body = {
-      id,
+    // A class's course can't be changed here, so it isn't validated.
+    const formErrors = validationErrors(classFormSchema.omit(["courseId"]), {
+      title,
+      content,
+      startTime,
+      endTime,
+    });
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0) return;
+    // Empty optional fields are stored as "no value" by useUpdateClass.
+    const patch = {
       title: title.trim(),
-      description: description.trim() || "",
+      description: description.trim(),
       content: content.trim(),
-      objectives: objectives.trim() || "",
-      date: date.trim() || "",
-      startTime: startTime.trim() || "",
-      endTime: endTime.trim() || "",
+      objectives: objectives.trim(),
+      date: date.trim(),
+      startTime: startTime.trim(),
+      endTime: endTime.trim(),
       videoLinks: videoLinks.map((v) => ({
         url: v.url,
         platform: v.platform,
-        title: v.title as string,
+        title: v.title ?? null,
       })),
     };
-    updateClassMutation.mutate({ id, patch: body });
-    router.back();
+    // Leave the screen only once it's saved, so a failed save keeps the edits.
+    updateClassMutation.mutate({ id, patch }, { onSuccess: () => router.back() });
   };
 
   if (loading) {
@@ -223,7 +168,7 @@ export default function EditClassScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-black px-6 py-10">
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <FormScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View className="flex-row items-center justify-between mb-6">
           <Text className="text-white text-2xl font-bold">Editar clase</Text>
@@ -243,6 +188,7 @@ export default function EditClassScreen() {
           placeholder="Clase 1"
           placeholderTextColor="#9CA3AF"
         />
+        <FieldError message={errors.title} className="-mt-3 mb-4" />
 
         {/* Date and time */}
         <View className="bg-gray-800 rounded-2xl p-4 mb-4">
@@ -340,6 +286,7 @@ export default function EditClassScreen() {
               }}
             />
           )}
+          <FieldError message={errors.endTime} className="-mt-2" />
         </View>
 
         {/* Description */}
@@ -385,6 +332,7 @@ export default function EditClassScreen() {
           multiline
           textAlignVertical="top"
         />
+        <FieldError message={errors.content} className="-mt-3 mb-4" />
 
         {/* Videos */}
         <View className="mb-4">
@@ -474,7 +422,7 @@ export default function EditClassScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </FormScrollView>
     </SafeAreaView>
   );
 }

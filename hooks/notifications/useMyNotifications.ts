@@ -1,36 +1,30 @@
-import { firestore } from "@/firebaseConfig";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
-import { Alert } from "react-native";
-import { notificationsList } from "./notificationSchemas";
+import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+import { NOTIFICATION_COLUMNS, notificationsList } from "./notificationSchemas";
 
-export const useMyNotifications = (uid?: string) => {
-  const queryClient = useQueryClient();
+/** Reminders and announcements accumulate; the list shows the latest ones. */
+const LIMIT = 100;
 
-  const getNotificationsHistory = async () => {
-    if (!uid) return [];
-    try {
-      const ref = query(
-        collection(firestore, "notifications"),
-        where("userId", "==", uid),
-        orderBy("createdAt", "desc")
-      );
-      const snapshots = await getDocs(ref);
-      const notifications = snapshots.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      return notificationsList.parse(notifications);
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "No se pudieron cargar las notificaciones.");
-    }
+/** The signed-in user's notifications, newest first. */
+export const useMyNotifications = () => {
+  const { user } = useActiveUser();
+  const userId = user?.uid ?? "";
+
+  const fetchNotifications = async () => {
+    const { data, error } = await supabase
+      .from("notifications")
+      .select(NOTIFICATION_COLUMNS)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(LIMIT);
+    if (error) throw error;
+    return notificationsList.parse(data);
   };
 
-  const queryFunction = useQuery({
-    queryKey: ["myNotifications", uid],
-    queryFn: getNotificationsHistory,
+  return useQuery({
+    queryKey: ["myNotifications", userId],
+    queryFn: fetchNotifications,
+    enabled: !!userId,
   });
-
-  return queryFunction;
 };

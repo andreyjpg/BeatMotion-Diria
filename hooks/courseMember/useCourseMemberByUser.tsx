@@ -1,23 +1,15 @@
-import { firestore } from "@/firebaseConfig";
-import { collection, getDocs, query, where } from "@firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { Alert } from "react-native";
-import { courseMemberSchema } from "./schema";
+import { courseMemberSchema, MEMBER_COLUMNS, toMember } from "./schema";
 
-// Fetch courses member collection by UserID
+// All of a user's course memberships (active and past).
 const useCourseMemberByUser = (userId: string) => {
   const getCourseMemberByUser = async () => {
     try {
-      const q = query(
-        collection(firestore, "courseMember"),
-        where("userId", "==", userId)
-      );
-      const snapshot = await getDocs(q);
-      const courseMembers = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      return courseMemberSchema.parse(courseMembers);
+      const { data, error } = await supabase.from("course_members").select(MEMBER_COLUMNS).eq("user_id", userId);
+      if (error) throw error;
+      return courseMemberSchema.parse(data.map(toMember));
     } catch (error) {
       console.error("Error fetching course member by user:", error);
       Alert.alert("Error fetching course member by user");

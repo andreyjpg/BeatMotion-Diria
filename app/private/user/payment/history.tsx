@@ -3,19 +3,17 @@ import ImageModal from "@/components/ImageModal";
 import PhotoCard from "@/components/PhotoCard";
 import {
   formatCurrency,
-  formatDate,
+  formatDDMMYYYY,
   getEnrollmentColor,
   statusTranslations,
 } from "@/constants/helpers";
-import { useCourses } from "@/hooks/courses/useCourses";
 import { usePaymentsByUser } from "@/hooks/payment/usePaymentsByUser";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { FlatList, Text, View } from "react-native";
 
 const History = () => {
   const { user } = useActiveUser();
-  const coursesQuery = useCourses();
   const paymentQuery = usePaymentsByUser(user?.uid);
   const [modalVisible, setModalVisible] = useState(false);
   const [imageSelected, setImageSelected] = useState<string>("");
@@ -29,53 +27,42 @@ const History = () => {
     setModalVisible(false);
   };
 
-  const getCourseName = useCallback(
-    (cid: string) => {
-      if (!coursesQuery.data || coursesQuery.isLoading) return;
-
-      const course = coursesQuery.data.find((course) => course.id === cid);
-      return course ? course.title : "";
-    },
-    [coursesQuery.data, coursesQuery.isLoading]
-  );
-
   return (
     <View className="flex-1 px-4">
       <DataLoader
         query={paymentQuery}
         emptyMessage="No se ha efectuado ningún pago hasta el momento"
       >
-        {(data) => (
+        {(data, isRefetching, refetch) => (
           <FlatList
             data={data}
             keyExtractor={(item) => item.id}
+            contentContainerStyle={{ gap: 15 }}
+            refreshing={isRefetching}
+            onRefresh={refetch}
             renderItem={({ item }) => (
               <PhotoCard
-                image={item.photoProofURL}
+                image={item.receiptUrl}
                 item={item}
                 onClickImage={onClickImage}
                 showStatusApprovement={false}
               >
                 <View className="gap-3">
                   <View className="flex-row justify-between">
-                    <Text
-                      className={`{text-white} ${getEnrollmentColor(
-                        item.status
-                      )}`}
-                    >
+                    <Text className={getEnrollmentColor(item.status)}>
                       Estado: {statusTranslations[item.status]}
                     </Text>
                     <Text className="text-white">
-                      {formatDate(item.createdAt)}
+                      {formatDDMMYYYY(item.createdAt)}
                     </Text>
                   </View>
                   <View>
                     <Text className="text-white font-bold">Cursos:</Text>
                     <View className="flex-row justify-between">
                       <View>
-                        {item.coursesId.map((cid) => (
-                          <Text className="text-white ml-2" key={cid}>
-                            -{getCourseName(cid)}
+                        {item.courses.map((course) => (
+                          <Text className="text-white ml-2" key={course.id}>
+                            -{course.title}
                           </Text>
                         ))}
                       </View>
@@ -83,17 +70,22 @@ const History = () => {
                         {formatCurrency(item.monthlyFare)}
                       </Text>
                     </View>
-                    {item.isLatePayment ? (
+                    {item.isLate ? (
                       <View className="flex-row justify-between mt-2">
                         <Text className="text-white ">
-                          Monto por {item.daysAfterPayment} día(s) de pago
-                          atrasado
+                          Monto por {item.daysLate} día(s) de pago atrasado
                         </Text>
                         <Text className="text-white">
-                          {formatCurrency(item.lateFare || 0)}
+                          {formatCurrency(item.lateFare)}
                         </Text>
                       </View>
                     ) : null}
+                    <View className="flex-row justify-between mt-2">
+                      <Text className="text-white font-bold">Total</Text>
+                      <Text className="text-white font-bold">
+                        {formatCurrency(item.totalAmount)}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               </PhotoCard>

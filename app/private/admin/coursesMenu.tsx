@@ -1,72 +1,37 @@
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
-import { firestore } from "@/firebaseConfig";
+import { ClassesType } from "@/hooks/classes/classesSchema";
+import { useActiveClasses } from "@/hooks/classes/useActiveClasses";
 import { useUpdateClass } from "@/hooks/classes/useUpdateClass";
+import { CourseType } from "@/hooks/courses/schema/courseSchema";
 import { useCourses } from "@/hooks/courses/useCourses";
 import { useUpdateCourse } from "@/hooks/courses/useUpdateCourse";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons, Octicons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { router } from "expo-router";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-type ClassItem = {
-  id: string;
-  title?: string;
-  date?: string;
-  startTime?: string;
-  endTime?: string;
-  room?: string;
-  capacity?: number;
-};
 
 export default function CoursesMenuScreen() {
   const activeUser = useActiveUser();
   const coursesQuery = useCourses();
+  const classesQuery = useActiveClasses();
   const updateCourse = useUpdateCourse();
   const updateClass = useUpdateClass();
 
   const [expandedCourses, setExpandedCourses] = useState<Set<string>>(
     new Set(),
   );
-  const [classesByCourse, setClassesByCourse] = useState<
-    Record<string, ClassItem[]>
-  >({});
 
-  useEffect(() => {
-    if (!coursesQuery.data) return;
-
-    const unsubscribers: (() => void)[] = [];
-
-    coursesQuery.data.forEach((course) => {
-      const q = query(
-        collection(firestore, "classes"),
-        where("courseId", "==", course.id),
-        where("isDeleted", "==", false),
-      );
-
-      const unsub = onSnapshot(q, (snapshot) => {
-        const classes = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as ClassItem[];
-
-        setClassesByCourse((prev) => ({
-          ...prev,
-          [course.id]: classes,
-        }));
-      });
-
-      unsubscribers.push(unsub);
-    });
-
-    return () => {
-      unsubscribers.forEach((unsub) => unsub());
-    };
-  }, [coursesQuery.data]);
+  const classesByCourse = useMemo(() => {
+    const grouped: Record<string, ClassesType[]> = {};
+    for (const cls of classesQuery.data ?? []) {
+      (grouped[cls.courseId] ??= []).push(cls);
+    }
+    return grouped;
+  }, [classesQuery.data]);
 
   const toggleCourse = (courseId: string) => {
     setExpandedCourses((prev) => {
@@ -80,7 +45,7 @@ export default function CoursesMenuScreen() {
     });
   };
 
-  const handleDeleteCourse = (course: any) => {
+  const handleDeleteCourse = (course: CourseType) => {
     Alert.alert(
       "Eliminar curso",
       `¿Estás seguro de eliminar "${course.title}"? Esto también eliminará todas sus clases.`,
@@ -251,7 +216,6 @@ export default function CoursesMenuScreen() {
                                 <Text className="text-gray-500 text-xs mt-0.5">
                                   {classItem.date} • {classItem.startTime}-
                                   {classItem.endTime}
-                                  {classItem.room && ` • ${classItem.room}`}
                                 </Text>
                               </View>
                               <View className="flex-row gap-2">

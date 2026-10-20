@@ -11,7 +11,7 @@ import HomeUser from "./user/HomeUser";
 
 export default function HomeScreen() {
   const { user } = useActiveUser();
-  const myNotifications = useMyNotifications(user?.uid);
+  const myNotifications = useMyNotifications();
 
   useCreateFCMToken();
 
@@ -38,7 +38,7 @@ export default function HomeScreen() {
                 accessibilityLabel="Gestión de usuarios"
               >
                 <Ionicons name="notifications" size={24} color="black" />
-                {myNotifications.data?.find((noti) => !noti.read) && (
+                {myNotifications.data?.some((noti) => !noti.read) && (
                   <Text className="w-2 h-2 rounded-xl bg-red-500 absolute z-10 top-2 right-3"></Text>
                 )}
               </TouchableOpacity>

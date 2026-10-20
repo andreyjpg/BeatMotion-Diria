@@ -1,37 +1,27 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { AttendanceSchemaArray } from "./schema";
+import { ATTENDANCE_WITH_CLASS_COLUMNS, AttendanceSchemaArray } from "./schema";
 
-export const useAttendanceByUser = (userId: string, courseId?: string) => {
+/**
+ * A student's attendance rows for one course's (not deleted) classes.
+ * attendance has no course_id: the course comes from the class.
+ */
+export const useAttendanceByUser = (userId: string, courseId: string) => {
   const getAttendance = async () => {
-    try {
-      if (userId === "") return [];
-      const ref = courseId
-        ? query(
-            collection(firestore, "attendance"),
-            where("userId", "==", userId),
-            where("courseId", "==", courseId)
-          )
-        : query(
-            collection(firestore, "attendance"),
-            where("userId", "==", userId)
-          );
-      const snapshots = await getDocs(ref);
-      const attendance = snapshots.docs.map((snap) => ({
-        id: snap.id,
-        ...snap.data(),
-      }));
-      return AttendanceSchemaArray.parse(attendance);
-    } catch (error: any) {
-      console.error("Error in UseAttendanceByUser", error.message);
-    }
+    const { data, error } = await supabase
+      .from("attendance")
+      .select(ATTENDANCE_WITH_CLASS_COLUMNS)
+      .eq("user_id", userId)
+      .eq("class.course_id", courseId)
+      .eq("class.is_deleted", false);
+    if (error) throw error;
+    return AttendanceSchemaArray.parse(data.map(({ class: _class, ...row }) => row));
   };
-  const attendanceQuery = useQuery({
-    queryKey: ["attendanceByUser", userId],
-    queryFn: getAttendance,
-    enabled: !!userId,
-  });
 
-  return attendanceQuery;
+  return useQuery({
+    // The course is part of the key: each course page has its own rows.
+    queryKey: ["attendance", "byUser", userId, courseId],
+    queryFn: getAttendance,
+    enabled: !!userId && !!courseId,
+  });
 };

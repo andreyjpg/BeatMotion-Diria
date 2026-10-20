@@ -1,7 +1,7 @@
 import DataLoader from "@/components/DataLoader";
 import HeaderTitle from "@/components/headerTitle";
 import { useSurveys } from "@/hooks/surveys/useSurveys";
-import { useUpdateSurvey } from "@/hooks/surveys/useUpdateSurvey";
+import { useSetSurveyActive } from "@/hooks/surveys/useSetSurveyActive";
 import { useDeleteSurvey } from "@/hooks/surveys/useDeleteSurvey";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -20,7 +20,7 @@ import type { Href } from "expo-router";
 export default function SurveysListScreen() {
   const router = useRouter();
   const surveysQuery = useSurveys();
-  const toggleActive = useUpdateSurvey();
+  const toggleActive = useSetSurveyActive();
   const deleteSurvey = useDeleteSurvey();
 
   const handleToggleActive = (survey: Survey) => {
