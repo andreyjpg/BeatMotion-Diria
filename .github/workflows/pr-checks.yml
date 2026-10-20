@@ -59,7 +59,12 @@ jobs:
         with:
           deno-version: v2.x
 
+      # The app's package.json at the repo root would make Deno look for npm
+      # packages in node_modules/ (not installed in this job). Edge Functions
+      # import with npm: specifiers into Deno's own cache instead.
       - run: deno check supabase/functions/*/index.ts
+        env:
+          DENO_NO_PACKAGE_JSON: "1"
 
   expoDoctor:
     runs-on: ubuntu-latest
