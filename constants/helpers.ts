@@ -111,6 +111,30 @@ const formatMonthLabel = (yearMonth: string) => {
   return month >= 1 && month <= 12 ? `${MONTHS_SHORT[month - 1]} ${year}` : yearMonth;
 };
 
+const WEEKDAYS_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+/** Date -> "Lun 27 oct" (headers, cards). */
+const formatShortDate = (date: Date) =>
+  `${WEEKDAYS_SHORT[date.getDay()]} ${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`;
+
+/** Course day as stored ("miércoles") -> "Mié". */
+const shortDayName = (day: string | null | undefined) =>
+  day ? capitalize(day.trim().slice(0, 3)) : "";
+
+/** "HH:MM" -> "7:00 PM". */
+const hhmmTo12h = (value: string | null | undefined) => (value ? to12hLabel(timeToDate(value)) : "");
+
+/** A student's monthly payment standing in a course, as shown on chips. */
+const standingLabel: Record<string, string> = {
+  ok: "Al día",
+  pending: "Pendiente",
+  late: "Atrasado",
+};
+
+/** "Sofía", "Méndez" -> "SM" (avatars without photo). */
+const initials = (name?: string | null, lastName?: string | null) =>
+  `${name?.trim()[0] ?? ""}${lastName?.trim()[0] ?? ""}`.toUpperCase() || "?";
+
 // ---- Fares ------------------------------------------------------------------
 
 type FareRow = { type: string; fare: number; numCourse: number };
@@ -160,13 +184,18 @@ export {
   formatDate,
   formatDDMMYYYY,
   formatMonthLabel,
+  formatShortDate,
   formatYYYYMMDD,
   getEnrollmentColor,
+  hhmmTo12h,
+  initials,
   isAnnualFeeExemptMonth,
   isUniqueViolation,
   lateFeeFor,
   monthlyFareFor,
   parseLocalDate,
+  shortDayName,
+  standingLabel,
   statusTranslations,
   timeToDate,
   to12hLabel,

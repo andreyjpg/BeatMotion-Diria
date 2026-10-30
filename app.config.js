@@ -21,7 +21,7 @@ export default ({ config }) => {
       orientation: "portrait",
       icon: "./assets/images/LogoDiria.png",
       scheme: isProd ? "beatmotiondiria" : "beatmotiondiria-qa",
-      userInterfaceStyle: "automatic",
+      userInterfaceStyle: "light",
       owner: "beatmotion",
       ios: {
         bundleIdentifier: iosBundleIdentifier,

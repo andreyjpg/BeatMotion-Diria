@@ -3,8 +3,8 @@ import HeaderTitle from "@/components/headerTitle";
 import { useState } from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Detail from "./detail";
-import History from "./history";
+import Detail from "./PaymentDetail";
+import History from "./PaymentHistory";
 
 const OPTION_MENU = [
   { label: "Detalle de pago", value: "detail" },

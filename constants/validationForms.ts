@@ -209,6 +209,35 @@ export const validationErrors = <S extends yup.AnyObjectSchema>(
   }
 };
 
+// Login (app/public/login.tsx): only checks the fields are filled in; the
+// credentials themselves are checked by Supabase.
+export const loginFormSchema = yup.object({
+  email: yup
+    .string()
+    .trim()
+    .email("El correo no es válido")
+    .required("Escribe tu correo"),
+  password: yup.string().required("Escribe tu contraseña"),
+});
+
+// Sign-up (app/public/signIn.tsx).
+export const signUpFormSchema = yup.object(signInValidationSchema);
+
+// Password reset (app/public/resetPassword.tsx): step 1 asks for the email,
+// step 2 for the emailed code and the new password twice.
+export const resetEmailFormSchema = yup.object({
+  email: signInValidationSchema.email,
+});
+
+export const resetPasswordFormSchema = yup.object({
+  code: yup.string().trim().required("Escribe el código que te enviamos"),
+  password: signInValidationSchema.password,
+  confirmPassword: yup
+    .string()
+    .required("Confirma la contraseña")
+    .oneOf([yup.ref("password")], "Las contraseñas no coinciden"),
+});
+
 // Limits match the database constraints on public.branches.
 export const branchFormSchema = yup.object({
   name: yup

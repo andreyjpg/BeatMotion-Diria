@@ -16,9 +16,9 @@ export default function PrivateLayout() {
 
   return (
     <React.Fragment>
-      <Stack initialRouteName="home">
-        <Stack.Screen name="home" options={{ headerShown: false }} />
-        <Stack.Screen name="profile" options={{ headerShown: false }} />
+      <Stack initialRouteName="(tabs)">
+        {/* Bottom tab bar (home, courses, payments, notices, users, profile). */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="user/course/[courseId]"
           options={{ headerShown: false }}
@@ -37,10 +37,6 @@ export default function PrivateLayout() {
           name="marketplace/MarketplaceDetail"
           options={{ headerShown: false }}
         />
-        <Stack.Screen
-          name="user/notifications/myNotifications"
-          options={{ headerShown: false }}
-        />
         {/* Encuestas */}
         <Stack.Screen
           name="user/surveys/list"
@@ -56,10 +52,6 @@ export default function PrivateLayout() {
             title: "Responder Encuesta",
             presentation: "card",
           }}
-        />
-        <Stack.Screen
-          name="user/payment/paymentCenter"
-          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="user/enrollment/createEnrollment"

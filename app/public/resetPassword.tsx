@@ -1,5 +1,14 @@
-import FormScrollView from "@/components/FormScrollView";
-import { signInValidationSchema } from "@/constants/validationForms";
+import AppText from "@/components/ui/AppText";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import {
+  resetEmailFormSchema,
+  resetPasswordFormSchema,
+  validationErrors,
+  type FormErrors,
+} from "@/constants/validationForms";
 import {
   InvalidResetCodeError,
   useResetPassword,
@@ -7,16 +16,9 @@ import {
 import { useSendResetCode } from "@/hooks/auth/useSendResetCode";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { ValidationError } from "yup";
-import {
-  ActivityIndicator,
-  Alert,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, Pressable, View } from "react-native";
+
+type Errors = FormErrors<typeof resetEmailFormSchema> & FormErrors<typeof resetPasswordFormSchema>;
 
 // Two steps: (1) Supabase emails a one-time code; (2) the user enters the code
 // and the new password. Needs the "Reset Password" email template in Supabase
@@ -28,16 +30,22 @@ const ResetPassword = () => {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [errors, setErrors] = useState<Errors>({});
   const sendResetCode = useSendResetCode();
   const resetPassword = useResetPassword();
   const submitting = sendResetCode.isPending || resetPassword.isPending;
 
+  const backToLogin = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/public/login");
+  };
+
   const sendCode = () => {
-    if (!email.trim()) {
-      Alert.alert("Error", "Ingresa tu correo.");
-      return;
-    }
-    sendResetCode.mutate(email, {
+    const formErrors = validationErrors(resetEmailFormSchema, { email });
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0) return;
+
+    sendResetCode.mutate(email.trim(), {
       onSuccess: () => setStep("code"),
       onError: (error) => {
         console.error("Reset password error:", error);
@@ -47,27 +55,19 @@ const ResetPassword = () => {
   };
 
   const changePassword = async () => {
-    if (password !== confirmPassword) {
-      Alert.alert("Error", "Las contraseñas no coinciden.");
-      return;
-    }
-    try {
-      signInValidationSchema.password.validateSync(password);
-    } catch (err) {
-      if (!(err instanceof ValidationError)) throw err;
-      Alert.alert("Contraseña no válida", err.message);
-      return;
-    }
+    const formErrors = validationErrors(resetPasswordFormSchema, { code, password, confirmPassword });
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0) return;
 
     // Verifying the code signs the user in, which unmounts this screen, and
     // mutate()'s per-call callbacks don't run after unmount; awaiting
     // mutateAsync() does, so the confirmation still shows.
     try {
-      await resetPassword.mutateAsync({ email, code, password });
+      await resetPassword.mutateAsync({ email: email.trim(), code: code.trim(), password });
       Alert.alert("Éxito", "Tu contraseña fue actualizada.");
     } catch (error) {
       if (error instanceof InvalidResetCodeError) {
-        Alert.alert("Error", "El código no es válido o ya expiró.");
+        setErrors({ code: "El código no es válido o ya expiró." });
       } else {
         console.error("Update password error:", error);
         Alert.alert("Error", "No se pudo cambiar la contraseña. Inténtalo de nuevo.");
@@ -75,87 +75,104 @@ const ResetPassword = () => {
     }
   };
 
-  const inputClass =
-    "border border-gray-800 bg-gray-950 text-white rounded-xl px-4 py-3 placeholder:text-gray-500";
+  const askAgain = () => {
+    setErrors({});
+    setCode("");
+    setStep("email");
+  };
+
+  const isCodeStep = step === "code";
 
   return (
-    <SafeAreaView className="flex-1 bg-black w-full">
-      <FormScrollView contentContainerClassName="flex-grow justify-center items-center px-5">
-      <View className="bg-gray-900 w-full max-w-md rounded-3xl p-7 gap-5 shadow-lg border border-gray-800">
-        <View className="gap-1">
-          <Text className="text-2xl font-bold text-white">Restablecer contraseña</Text>
-          <Text className="text-gray-400 text-sm">
-            {step === "email"
-              ? "Ingresa tu correo y te enviaremos un código"
-              : // Supabase doesn't reveal whether an email has an account, so
-                // don't claim the code was sent.
-                `Si ${email.trim()} está registrado, te enviamos un código. Ingrésalo junto con tu nueva contraseña.`}
-          </Text>
-        </View>
+    <Screen form>
+      <ScreenHeader
+        eyebrow={isCodeStep ? "Paso 2 de 2" : "Paso 1 de 2"}
+        onNav={backToLogin}
+        title={isCodeStep ? "Revisa tu correo" : "¿Olvidaste tu contraseña?"}
+        subtitle={
+          isCodeStep
+            ? // Supabase doesn't reveal whether an email has an account, so
+              // don't claim the code was sent.
+              `Si ${email.trim()} está registrado, te enviamos un código. Escríbelo junto con tu nueva contraseña.`
+            : "Escribe tu correo y te enviamos un código para crear una nueva."
+        }
+      />
 
-        {step === "email" ? (
-          <TextInput
-            placeholder="Email"
-            className={inputClass}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+      <View className="flex-row gap-1.5 px-5 pt-5" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View className="h-1 flex-1 rounded-full bg-ink" />
+        <View className={`h-1 flex-1 rounded-full ${isCodeStep ? "bg-ink" : "bg-line-strong"}`} />
+      </View>
+
+      <View className="gap-4 px-5 pt-6">
+        {!isCodeStep ? (
+          <>
+            <Field
+              label="Correo"
+              icon="mail-outline"
+              value={email}
+              onChangeText={setEmail}
+              error={errors.email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              onSubmitEditing={sendCode}
+              returnKeyType="send"
+            />
+            <Button label="Enviar código" onPress={sendCode} loading={sendResetCode.isPending} className="mt-1" />
+          </>
         ) : (
           <>
-            <TextInput
-              placeholder="Código"
-              className={inputClass}
+            <Field
+              label="Código"
               value={code}
               onChangeText={setCode}
+              error={errors.code}
               keyboardType="number-pad"
               autoComplete="one-time-code"
+              textContentType="oneTimeCode"
               maxLength={10}
             />
-            <TextInput
-              placeholder="Nueva contraseña"
-              className={inputClass}
+            <Field
+              label="Nueva contraseña"
+              password
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              error={errors.password}
+              hint="Mínimo 8 caracteres, con mayúscula, minúscula, número y un símbolo (@$!%*?&-)."
+              autoComplete="new-password"
+              textContentType="newPassword"
             />
-            <TextInput
-              placeholder="Confirmar contraseña"
-              className={inputClass}
+            <Field
+              label="Confirmar contraseña"
+              password
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              secureTextEntry
+              error={errors.confirmPassword}
+              autoComplete="new-password"
+              textContentType="newPassword"
             />
+            <Button
+              label="Cambiar contraseña"
+              onPress={changePassword}
+              loading={resetPassword.isPending}
+              className="mt-1"
+            />
+            <Pressable
+              onPress={askAgain}
+              disabled={submitting}
+              accessibilityRole="button"
+              className="self-center py-1"
+            >
+              <AppText variant="semibold" className="text-[13.5px] underline">
+                ¿No te llegó? Enviar otro código
+              </AppText>
+            </Pressable>
           </>
         )}
-
-        <TouchableOpacity
-          className={`rounded-xl py-3 active:opacity-80 ${submitting ? "bg-emerald-700" : "bg-emerald-400"}`}
-          onPress={step === "email" ? sendCode : changePassword}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#000" />
-          ) : (
-            <Text className="text-center font-semibold text-black">
-              {step === "email" ? "Enviar código" : "Cambiar contraseña"}
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        {step === "code" && (
-          <TouchableOpacity onPress={() => setStep("email")} disabled={submitting}>
-            <Text className="text-sm text-blue-400 underline">¿No te llegó? Enviar otro código</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity onPress={() => router.replace("/public/login")} disabled={submitting}>
-          <Text className="text-sm text-gray-400 text-center">Volver a iniciar sesión</Text>
-        </TouchableOpacity>
       </View>
-      </FormScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 };
 

@@ -1,16 +1,13 @@
 import { Stack } from "expo-router";
 import React from "react";
 
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+// Every public screen draws its own header (ScreenHeader or the login hero).
+export default function PublicLayout() {
   return (
-    <Stack initialRouteName="login">
-      <Stack.Screen name="login" options={{ headerShown: false }} />
-      <Stack.Screen name="signIn" options={{ headerShown: false }} />
+    <Stack initialRouteName="login" screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="login" />
+      <Stack.Screen name="signIn" />
+      <Stack.Screen name="resetPassword" />
     </Stack>
   );
 }

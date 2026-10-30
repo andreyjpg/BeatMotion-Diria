@@ -1,0 +1,40 @@
+{
+  "ink": "#0B0B0B",
+  "ground": "#F2F1ED",
+  "surface": "#FFFFFF",
+  "muted": "#5E5D58",
+  "faint": "#8A8984",
+  "line": {
+    "DEFAULT": "#E4E2DC",
+    "soft": "#EEECE7",
+    "strong": "#CFCDC6"
+  },
+  "field": {
+    "DEFAULT": "#F7F6F3",
+    "line": "#E1DFD8"
+  },
+  "control": {
+    "DEFAULT": "#E9E7E1",
+    "track": "#E7E5DF"
+  },
+  "sand": {
+    "DEFAULT": "#E6D8C3",
+    "soft": "#EFE6D7",
+    "ink": "#574326"
+  },
+  "danger": {
+    "DEFAULT": "#A11F18",
+    "soft": "#FCE7E5",
+    "line": "#EBC9C5"
+  },
+  "neutral": {
+    "DEFAULT": "#E8E7E2",
+    "ink": "#4A4945"
+  },
+  "hero": {
+    "muted": "#A9A8A2",
+    "soft": "#BDBCB6",
+    "line": "#2A2A28",
+    "alert": "#FF9A90"
+  }
+}

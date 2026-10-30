@@ -21,10 +21,6 @@ export default function AdminLayout() {
     <Stack initialRouteName="coursesMenu">
       {/* Menú principal sin colisiones */}
       <Stack.Screen
-        name="users"
-        options={{ title: "Users", headerShown: false }}
-      />
-      <Stack.Screen
         name="user/[uid]"
         options={{ title: "Users", headerShown: false }}
       />
@@ -122,11 +118,6 @@ export default function AdminLayout() {
           title: "Resultados de Encuesta",
         }}
       />
-      <Stack.Screen
-        name="payment/paymentCenter"
-        options={{ headerShown: false }}
-      />
-
       {/* Reports */}
       <Stack.Screen
         name="reports/index"
