@@ -74,7 +74,8 @@ export const eventFormSchema = yup.object().shape({
       // the time the app opened). Editing may keep an event's past date.
       if (!value) return true; // `required` reports it
       const original: unknown = this.parent?.originalDatetime;
-      if (original instanceof Date && value.getTime() === original.getTime()) return true;
+      if (original instanceof Date && value.getTime() === original.getTime())
+        return true;
       return value.getTime() > Date.now();
     }),
   originalDatetime: yup.date().nullable(),
@@ -153,15 +154,21 @@ export const surveyFormSchema = yup.object().shape({
         const label = `Pregunta ${index + 1}`;
         const length = question.questionText.trim().length;
         if (length < 3 || length > 500) {
-          return this.createError({ message: `${label}: escribe la pregunta (3 a 500 caracteres).` });
+          return this.createError({
+            message: `${label}: escribe la pregunta (3 a 500 caracteres).`,
+          });
         }
         if (question.questionType === "multiple_choice") {
           const options = question.options ?? [];
           if (options.length < 2) {
-            return this.createError({ message: `${label}: agrega al menos 2 opciones.` });
+            return this.createError({
+              message: `${label}: agrega al menos 2 opciones.`,
+            });
           }
           if (options.some((option) => !option.trim())) {
-            return this.createError({ message: `${label}: todas las opciones deben tener texto.` });
+            return this.createError({
+              message: `${label}: todas las opciones deben tener texto.`,
+            });
           }
         }
       }
@@ -170,7 +177,9 @@ export const surveyFormSchema = yup.object().shape({
 });
 
 /** Answering a survey: one field per required question (by question id). */
-export const surveyAnswersSchema = (questions: { id: string; required: boolean }[]) =>
+export const surveyAnswersSchema = (
+  questions: { id: string; required: boolean }[],
+) =>
   yup.object(
     Object.fromEntries(
       questions

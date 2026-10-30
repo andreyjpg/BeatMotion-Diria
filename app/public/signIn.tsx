@@ -4,7 +4,11 @@ import Checkbox from "@/components/ui/Checkbox";
 import Field from "@/components/ui/Field";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { signUpFormSchema, validationErrors, type FormErrors } from "@/constants/validationForms";
+import {
+  signUpFormSchema,
+  validationErrors,
+  type FormErrors,
+} from "@/constants/validationForms";
 import { useSignUp } from "@/hooks/auth/useSignUp";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -20,13 +24,21 @@ const SignIn = () => {
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const [formErrors, setFormErrors] = useState<FormErrors<typeof signUpFormSchema>>({});
+  const [formErrors, setFormErrors] = useState<
+    FormErrors<typeof signUpFormSchema>
+  >({});
   const signUp = useSignUp();
   const submitting = signUp.isPending;
 
   const register = () => {
     if (submitting) return;
-    const errors = validationErrors(signUpFormSchema, { name, lastName, phone, email, password });
+    const errors = validationErrors(signUpFormSchema, {
+      name,
+      lastName,
+      phone,
+      email,
+      password,
+    });
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
     if (!consentAccepted) {
@@ -56,7 +68,8 @@ const SignIn = () => {
         onError: (error) => {
           console.error("Sign-up error:", error);
           const message =
-            error.code === "user_already_exists" || error.code === "email_exists"
+            error.code === "user_already_exists" ||
+            error.code === "email_exists"
               ? "Ya existe una cuenta con este correo. Inicia sesión o recupera tu contraseña."
               : error.code === "weak_password"
                 ? "La contraseña es muy débil. Usa una más segura."
@@ -154,8 +167,9 @@ const SignIn = () => {
               >
                 Política de Privacidad
               </AppText>{" "}
-              y el tratamiento de mis datos conforme a las Leyes N.° 8.968 y N.° 9.048 de Costa Rica,
-              incluida la transferencia a servidores de Supabase (Supabase Inc.) fuera de Costa Rica.
+              y el tratamiento de mis datos conforme a las Leyes N.° 8.968 y N.°
+              9.048 de Costa Rica, incluida la transferencia a servidores de
+              Supabase (Supabase Inc.) fuera de Costa Rica.
             </AppText>
           </Checkbox>
         </View>

@@ -6,6 +6,10 @@ import { Redirect, Stack } from "expo-router";
 import React from "react";
 import { ActivityIndicator } from "react-native";
 
+// Default screen of this stack (where sign-in lands) and the back destination
+// when a link opens a deeper screen. Replaces Stack's initialRouteName (SDK 58).
+export const unstable_settings = { anchor: "home" };
+
 export default function PrivateLayout() {
   const { user, isLoading } = useActiveUser();
   const { data: userData } = useUserInfo(user?.uid ?? "");

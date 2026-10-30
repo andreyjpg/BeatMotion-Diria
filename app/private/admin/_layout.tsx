@@ -15,10 +15,11 @@ export default function AdminLayout() {
     );
   }
   if (!user) return <Redirect href="/public/login" />;
-  if (user.role !== "admin" && user.role !== "teacher") return <Redirect href="/private/home" />;
+  if (user.role !== "admin" && user.role !== "teacher")
+    return <Redirect href="/private/home" />;
 
   return (
-    <Stack initialRouteName="coursesMenu">
+    <Stack>
       {/* Menú principal sin colisiones */}
       <Stack.Screen
         name="user/[uid]"

@@ -15,7 +15,14 @@ import { usePayments } from "@/hooks/payment/usePayments";
 import { useReviewPayment } from "@/hooks/payment/useReviewPayment";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import { ActivityIndicator, Alert, FlatList, RefreshControl, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  RefreshControl,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const FILTER_OPTIONS: { label: string; value: ReviewStatus }[] = [
@@ -57,7 +64,7 @@ const PaymentCenter = () => {
 
   const handleClickStatusChange = (
     payment: PaymentDetail,
-    action: "approve" | "reject"
+    action: "approve" | "reject",
   ) => {
     Alert.alert(
       `Confirmar ${action === "approve" ? "aprobar" : "rechazar"}`,
@@ -77,7 +84,7 @@ const PaymentCenter = () => {
               status: action === "approve" ? "approved" : "rejected",
             }),
         },
-      ]
+      ],
     );
   };
 
@@ -102,13 +109,18 @@ const PaymentCenter = () => {
             keyExtractor={(item) => item.id}
             // Loads the next 20 when nearing the end of the list.
             onEndReached={() => {
-              if (paymentsQuery.hasNextPage && !paymentsQuery.isFetchingNextPage) {
+              if (
+                paymentsQuery.hasNextPage &&
+                !paymentsQuery.isFetchingNextPage
+              ) {
                 paymentsQuery.fetchNextPage();
               }
             }}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
-              paymentsQuery.isFetchingNextPage ? <ActivityIndicator color="#facc15" /> : null
+              paymentsQuery.isFetchingNextPage ? (
+                <ActivityIndicator color="#facc15" />
+              ) : undefined
             }
             refreshControl={
               <RefreshControl
@@ -154,7 +166,11 @@ const PaymentCenter = () => {
 
                     {/* Student */}
                     <View className="flex-row items-center gap-2">
-                      <Ionicons name="person-outline" size={16} color="#9ca3af" />
+                      <Ionicons
+                        name="person-outline"
+                        size={16}
+                        color="#9ca3af"
+                      />
                       <Text className="text-white">{studentName(item)}</Text>
                     </View>
 
@@ -173,7 +189,10 @@ const PaymentCenter = () => {
                       <View className="flex-row justify-between items-start ml-6">
                         <View className="flex-1">
                           {item.courses.map((course) => (
-                            <Text className="text-gray-300 text-sm" key={course.id}>
+                            <Text
+                              className="text-gray-300 text-sm"
+                              key={course.id}
+                            >
                               · {course.title}
                             </Text>
                           ))}

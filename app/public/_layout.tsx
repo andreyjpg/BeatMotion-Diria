@@ -1,5 +1,4 @@
 import { Stack } from "expo-router";
-import React from "react";
 
 // Every public screen draws its own header (ScreenHeader or the login hero).
 export default function PublicLayout() {

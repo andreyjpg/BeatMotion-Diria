@@ -2,6 +2,7 @@
 import palette from "@/constants/palette.json";
 import { useSignOut } from "@/hooks/auth/useSignOut";
 import { AuthProvider, useActiveUser } from "@/hooks/user/UseActiveUser";
+import { Notifications } from "@/lib/notifications";
 import {
   Archivo_400Regular,
   Archivo_500Medium,
@@ -15,12 +16,11 @@ import {
   JetBrainsMono_500Medium,
   JetBrainsMono_600SemiBold,
 } from "@expo-google-fonts/jetbrains-mono";
-import { DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
 import * as Sentry from "@sentry/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack, useRouter } from "expo-router";
-import { Notifications } from "@/lib/notifications";
+import { DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -46,7 +46,8 @@ const navigationTheme = {
 };
 
 // Notifications is null in Expo Go on Android (see lib/notifications.ts).
-const useLastNotificationResponse = Notifications?.useLastNotificationResponse ?? (() => undefined);
+const useLastNotificationResponse =
+  Notifications?.useLastNotificationResponse ?? (() => undefined);
 
 Notifications?.setNotificationHandler({
   handleNotification: async () => ({
@@ -101,7 +102,8 @@ function AppContent() {
         params: {
           courseId: data.courseId,
           classId: data.classId,
-          courseTitle: typeof data.courseTitle === "string" ? data.courseTitle : "",
+          courseTitle:
+            typeof data.courseTitle === "string" ? data.courseTitle : "",
         },
       });
     }

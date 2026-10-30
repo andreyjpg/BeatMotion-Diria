@@ -3,13 +3,24 @@ import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
 import palette from "@/constants/palette.json";
-import { loginFormSchema, validationErrors, type FormErrors } from "@/constants/validationForms";
+import {
+  loginFormSchema,
+  validationErrors,
+  type FormErrors,
+} from "@/constants/validationForms";
 import { useSignIn } from "@/hooks/auth/useSignIn";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useFocusEffect, useRouter } from "expo-router";
 import { setStatusBarStyle } from "expo-status-bar";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Image, Linking, Pressable, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  Pressable,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const URL_POLICIES = "https://beatmotion-politica-privacidad.netlify.app";
@@ -76,8 +87,15 @@ const LogIn = () => {
 
   return (
     <View className="flex-1 bg-ground">
-      <FormScrollView className="flex-1" contentContainerClassName="flex-grow" bounces={false}>
-        <View className="items-center bg-ink pb-24" style={{ paddingTop: insets.top + 8 }}>
+      <FormScrollView
+        className="flex-1"
+        contentContainerClassName="flex-grow"
+        bounces={false}
+      >
+        <View
+          className="items-center bg-ink pb-24"
+          style={{ paddingTop: insets.top + 8 }}
+        >
           <Image
             source={require("../../assets/images/LogoDiria.png")}
             style={{ width: 230, height: 230 }}
@@ -137,7 +155,12 @@ const LogIn = () => {
             </Pressable>
           </View>
 
-          <Button label="Ingresar" onPress={handleLogin} loading={submitting} className="mt-1" />
+          <Button
+            label="Ingresar"
+            onPress={handleLogin}
+            loading={submitting}
+            className="mt-1"
+          />
 
           <View className="flex-row items-center gap-3 mt-1">
             <View className="h-px flex-1 bg-line" />
@@ -147,14 +170,22 @@ const LogIn = () => {
             <View className="h-px flex-1 bg-line" />
           </View>
 
-          <Button label="Crear cuenta" variant="outline" onPress={() => router.push("/public/signIn")} />
+          <Button
+            label="Crear cuenta"
+            variant="outline"
+            onPress={() => router.push("/public/signIn")}
+          />
 
           <Pressable
             onPress={handlePressPolicy}
             accessibilityRole="link"
             className="mt-auto self-center pt-4"
           >
-            <AppText variant="medium" tone="muted" className="text-[13.5px] underline">
+            <AppText
+              variant="medium"
+              tone="muted"
+              className="text-[13.5px] underline"
+            >
               Políticas de privacidad
             </AppText>
           </Pressable>

@@ -1,7 +1,7 @@
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
-import { Notifications } from "@/lib/notifications";
+import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
 import { registerPushToken } from "./pushToken";
 
@@ -50,7 +50,10 @@ export const useCreateFCMToken = () => {
     // SDK 55); a missing token must never break the app.
     const safeRegisterToken = () =>
       registerToken().catch((error) =>
-        console.warn("Push notifications unavailable:", error?.message ?? error)
+        console.warn(
+          "Push notifications unavailable:",
+          error?.message ?? error,
+        ),
       );
 
     safeRegisterToken();
@@ -58,7 +61,7 @@ export const useCreateFCMToken = () => {
     const subscription = notifications.addNotificationResponseReceivedListener(
       () => {
         safeRegisterToken();
-      }
+      },
     );
 
     return () => subscription.remove();

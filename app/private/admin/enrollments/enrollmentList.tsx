@@ -104,13 +104,18 @@ const EnrollmentList = () => {
             numColumns={1}
             // Loads the next 20 when nearing the end of the list.
             onEndReached={() => {
-              if (enrollmentByStatusQuery.hasNextPage && !enrollmentByStatusQuery.isFetchingNextPage) {
+              if (
+                enrollmentByStatusQuery.hasNextPage &&
+                !enrollmentByStatusQuery.isFetchingNextPage
+              ) {
                 enrollmentByStatusQuery.fetchNextPage();
               }
             }}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
-              enrollmentByStatusQuery.isFetchingNextPage ? <ActivityIndicator color="#facc15" /> : null
+              enrollmentByStatusQuery.isFetchingNextPage ? (
+                <ActivityIndicator color="#facc15" />
+              ) : undefined
             }
             contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
             refreshControl={
@@ -138,9 +143,7 @@ const EnrollmentList = () => {
                     <View className="gap-3">
                       {/* Student */}
                       <Pressable
-                        onPress={() =>
-                          handleViewUserProfile(item.userId)
-                        }
+                        onPress={() => handleViewUserProfile(item.userId)}
                       >
                         <View className="flex-row items-center gap-2">
                           <Ionicons

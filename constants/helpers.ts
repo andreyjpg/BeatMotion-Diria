@@ -79,7 +79,8 @@ const formatDDMMYYYY = (date: Date) =>
   `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 
 /** Date -> "HH:MM" (24-hour), as stored in `time` columns. */
-const to24h = (date: Date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+const to24h = (date: Date) =>
+  `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
 /** Date -> "6:30 PM", how times are shown to users. */
 const to12hLabel = (date: Date) => {
@@ -103,12 +104,27 @@ const daysBetween = (from: Date, to: Date) => {
   return Math.round((end - start) / 86_400_000);
 };
 
-const MONTHS_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const MONTHS_SHORT = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
 
 /** "2026-10" -> "oct 2026" (report months). */
 const formatMonthLabel = (yearMonth: string) => {
   const [year, month] = yearMonth.split("-").map(Number);
-  return month >= 1 && month <= 12 ? `${MONTHS_SHORT[month - 1]} ${year}` : yearMonth;
+  return month >= 1 && month <= 12
+    ? `${MONTHS_SHORT[month - 1]} ${year}`
+    : yearMonth;
 };
 
 const WEEKDAYS_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -122,7 +138,8 @@ const shortDayName = (day: string | null | undefined) =>
   day ? capitalize(day.trim().slice(0, 3)) : "";
 
 /** "HH:MM" -> "7:00 PM". */
-const hhmmTo12h = (value: string | null | undefined) => (value ? to12hLabel(timeToDate(value)) : "");
+const hhmmTo12h = (value: string | null | undefined) =>
+  value ? to12hLabel(timeToDate(value)) : "";
 
 /** A student's monthly payment standing in a course, as shown on chips. */
 const standingLabel: Record<string, string> = {
@@ -142,7 +159,8 @@ type FareRow = { type: string; fare: number; numCourse: number };
 /** Monthly price for a number of courses; from 5 courses on it's the flat `course_5` fare. */
 const monthlyFareFor = (fares: FareRow[] | undefined, courseCount: number) => {
   if (!fares || courseCount <= 0) return 0;
-  if (courseCount >= 5) return fares.find((f) => f.type === "course_5")?.fare ?? 0;
+  if (courseCount >= 5)
+    return fares.find((f) => f.type === "course_5")?.fare ?? 0;
   return fares.find((f) => f.numCourse === courseCount)?.fare ?? 0;
 };
 
@@ -150,7 +168,11 @@ const monthlyFareFor = (fares: FareRow[] | undefined, courseCount: number) => {
 const LATE_FEE_GRACE_DAYS = 5;
 
 /** Late fee owed today for a payment due on `dueDate` (per day, after the grace days). */
-const lateFeeFor = (fares: FareRow[] | undefined, dueDate: Date | null, today = new Date()) => {
+const lateFeeFor = (
+  fares: FareRow[] | undefined,
+  dueDate: Date | null,
+  today = new Date(),
+) => {
   if (!dueDate) return { days: 0, amount: 0 };
   const days = Math.max(0, daysBetween(dueDate, today) - LATE_FEE_GRACE_DAYS);
   const perDay = fares?.find((f) => f.type === "late_fee")?.fare ?? 800;
@@ -162,7 +184,10 @@ const isAnnualFeeExemptMonth = (date = new Date()) => date.getMonth() >= 10;
 
 /** Postgres unique_violation (e.g. a second live enrollment in the same course). */
 const isUniqueViolation = (error: unknown) =>
-  typeof error === "object" && error !== null && "code" in error && error.code === "23505";
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  error.code === "23505";
 
 export const sanitizeVimeoUrl = (url: string) => {
   const match = url.match(/(?:vimeo\.com\/(?:video\/)?)(\d+)/);
@@ -171,7 +196,7 @@ export const sanitizeVimeoUrl = (url: string) => {
 
 export const sanitizeYouTubeUrl = (url: string) => {
   const match = url.match(
-    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/
+    /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
   );
   return match ? match[1] : null;
 };

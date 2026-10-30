@@ -18,7 +18,8 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 
-type Errors = FormErrors<typeof resetEmailFormSchema> & FormErrors<typeof resetPasswordFormSchema>;
+type Errors = FormErrors<typeof resetEmailFormSchema> &
+  FormErrors<typeof resetPasswordFormSchema>;
 
 // Two steps: (1) Supabase emails a one-time code; (2) the user enters the code
 // and the new password. Needs the "Reset Password" email template in Supabase
@@ -49,13 +50,20 @@ const ResetPassword = () => {
       onSuccess: () => setStep("code"),
       onError: (error) => {
         console.error("Reset password error:", error);
-        Alert.alert("Error", "No se pudo enviar el código. Inténtalo de nuevo.");
+        Alert.alert(
+          "Error",
+          "No se pudo enviar el código. Inténtalo de nuevo.",
+        );
       },
     });
   };
 
   const changePassword = async () => {
-    const formErrors = validationErrors(resetPasswordFormSchema, { code, password, confirmPassword });
+    const formErrors = validationErrors(resetPasswordFormSchema, {
+      code,
+      password,
+      confirmPassword,
+    });
     setErrors(formErrors);
     if (Object.keys(formErrors).length > 0) return;
 
@@ -63,14 +71,21 @@ const ResetPassword = () => {
     // mutate()'s per-call callbacks don't run after unmount; awaiting
     // mutateAsync() does, so the confirmation still shows.
     try {
-      await resetPassword.mutateAsync({ email: email.trim(), code: code.trim(), password });
+      await resetPassword.mutateAsync({
+        email: email.trim(),
+        code: code.trim(),
+        password,
+      });
       Alert.alert("Éxito", "Tu contraseña fue actualizada.");
     } catch (error) {
       if (error instanceof InvalidResetCodeError) {
         setErrors({ code: "El código no es válido o ya expiró." });
       } else {
         console.error("Update password error:", error);
-        Alert.alert("Error", "No se pudo cambiar la contraseña. Inténtalo de nuevo.");
+        Alert.alert(
+          "Error",
+          "No se pudo cambiar la contraseña. Inténtalo de nuevo.",
+        );
       }
     }
   };
@@ -98,9 +113,15 @@ const ResetPassword = () => {
         }
       />
 
-      <View className="flex-row gap-1.5 px-5 pt-5" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View
+        className="flex-row gap-1.5 px-5 pt-5"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
         <View className="h-1 flex-1 rounded-full bg-ink" />
-        <View className={`h-1 flex-1 rounded-full ${isCodeStep ? "bg-ink" : "bg-line-strong"}`} />
+        <View
+          className={`h-1 flex-1 rounded-full ${isCodeStep ? "bg-ink" : "bg-line-strong"}`}
+        />
       </View>
 
       <View className="gap-4 px-5 pt-6">
@@ -120,7 +141,12 @@ const ResetPassword = () => {
               onSubmitEditing={sendCode}
               returnKeyType="send"
             />
-            <Button label="Enviar código" onPress={sendCode} loading={sendResetCode.isPending} className="mt-1" />
+            <Button
+              label="Enviar código"
+              onPress={sendCode}
+              loading={sendResetCode.isPending}
+              className="mt-1"
+            />
           </>
         ) : (
           <>
