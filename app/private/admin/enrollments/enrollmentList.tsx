@@ -110,7 +110,7 @@ const EnrollmentList = () => {
             }}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
-              enrollmentByStatusQuery.isFetchingNextPage ? <ActivityIndicator color="#facc15" /> : null
+              enrollmentByStatusQuery.isFetchingNextPage ? <ActivityIndicator color="#facc15" /> : undefined
             }
             contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
             refreshControl={
