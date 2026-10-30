@@ -2,6 +2,10 @@ import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Redirect, Stack } from "expo-router";
 import { Text, View } from "react-native";
 
+// Default screen of this stack and the back destination when a link opens a
+// deeper screen. Replaces Stack's initialRouteName (SDK 58).
+export const unstable_settings = { anchor: "coursesMenu" };
+
 // Admins and teachers only. This only hides screens: what each role may
 // actually read or change is enforced by the database's access rules.
 export default function AdminLayout() {
@@ -18,7 +22,7 @@ export default function AdminLayout() {
   if (user.role !== "admin" && user.role !== "teacher") return <Redirect href="/private/home" />;
 
   return (
-    <Stack initialRouteName="coursesMenu">
+    <Stack>
       {/* Menú principal sin colisiones */}
       <Stack.Screen
         name="users"

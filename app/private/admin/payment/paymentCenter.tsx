@@ -108,7 +108,7 @@ const PaymentCenter = () => {
             }}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
-              paymentsQuery.isFetchingNextPage ? <ActivityIndicator color="#facc15" /> : null
+              paymentsQuery.isFetchingNextPage ? <ActivityIndicator color="#facc15" /> : undefined
             }
             refreshControl={
               <RefreshControl
