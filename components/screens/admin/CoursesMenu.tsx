@@ -6,7 +6,6 @@ import { useUpdateClass } from "@/hooks/classes/useUpdateClass";
 import { CourseType } from "@/hooks/courses/schema/courseSchema";
 import { useCourses } from "@/hooks/courses/useCourses";
 import { useUpdateCourse } from "@/hooks/courses/useUpdateCourse";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons, Octicons } from "@expo/vector-icons";
 import type { Href } from "expo-router";
 import { router } from "expo-router";
@@ -14,8 +13,8 @@ import { useMemo, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+/** Admin "Cursos" tab: every course with its classes, to create, edit and delete them. */
 export default function CoursesMenuScreen() {
-  const activeUser = useActiveUser();
   const coursesQuery = useCourses();
   const classesQuery = useActiveClasses();
   const updateCourse = useUpdateCourse();
@@ -81,15 +80,13 @@ export default function CoursesMenuScreen() {
 
       {/* Action Buttons */}
       <View className="px-6 pb-4 flex-row gap-3">
-        {activeUser.user?.role === "admin" && (
-          <TouchableOpacity
-            className="flex-1 bg-primary rounded-2xl px-4 py-3 flex-row items-center justify-center gap-2"
-            onPress={() => router.push("/private/admin/courses/new")}
-          >
-            <Ionicons name="add-circle-outline" size={20} color="black" />
-            <Text className="font-semibold">Nuevo Curso</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          className="flex-1 bg-primary rounded-2xl px-4 py-3 flex-row items-center justify-center gap-2"
+          onPress={() => router.push("/private/admin/courses/new")}
+        >
+          <Ionicons name="add-circle-outline" size={20} color="black" />
+          <Text className="font-semibold">Nuevo Curso</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           className="flex-1 bg-secondary rounded-2xl px-4 py-3 flex-row items-center justify-center gap-2"
@@ -134,35 +131,31 @@ export default function CoursesMenuScreen() {
                         </Text>
                       </View>
                       <View className="flex-row gap-2">
-                        {activeUser.user?.role === "admin" && (
-                          <>
-                            <TouchableOpacity
-                              className="bg-gray-800 rounded-full p-2"
-                              onPress={() =>
-                                router.push({
-                                  pathname: "/private/admin/courses/[id]",
-                                  params: { id: course.id },
-                                } as Href)
-                              }
-                            >
-                              <Ionicons
-                                name="create-outline"
-                                size={18}
-                                color="#40E0D0"
-                              />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              className="bg-gray-800 rounded-full p-2"
-                              onPress={() => handleDeleteCourse(course)}
-                            >
-                              <Ionicons
-                                name="trash-outline"
-                                size={18}
-                                color="#ef4444"
-                              />
-                            </TouchableOpacity>
-                          </>
-                        )}
+                        <TouchableOpacity
+                          className="bg-gray-800 rounded-full p-2"
+                          onPress={() =>
+                            router.push({
+                              pathname: "/private/admin/courses/[id]",
+                              params: { id: course.id },
+                            } as Href)
+                          }
+                        >
+                          <Ionicons
+                            name="create-outline"
+                            size={18}
+                            color="#40E0D0"
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          className="bg-gray-800 rounded-full p-2"
+                          onPress={() => handleDeleteCourse(course)}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={18}
+                            color="#ef4444"
+                          />
+                        </TouchableOpacity>
 
                         <Ionicons
                           name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -223,7 +216,7 @@ export default function CoursesMenuScreen() {
                                   className="bg-gray-800 rounded-full p-1.5"
                                   onPress={async () => {
                                     router.push({
-                                      pathname: `/private/admin/attendance/[courseId]/[classId]/attendance`,
+                                      pathname: "/private/teacher/attendance/[courseId]/[classId]",
                                       params: {
                                         courseId: course.id,
                                         classId: classItem.id,

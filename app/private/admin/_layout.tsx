@@ -2,8 +2,10 @@ import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Redirect, Stack } from "expo-router";
 import { Text, View } from "react-native";
 
-// Admins and teachers only. This only hides screens: what each role may
-// actually read or change is enforced by the database's access rules.
+// Admins only: creating and editing courses, classes and the rest. Teachers
+// have their own read-only screens in app/private/teacher. This only hides
+// screens: what each role may actually change is enforced by the database's
+// access rules.
 export default function AdminLayout() {
   const { user, isLoading } = useActiveUser();
 
@@ -15,8 +17,7 @@ export default function AdminLayout() {
     );
   }
   if (!user) return <Redirect href="/public/login" />;
-  if (user.role !== "admin" && user.role !== "teacher")
-    return <Redirect href="/private/home" />;
+  if (user.role !== "admin") return <Redirect href="/private/home" />;
 
   return (
     <Stack>
@@ -25,16 +26,8 @@ export default function AdminLayout() {
         name="user/[uid]"
         options={{ title: "Users", headerShown: false }}
       />
-      <Stack.Screen
-        name="coursesMenu"
-        options={{ title: "Cursos", headerShown: false }}
-      />
 
       {/* Cursos */}
-      <Stack.Screen
-        name="courses/list"
-        options={{ title: "Ver cursos", headerShown: false }}
-      />
       <Stack.Screen
         name="courses/new"
         options={{ title: "Nuevo curso", headerShown: false }}
@@ -60,20 +53,12 @@ export default function AdminLayout() {
 
       {/* Clases */}
       <Stack.Screen
-        name="classes/list"
-        options={{ title: "Ver clases", headerShown: false }}
-      />
-      <Stack.Screen
         name="classes/new"
         options={{ title: "Nueva clase", headerShown: false }}
       />
       <Stack.Screen
         name="classes/[id]"
         options={{ title: "Editar clase", headerShown: false }}
-      />
-      <Stack.Screen
-        name="attendance/[courseId]/[classId]/attendance"
-        options={{ headerShown: false }}
       />
 
       {/* Matriculas */}

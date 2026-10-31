@@ -17,7 +17,7 @@ export type TabItem = {
 type TabBarProps = BottomTabBarProps & { items: TabItem[] };
 
 /** Bottom navigation: only the tabs of the signed-in role, in `items` order. */
-export default function TabBar({ state, navigation, insets, items }: TabBarProps) {
+export default function TabBar({ state, emitter, navigateToTab, insets, items }: TabBarProps) {
   const activeName = state.routes[state.index]?.name;
 
   return (
@@ -31,8 +31,8 @@ export default function TabBar({ state, navigation, insets, items }: TabBarProps
         const focused = activeName === item.name;
 
         const onPress = () => {
-          const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-          if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+          const event = emitter.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+          if (!focused && !event.defaultPrevented) navigateToTab(route.key);
         };
 
         return (

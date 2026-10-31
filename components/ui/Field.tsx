@@ -2,7 +2,7 @@ import FieldError from "@/components/FieldError";
 import palette from "@/constants/palette.json";
 import { Ionicons } from "@expo/vector-icons";
 import { forwardRef, useState } from "react";
-import { Pressable, TextInput, View, type TextInputProps } from "react-native";
+import { Pressable, TextInput, View, type TextInputInstance, type TextInputProps } from "react-native";
 import AppText from "./AppText";
 import type { IconName } from "./IconButton";
 
@@ -22,7 +22,7 @@ type FieldProps = TextInputProps & {
 };
 
 /** Label + input + hint/error: the one text field used by every form. */
-const Field = forwardRef<TextInput, FieldProps>(function Field(
+const Field = forwardRef<TextInputInstance, FieldProps>(function Field(
   { label, error, hint, icon, prefix, password, className = "", multiline, onFocus, onBlur, ...input },
   ref,
 ) {

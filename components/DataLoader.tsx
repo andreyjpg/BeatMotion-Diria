@@ -14,16 +14,6 @@ type LoadableQuery<T> = {
   refetch: () => unknown;
 };
 
-/** What DataLoader reads from a query (useQuery, or useInfiniteQuery with `select`). */
-type LoadableQuery<T> = {
-  data: T | undefined;
-  isLoading: boolean;
-  isError: boolean;
-  error: Error | null;
-  isRefetching: boolean;
-  refetch: () => unknown;
-};
-
 type DataLoaderProps<T> = {
   query: LoadableQuery<T>;
   /** Only called with data: loading, errors and empty/null results render a message instead. */

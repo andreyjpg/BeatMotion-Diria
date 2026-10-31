@@ -8,7 +8,7 @@ import { ActivityIndicator } from "react-native";
 
 // Default screen of this stack (where sign-in lands) and the back destination
 // when a link opens a deeper screen. Replaces Stack's initialRouteName (SDK 58).
-export const unstable_settings = { anchor: "home" };
+export const unstable_settings = { anchor: "(tabs)" };
 
 export default function PrivateLayout() {
   const { user, isLoading } = useActiveUser();
@@ -20,7 +20,7 @@ export default function PrivateLayout() {
 
   return (
     <React.Fragment>
-      <Stack initialRouteName="(tabs)">
+      <Stack>
         {/* Bottom tab bar (home, courses, payments, notices, users, profile). */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
@@ -32,6 +32,7 @@ export default function PrivateLayout() {
           options={{ headerShown: false }}
         />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
+        <Stack.Screen name="teacher" options={{ headerShown: false }} />
         {/* MarketPlace */}
         <Stack.Screen
           name="marketplace/MarketplaceList"

@@ -78,7 +78,7 @@ export default function EditCourseScreen() {
 
   useEffect(() => {
     if (notFound && navState?.key) {
-      router.replace("/private/admin/coursesMenu");
+      router.replace("/private/courses");
     }
   }, [notFound, navState?.key]);
 

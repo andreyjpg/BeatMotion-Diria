@@ -53,9 +53,11 @@ const HomeTeacher = () => {
 
   const openAttendance = (cls: ClassesType) =>
     router.push({
-      pathname: "/private/admin/attendance/[courseId]/[classId]/attendance",
+      pathname: "/private/teacher/attendance/[courseId]/[classId]",
       params: { courseId: cls.courseId, classId: cls.id },
     });
+  const openCourse = (courseId: string) =>
+    router.push({ pathname: "/private/teacher/course/[courseId]", params: { courseId } });
 
   const refresh = () => {
     coursesQuery.refetch();
@@ -148,10 +150,7 @@ const HomeTeacher = () => {
         </>
       )}
 
-      <SectionHeader
-        title="Mis cursos"
-        action={{ label: "Gestionar clases", onPress: () => router.push("/private/admin/coursesMenu") }}
-      />
+      <SectionHeader title="Mis cursos" />
       <View className="flex-row flex-wrap justify-between gap-y-2 px-3">
         {myCourses.length === 0 && (
           <AppText tone="muted" className="px-2 text-[14px]">
@@ -161,7 +160,7 @@ const HomeTeacher = () => {
         {myCourses.map((course) => (
           <Pressable
             key={course.id}
-            onPress={() => router.push("/private/admin/coursesMenu")}
+            onPress={() => openCourse(course.id)}
             accessibilityRole="button"
             accessibilityLabel={course.title}
             className="gap-1 rounded-[18px] bg-surface p-4 active:opacity-80"
