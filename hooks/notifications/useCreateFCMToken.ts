@@ -19,7 +19,7 @@ export const useCreateFCMToken = () => {
 
     const registerToken = async () => {
       if (!Device.isDevice) {
-        console.error("Push notifications only work on a physical device");
+        console.warn("Push notifications only work on a physical device");
         return;
       }
 

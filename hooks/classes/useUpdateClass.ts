@@ -46,10 +46,10 @@ export const useUpdateClass = () => {
       const { error } = await supabase.from("classes").update(toUpdate(patch)).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: (_data, { id }) => {
+    onSuccess: (_data, { id, patch }) => {
       queryClient.invalidateQueries({ queryKey: ["classes"] });
       queryClient.invalidateQueries({ queryKey: ["classInfo", id] });
-      Alert.alert("Clase", "Actualizada correctamente.");
+      Alert.alert("Clase", patch.isDeleted ? "Eliminada correctamente." : "Actualizada correctamente.");
     },
     onError: (error) => {
       console.error("Error updating class:", error);

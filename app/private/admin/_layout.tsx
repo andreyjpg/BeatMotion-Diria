@@ -34,6 +34,10 @@ export default function AdminLayout() {
       />
       <Stack.Screen
         name="courses/[id]"
+        options={{ title: "Curso", headerShown: false }}
+      />
+      <Stack.Screen
+        name="courses/edit/[id]"
         options={{ title: "Editar curso", headerShown: false }}
       />
 
@@ -59,6 +63,12 @@ export default function AdminLayout() {
       <Stack.Screen
         name="classes/[id]"
         options={{ title: "Editar clase", headerShown: false }}
+      />
+
+      {/* Cobros */}
+      <Stack.Screen
+        name="payments/[paymentId]"
+        options={{ headerShown: false }}
       />
 
       {/* Matriculas */}

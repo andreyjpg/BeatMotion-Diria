@@ -1,18 +1,16 @@
 import DataLoader from "@/components/DataLoader";
+import AppText from "@/components/ui/AppText";
+import Avatar from "@/components/ui/Avatar";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
+import IconButton from "@/components/ui/IconButton";
+import palette from "@/constants/palette.json";
 import { useAvailableStudents } from "@/hooks/enrollment/useAvailableStudents";
 import { useManualEnrollment } from "@/hooks/enrollment/useManualEnrollment";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { FlatList, Modal, Pressable, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type AssignStudentModalProps = {
   visible: boolean;
@@ -21,12 +19,9 @@ type AssignStudentModalProps = {
   onClose: () => void;
 };
 
-export default function AssignStudentModal({
-  visible,
-  courseId,
-  courseName,
-  onClose,
-}: AssignStudentModalProps) {
+/** Sheet to search for a student and add them to the course. */
+export default function AssignStudentModal({ visible, courseId, courseName, onClose }: AssignStudentModalProps) {
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
 
@@ -35,8 +30,7 @@ export default function AssignStudentModal({
 
   const filteredStudents =
     availableStudentsQuery.data?.filter((student) => {
-      const fullName =
-        `${student.name} ${student.lastName} ${student.email}`.toLowerCase();
+      const fullName = `${student.name} ${student.lastName} ${student.email}`.toLowerCase();
       return fullName.includes(searchQuery.toLowerCase());
     }) ?? [];
 
@@ -44,11 +38,7 @@ export default function AssignStudentModal({
     if (!selectedStudent) return;
 
     try {
-      await manualEnrollment.mutateAsync({
-        userId: selectedStudent,
-        courseId,
-      });
-
+      await manualEnrollment.mutateAsync({ userId: selectedStudent, courseId });
       setSelectedStudent(null);
       setSearchQuery("");
       onClose();
@@ -58,168 +48,86 @@ export default function AssignStudentModal({
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View className="flex-1 bg-black/50 justify-end">
-        <View className="bg-gray-950 rounded-t-3xl h-4/5 pb-8">
-          {/* Header */}
-          <View className="flex-row items-center justify-between p-6 border-b border-gray-800">
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View className="flex-1 justify-end bg-black/50">
+        <View className="h-4/5 rounded-t-[26px] bg-ground" style={{ paddingBottom: insets.bottom + 12 }}>
+          <View className="flex-row items-center justify-between gap-3 px-5 pb-3 pt-5">
             <View className="flex-1">
-              <Text className="text-white text-xl font-bold">
-                Asignar Estudiante
-              </Text>
-              <Text className="text-gray-400 text-sm mt-1">{courseName}</Text>
+              <AppText variant="display" className="text-[26px] leading-[30px]">
+                Asignar estudiante
+              </AppText>
+              <AppText tone="muted" className="mt-0.5 text-[13.5px]" numberOfLines={1}>
+                {courseName}
+              </AppText>
             </View>
-            <TouchableOpacity
-              onPress={onClose}
-              className="w-10 h-10 rounded-full bg-gray-800 items-center justify-center"
-            >
-              <Ionicons name="close" size={24} color="white" />
-            </TouchableOpacity>
+            <IconButton icon="close" onPress={onClose} accessibilityLabel="Cerrar" />
           </View>
 
-          {/* Search Bar */}
-          <View className="px-6 py-4">
-            <View className="bg-gray-900 rounded-2xl px-4 py-3 flex-row items-center">
-              <Ionicons name="search" size={20} color="#9CA3AF" />
-              <TextInput
-                className="flex-1 ml-2 text-white"
-                placeholder="Buscar por nombre o correo..."
-                placeholderTextColor="#9CA3AF"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery("")}>
-                  <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+          <Field
+            label="Buscar"
+            icon="search"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Nombre o correo"
+            autoCapitalize="none"
+            className="mx-5"
+          />
 
-          {/* Students List */}
-          <View className="flex-1 px-6">
+          <View className="flex-1 pt-3">
             <DataLoader
               query={availableStudentsQuery}
               emptyMessage="No hay estudiantes disponibles para asignar a este curso."
             >
-              {() => (
-                <>
-                  {filteredStudents.length === 0 ? (
-                    <View className="flex-1 items-center justify-center">
-                      <Ionicons
-                        name="search-outline"
-                        size={48}
-                        color="#4b5563"
-                      />
-                      <Text className="text-gray-400 mt-4">
-                        No se encontraron estudiantes con ese criterio
-                      </Text>
-                    </View>
-                  ) : (
-                    <FlatList
-                      data={filteredStudents}
-                      keyExtractor={(item) => item.id}
-                      showsVerticalScrollIndicator={false}
-                      renderItem={({ item }) => {
-                        const isSelected = selectedStudent === item.id;
-                        return (
-                          <Pressable
-                            className={`bg-gray-900 rounded-2xl p-4 mb-3 flex-row items-center ${
-                              isSelected ? "border-2 border-primary" : ""
-                            }`}
-                            onPress={() => setSelectedStudent(item.id)}
-                          >
-                            {/* Avatar */}
-                            <View
-                              className={`w-12 h-12 rounded-full items-center justify-center ${
-                                isSelected ? "bg-primary" : "bg-gray-800"
-                              }`}
-                            >
-                              <Text
-                                className={`text-lg font-bold ${
-                                  isSelected ? "text-black" : "text-white"
-                                }`}
-                              >
-                                {item.name?.[0]?.toUpperCase()}
-                                {item.lastName?.[0]?.toUpperCase()}
-                              </Text>
-                            </View>
-
-                            {/* Info */}
-                            <View className="flex-1 ml-4">
-                              <Text className="text-white font-semibold">
-                                {item.name} {item.lastName}
-                              </Text>
-                              <Text className="text-gray-400 text-sm">
-                                {item.email}
-                              </Text>
-                              {item.phone && (
-                                <Text className="text-gray-500 text-xs mt-1">
-                                  📱 {item.phone}
-                                </Text>
-                              )}
-                            </View>
-
-                            {/* Checkmark */}
-                            {isSelected && (
-                              <Ionicons
-                                name="checkmark-circle"
-                                size={28}
-                                color="#40E0D0"
-                              />
-                            )}
-                          </Pressable>
-                        );
-                      }}
-                    />
-                  )}
-                </>
-              )}
+              {() =>
+                filteredStudents.length === 0 ? (
+                  <AppText tone="faint" className="px-5 pt-8 text-center text-[14.5px]">
+                    No se encontraron estudiantes con esa búsqueda.
+                  </AppText>
+                ) : (
+                  <FlatList
+                    data={filteredStudents}
+                    keyExtractor={(item) => item.id}
+                    contentContainerClassName="gap-2 px-3 pb-3"
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    renderItem={({ item }) => {
+                      const isSelected = selectedStudent === item.id;
+                      return (
+                        <Pressable
+                          onPress={() => setSelectedStudent(item.id)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: isSelected }}
+                          className={`flex-row items-center gap-3 rounded-2xl border-[1.5px] bg-surface px-3.5 py-3 ${
+                            isSelected ? "border-ink" : "border-surface"
+                          }`}
+                        >
+                          <Avatar name={item.name} lastName={item.lastName} tone={isSelected ? "dark" : "soft"} />
+                          <View className="flex-1">
+                            <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
+                              {`${item.name} ${item.lastName}`}
+                            </AppText>
+                            <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+                              {item.email}
+                            </AppText>
+                          </View>
+                          {isSelected && <Ionicons name="checkmark-circle" size={24} color={palette.ink} />}
+                        </Pressable>
+                      );
+                    }}
+                  />
+                )
+              }
             </DataLoader>
           </View>
 
-          {/* Action Buttons */}
-          <View className="px-6 pt-4 border-t border-gray-800">
-            <TouchableOpacity
-              className={`rounded-2xl py-4 items-center flex-row justify-center gap-2 ${
-                selectedStudent && !manualEnrollment.isPending
-                  ? "bg-primary"
-                  : "bg-gray-800"
-              }`}
+          <View className="border-t border-line px-4 pt-3">
+            <Button
+              label="Asignar al curso"
+              icon="person-add-outline"
               onPress={handleAssignStudent}
-              disabled={!selectedStudent || manualEnrollment.isPending}
-            >
-              {manualEnrollment.isPending ? (
-                <>
-                  <ActivityIndicator color="#000000" />
-                  <Text className="text-black font-semibold ml-2">
-                    Asignando...
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Ionicons name="person-add" size={20} color="#000000" />
-                  <Text className="text-black font-semibold">
-                    Asignar al Curso
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className="bg-gray-800 rounded-2xl py-3 mt-3"
-              onPress={onClose}
-              disabled={manualEnrollment.isPending}
-            >
-              <Text className="text-center text-white font-semibold">
-                Cancelar
-              </Text>
-            </TouchableOpacity>
+              loading={manualEnrollment.isPending}
+              disabled={!selectedStudent}
+            />
           </View>
         </View>
       </View>

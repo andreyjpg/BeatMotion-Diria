@@ -1,289 +1,215 @@
 import AssignStudentModal from "@/components/AssignStudentModal";
+import ClassRow from "@/components/courses/ClassRow";
 import DataLoader from "@/components/DataLoader";
-import FieldError from "@/components/FieldError";
-import FormScrollView from "@/components/FormScrollView";
-import HeaderTitle from "@/components/headerTitle";
+import AppText from "@/components/ui/AppText";
+import Avatar from "@/components/ui/Avatar";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import Chip, { statusTone } from "@/components/ui/Chip";
+import IconButton from "@/components/ui/IconButton";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import SegmentedControl from "@/components/ui/SegmentedControl";
 import {
-  courseFormSchema,
-  FormErrors,
-  validationErrors,
-} from "@/constants/validationForms";
-import { useBranches } from "@/hooks/branches/useBranches";
+  attendanceRate,
+  capitalize,
+  classWhen,
+  formatDayMonth,
+  formatYYYYMMDD,
+  standingLabel,
+} from "@/constants/helpers";
+import { useAttendanceByCourse } from "@/hooks/attendance/useAttendanceByCourse";
+import { useBranchById } from "@/hooks/branches/useBranchById";
 import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
+import { useMembersByCourse } from "@/hooks/courseMember/useMembersByCourse";
 import { useCourseById } from "@/hooks/courses/useCourseById";
-import { useUpdateCourse } from "@/hooks/courses/useUpdateCourse";
-import { useTeachers } from "@/hooks/user/useTeachers";
-import { Ionicons } from "@expo/vector-icons";
-import { Picker } from "@react-native-picker/picker";
-import type { Href } from "expo-router";
-import {
-  router,
-  useLocalSearchParams,
-  useRootNavigationState,
-} from "expo-router";
-import { useEffect, useState } from "react";
-import {
-  Alert,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from "react";
+import { Pressable, RefreshControl, View } from "react-native";
 
-const INVALID_IDS = ["", "index", "list", "new"];
+type CourseView = "classes" | "students";
 
-export default function EditCourseScreen() {
-  const { id: rawId, tab } = useLocalSearchParams<{
-    id: string;
-    tab: string | string[];
-  }>();
-  const id = (Array.isArray(rawId) ? rawId[0] : rawId) ?? "";
-  const validId = !INVALID_IDS.includes(id);
+const SEGMENTS: { value: CourseView; label: string }[] = [
+  { value: "classes", label: "Clases" },
+  { value: "students", label: "Estudiantes" },
+];
 
-  const mutationCourse = useUpdateCourse();
-  const navState = useRootNavigationState();
-  const branchesQuery = useBranches();
-  const teachersQuery = useTeachers();
-  const courseQuery = useCourseById(validId ? id : undefined);
-  const classesQuery = useClassesByCourseId(validId ? id : "");
-  const teachers = teachersQuery.data ?? [];
+/** Admin: one course with its numbers, classes and students. */
+export default function AdminCourseScreen() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const courseQuery = useCourseById(id);
+  const classesQuery = useClassesByCourseId(id);
+  const membersQuery = useMembersByCourse(id);
+  const attendanceQuery = useAttendanceByCourse(id);
+  const branchQuery = useBranchById(courseQuery.data?.branchId ?? "");
+  const [view, setView] = useState<CourseView>("classes");
+  const [assigning, setAssigning] = useState(false);
 
-  const [assignModalVisible, setAssignModalVisible] = useState(false);
-  const [title, setTitle] = useState("");
-  const [teacherId, setTeacherId] = useState("");
-  const [level, setLevel] = useState("0");
-  const [description, setDescription] = useState("");
-  const [branchId, setBranchId] = useState("");
-  const [errors, setErrors] = useState<FormErrors<typeof courseFormSchema>>({});
+  const found = courseQuery.data?.isDeleted ? null : courseQuery.data;
+  const today = formatYYYYMMDD(new Date());
+  const members = membersQuery.data;
+  const rate = attendanceRate(attendanceQuery.data, new Set((members ?? []).map((m) => m.userId)));
 
-  const notFound = !validId || (courseQuery.isSuccess && courseQuery.data === null);
-
-  // Fill the form once the course arrives.
-  useEffect(() => {
-    const course = courseQuery.data;
-    if (!course) return;
-    setTitle(course.title ?? "");
-    setTeacherId(course.teacherId ?? "");
-    setLevel(course.level ?? "0");
-    setDescription(course.description ?? "");
-    setBranchId(course.branchId ?? "");
-  }, [courseQuery.data]);
-
-  useEffect(() => {
-    if (teachersQuery.isError) {
-      Alert.alert("Error", "No se pudieron cargar los profesores.");
-    }
-  }, [teachersQuery.isError]);
-
-  useEffect(() => {
-    if (notFound && navState?.key) {
-      router.replace("/private/courses");
-    }
-  }, [notFound, navState?.key]);
-
-  const handleUpdateCourse = () => {
-    const formErrors = validationErrors(courseFormSchema, {
-      title,
-      teacherId,
-      level,
-      description,
-    });
-    setErrors(formErrors);
-    if (Object.keys(formErrors).length > 0) return;
-    mutationCourse.mutate({
-      id,
-      patch: {
-        title: title.trim(),
-        teacherId,
-        level: level.trim(),
-        description: description.trim(),
-        branchId: branchId || null,
-      },
-    });
+  const refresh = () => {
+    courseQuery.refetch();
+    classesQuery.refetch();
+    membersQuery.refetch();
+    attendanceQuery.refetch();
   };
 
-  if (courseQuery.isLoading || teachersQuery.isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-black">
-        <Text className="text-white">Cargando...</Text>
-      </View>
-    );
-  }
-
-  const showClassesTab = Array.isArray(tab)
-    ? tab[0] === "classes"
-    : tab === "classes";
-
   return (
-    <SafeAreaView className="flex-1 bg-black">
-      <HeaderTitle
-        title={showClassesTab ? "Clases del curso" : "Editar curso"}
-      />
-      <FormScrollView className="px-6">
-        {!showClassesTab ? (
-          <>
-            <Text className="text-white mb-2 font-semibold">Título *</Text>
-            <TextInput
-              className="bg-gray-900 text-white rounded-xl px-4 py-3 mb-4"
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Título"
-              placeholderTextColor="#9CA3AF"
+    <Screen refreshControl={<RefreshControl refreshing={courseQuery.isRefetching} onRefresh={refresh} />}>
+      <ScreenHeader
+        eyebrow={found ? `Curso · Nivel ${found.level}` : "Curso"}
+        title={found?.title ?? "Curso"}
+        subtitle={
+          found
+            ? [found.day && capitalize(found.day), branchQuery.data?.name, found.teacher].filter(Boolean).join(" · ")
+            : undefined
+        }
+        right={
+          found ? (
+            <IconButton
+              icon="create-outline"
+              onPress={() => router.push({ pathname: "/private/admin/courses/edit/[id]", params: { id } })}
+              accessibilityLabel="Editar curso"
             />
-            <FieldError message={errors.title} className="-mt-3 mb-4" />
-
-            <Text className="text-white mb-2 font-semibold">Profesor *</Text>
-            {teachers.length === 0 ? (
-              <View className="bg-gray-900 rounded-xl px-4 py-3 mb-4">
-                <Text className="text-gray-400">
-                  No hay usuarios con rol de profesor
-                </Text>
-                <Text className="text-gray-500 text-xs mt-2">
-                  Asigna el rol profesor a un usuario
-                </Text>
-              </View>
-            ) : (
-              <View className="bg-gray-900 rounded-xl mb-4">
-                <Picker
-                  selectedValue={teacherId}
-                  onValueChange={(value) => setTeacherId(String(value))}
-                  dropdownIconColor="#ffffff"
-                  style={{ color: "white" }}
-                >
-                  {!teacherId && <Picker.Item label="Sin asignar" value="" />}
-                  {teachers.map((t) => (
-                    <Picker.Item
-                      key={t.id}
-                      label={`${t.name} ${t.lastName}`}
-                      value={t.id}
-                    />
-                  ))}
-                </Picker>
+          ) : undefined
+        }
+      />
+      <DataLoader query={{ ...courseQuery, data: found }} emptyMessage="No encontramos este curso.">
+        {(course) => (
+          <>
+            {course.startDate && (
+              <View className="px-5 pt-2.5">
+                <Chip label={`Inicia ${formatDayMonth(course.startDate)}`} />
               </View>
             )}
-            <FieldError message={errors.teacherId} className="-mt-3 mb-4" />
 
-            <Text className="text-white mb-2 font-semibold">Nivel *</Text>
-            <View className="bg-gray-900 rounded-xl mb-4">
-              <Picker
-                selectedValue={level}
-                onValueChange={(v) => setLevel(String(v))}
-                dropdownIconColor="#ffffff"
-                style={{ color: "white" }}
-              >
-                <Picker.Item label="Nivel 0" value="0" />
-                <Picker.Item label="Nivel 1" value="1" />
-                <Picker.Item label="Nivel 2" value="2" />
-                <Picker.Item label="Nivel 3" value="3" />
-              </Picker>
+            <View className="flex-row gap-2 px-3 pt-4">
+              {[
+                { value: members ? String(members.length) : "—", label: "Estudiantes" },
+                { value: classesQuery.data ? String(classesQuery.data.length) : "—", label: "Clases" },
+                { value: rate, label: "Asistencia" },
+              ].map((stat) => (
+                <Card key={stat.label} padded={false} className="flex-1 px-3.5 py-3">
+                  <AppText variant="heavy" className="text-[26px]">
+                    {stat.value}
+                  </AppText>
+                  <AppText tone="muted" className="text-[12px]">
+                    {stat.label}
+                  </AppText>
+                </Card>
+              ))}
             </View>
+            {/* TODO(edades): the design's "Edades en el curso" card needs the students'
+                birthdate, which the database doesn't store yet (see TODO.md). */}
 
-            <Text className="text-white mb-2 font-semibold">Descripción</Text>
-            <TextInput
-              className="bg-gray-900 text-white rounded-xl px-4 py-3 mb-4"
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Descripción"
-              placeholderTextColor="#9CA3AF"
-              multiline
+            <SegmentedControl
+              segments={SEGMENTS}
+              value={view}
+              onChange={setView}
+              accessibilityLabel="Contenido del curso"
+              className="mx-3 mt-4"
             />
-            <FieldError message={errors.description} className="-mt-3 mb-4" />
 
-            <Text className="text-white mb-2 font-semibold">Sucursal</Text>
-            <View className="bg-gray-900 rounded-xl mb-4">
-              <Picker
-                selectedValue={branchId}
-                onValueChange={(v) => setBranchId(String(v))}
-                dropdownIconColor="#ffffff"
-                style={{ color: "white" }}
-              >
-                <Picker.Item label="Sin sucursal" value="" />
-                {(branchesQuery.data ?? []).map((b) => (
-                  <Picker.Item key={b.id} label={b.name} value={b.id} />
-                ))}
-              </Picker>
-            </View>
-
-            <TouchableOpacity
-              className="bg-primary rounded-2xl px-5 py-4 active:opacity-80 mb-4"
-              onPress={handleUpdateCourse}
-              disabled={teachers.length === 0 || mutationCourse.isPending}
-            >
-              <Text className="text-center font-semibold">Guardar cambios</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className="bg-secondary rounded-2xl px-5 py-4 active:opacity-80 mb-4 flex-row items-center justify-center gap-2"
-              onPress={() => setAssignModalVisible(true)}
-            >
-              <Ionicons name="person-add" size={20} color="white" />
-              <Text className="text-center font-semibold text-white">
-                Asignar Estudiante al Curso
-              </Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <TouchableOpacity
-              className="bg-white rounded-2xl px-5 py-4 active:opacity-80 mb-4"
-              onPress={() =>
-                router.push({
-                  pathname: "/private/admin/classes/new",
-                  params: { courseId: id },
-                } as Href)
-              }
-            >
-              <Text className="text-center font-semibold">Crear clase</Text>
-            </TouchableOpacity>
-
-            <DataLoader
-              query={classesQuery}
-              emptyMessage="Este curso aún no tiene clases."
-            >
-              {(classes) => (
-                <>
-                  {classes.map((cl) => (
-                    <View
-                      key={cl.id}
-                      className="bg-gray-900 rounded-2xl px-4 py-3 mb-3"
-                    >
-                      <Text className="text-white font-semibold">
-                        {cl.title ||
-                          `${cl.date ?? ""} ${cl.startTime ?? ""}-${cl.endTime ?? ""}`}
-                      </Text>
-                      <Text className="text-gray-400">
-                        {cl.date && `Fecha: ${cl.date}`}
-                      </Text>
-
-                      <View className="flex-row gap-2 mt-3">
-                        <TouchableOpacity
-                          className="bg-white rounded-xl px-4 py-2"
-                          onPress={() =>
-                            router.push({
-                              pathname: "/private/admin/classes/[id]",
-                              params: { id: cl.id },
-                            } as Href)
+            {view === "classes" ? (
+              <>
+                <DataLoader query={classesQuery} emptyMessage="Este curso todavía no tiene clases.">
+                  {(classes) => (
+                    <Card padded={false} className="mx-3 mt-2.5 py-1">
+                      {classes.map((cls, i) => (
+                        <ClassRow
+                          key={cls.id}
+                          number={i + 1}
+                          title={cls.title || `Clase ${i + 1}`}
+                          detail={classWhen(cls.date, cls.startTime)}
+                          highlighted={cls.date === today}
+                          divider={i < classes.length - 1}
+                          onPress={() => router.push({ pathname: "/private/admin/classes/[id]", params: { id: cls.id } })}
+                          right={
+                            <IconButton
+                              icon="clipboard-outline"
+                              tone="outline"
+                              size={40}
+                              onPress={() =>
+                                router.push({
+                                  pathname: "/private/teacher/attendance/[courseId]/[classId]",
+                                  params: { courseId: id, classId: cls.id },
+                                })
+                              }
+                              accessibilityLabel={`Tomar asistencia de ${cls.title || `la clase ${i + 1}`}`}
+                            />
                           }
+                        />
+                      ))}
+                    </Card>
+                  )}
+                </DataLoader>
+                <Button
+                  label="Crear clase"
+                  variant="secondary"
+                  icon="add"
+                  onPress={() => router.push({ pathname: "/private/admin/classes/new", params: { courseId: id } })}
+                  className="mx-3 mt-2.5"
+                />
+              </>
+            ) : (
+              <>
+                <DataLoader query={membersQuery} emptyMessage="Este curso todavía no tiene estudiantes.">
+                  {(students) => (
+                    <Card padded={false} className="mx-3 mt-2.5 py-1">
+                      {students.map((member, i) => (
+                        <Pressable
+                          key={member.id}
+                          onPress={() =>
+                            router.push({ pathname: "/private/admin/user/[uid]", params: { uid: member.userId } })
+                          }
+                          accessibilityRole="button"
+                          className={`flex-row items-center gap-3 px-3.5 py-2.5 active:opacity-70 ${
+                            i < students.length - 1 ? "border-b border-line-soft" : ""
+                          }`}
                         >
-                          <Text className="font-semibold">Editar</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                </>
-              )}
-            </DataLoader>
+                          <Avatar name={member.userInfo.name} lastName={member.userInfo.lastName} size={36} />
+                          <View className="flex-1">
+                            <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
+                              {`${member.userInfo.name} ${member.userInfo.lastName}`}
+                            </AppText>
+                            <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+                              {member.userInfo.email}
+                            </AppText>
+                          </View>
+                          <View>
+                            <Chip
+                              label={standingLabel[member.paymentStatus] ?? member.paymentStatus}
+                              tone={statusTone(member.paymentStatus)}
+                            />
+                          </View>
+                        </Pressable>
+                      ))}
+                    </Card>
+                  )}
+                </DataLoader>
+                <Button
+                  label="Asignar estudiante"
+                  variant="secondary"
+                  icon="add"
+                  onPress={() => setAssigning(true)}
+                  className="mx-3 mt-2.5"
+                />
+              </>
+            )}
+
+            <AssignStudentModal
+              visible={assigning}
+              courseId={id}
+              courseName={course.title}
+              onClose={() => setAssigning(false)}
+            />
           </>
         )}
-
-        <AssignStudentModal
-          visible={assignModalVisible}
-          courseId={id}
-          courseName={title}
-          onClose={() => setAssignModalVisible(false)}
-        />
-      </FormScrollView>
-    </SafeAreaView>
+      </DataLoader>
+    </Screen>
   );
 }

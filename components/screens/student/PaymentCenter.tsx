@@ -1,35 +1,50 @@
-import FilterPills from "@/components/FilterPills";
-import HeaderTitle from "@/components/headerTitle";
+import IconButton from "@/components/ui/IconButton";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import SegmentedControl from "@/components/ui/SegmentedControl";
+import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
+import { useRouter } from "expo-router";
 import { useState } from "react";
-import { View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import Detail from "./PaymentDetail";
 import History from "./PaymentHistory";
 
-const OPTION_MENU = [
-  { label: "Detalle de pago", value: "detail" },
-  { label: "Pagos realizados", value: "history" },
+type PaymentView = "due" | "history";
+
+const SEGMENTS: { value: PaymentView; label: string }[] = [
+  { value: "due", label: "Por pagar" },
+  { value: "history", label: "Historial" },
 ];
 
+/** Student "Pagos" tab: what they owe this month and the payments they sent. */
 const PaymentCenter = () => {
-  const [menuValue, setMenuValue] = useState(OPTION_MENU[0].value);
+  const router = useRouter();
+  const [view, setView] = useState<PaymentView>("due");
 
-  const handleMenuChange = (value: string) => {
-    setMenuValue(value);
-  };
   return (
-    <SafeAreaView className="bg-gray-950 flex-1">
-      <HeaderTitle title="Centro de pagos" />
-      <View className="items-center mb-2">
-        <FilterPills
-          options={OPTION_MENU}
-          selected={menuValue}
-          onSelect={handleMenuChange}
-        />
-      </View>
-
-      {menuValue === "detail" ? <Detail /> : <History />}
-    </SafeAreaView>
+    <Screen scroll={false} inTabs>
+      <ScreenHeader
+        nav={false}
+        title="Pagos"
+        right={
+          // TODO(ayuda): mock entry to the help section (app/private/help).
+          SHOW_FEATURE_MOCKS ? (
+            <IconButton
+              icon="help-circle-outline"
+              onPress={() => router.push("/private/help")}
+              accessibilityLabel="Ayuda y soporte"
+            />
+          ) : undefined
+        }
+      />
+      <SegmentedControl
+        segments={SEGMENTS}
+        value={view}
+        onChange={setView}
+        accessibilityLabel="Secciones de pagos"
+        className="mx-5 mt-4"
+      />
+      {view === "due" ? <Detail /> : <History />}
+    </Screen>
   );
 };
 

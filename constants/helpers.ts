@@ -133,6 +133,42 @@ const WEEKDAYS_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const formatShortDate = (date: Date) =>
   `${WEEKDAYS_SHORT[date.getDay()]} ${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`;
 
+/** Date -> "27 oct" (list metadata). */
+const formatDayMonth = (date: Date) =>
+  `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`;
+
+const MONTHS_LONG = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "setiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+];
+
+const WEEKDAYS_LONG = [
+  "domingo",
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábado",
+];
+
+/** Date -> "octubre". */
+const monthName = (date: Date) => MONTHS_LONG[date.getMonth()];
+
+/** Date -> "jueves 30 de octubre" (deadlines). */
+const formatLongDate = (date: Date) =>
+  `${WEEKDAYS_LONG[date.getDay()]} ${date.getDate()} de ${MONTHS_LONG[date.getMonth()]}`;
+
 /** Course day as stored ("miércoles") -> "Mié". */
 const shortDayName = (day: string | null | undefined) =>
   day ? capitalize(day.trim().slice(0, 3)) : "";
@@ -140,6 +176,57 @@ const shortDayName = (day: string | null | undefined) =>
 /** "HH:MM" -> "7:00 PM". */
 const hhmmTo12h = (value: string | null | undefined) =>
   value ? to12hLabel(timeToDate(value)) : "";
+
+/** When a class is: "Hoy · 7:00 PM", "Lun 27 oct · 7:00 PM" or "Sin fecha". */
+const classWhen = (date: string | null, startTime: string | null) => {
+  const day = parseLocalDate(date);
+  const label =
+    date === formatYYYYMMDD(new Date())
+      ? "Hoy"
+      : day
+        ? formatShortDate(day)
+        : "Sin fecha";
+  return [label, hhmmTo12h(startTime)].filter(Boolean).join(" · ");
+};
+
+/** The platform of a class's video link, or null if it isn't a supported one. */
+const detectVideoPlatform = (url: string): "youtube" | "vimeo" | null => {
+  if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
+  if (url.includes("vimeo.com")) return "vimeo";
+  return null;
+};
+
+// ---- Attendance -------------------------------------------------------------
+
+type AttendanceMark = { classId: string; userId: string; attended: boolean };
+
+/** Students marked present per class; classes with nobody present aren't in it. */
+const presentByClass = (marks: AttendanceMark[] = []) => {
+  const present = new Map<string, number>();
+  for (const mark of marks) {
+    if (mark.attended) present.set(mark.classId, (present.get(mark.classId) ?? 0) + 1);
+  }
+  return present;
+};
+
+/**
+ * A course's attendance as "82%", or "—" with no data. Over the classes where
+ * attendance was taken: present marks of current students / (students × classes).
+ */
+const attendanceRate = (marks: AttendanceMark[] = [], memberIds: Set<string>) => {
+  const present = marks.filter((m) => m.attended && memberIds.has(m.userId)).length;
+  const possible = memberIds.size * presentByClass(marks).size;
+  return possible > 0
+    ? `${Math.min(100, Math.round((present / possible) * 100))}%`
+    : "—";
+};
+
+/** A payment's review status, as shown on chips. */
+const paymentStatusLabel: Record<string, string> = {
+  pending: "En revisión",
+  approved: "Aprobado",
+  rejected: "Rechazado",
+};
 
 /** A student's monthly payment standing in a course, as shown on chips. */
 const standingLabel: Record<string, string> = {
@@ -167,6 +254,18 @@ const monthlyFareFor = (fares: FareRow[] | undefined, courseCount: number) => {
 /** Days after the due date students can still pay without the late fee. */
 const LATE_FEE_GRACE_DAYS = 5;
 
+/** Late fee charged for each day after the grace days. */
+const lateFeePerDay = (fares: FareRow[] | undefined) =>
+  fares?.find((f) => f.type === "late_fee")?.fare ?? 800;
+
+/** Last day a payment due on `dueDate` can be made without the late fee. */
+const lastDayWithoutLateFee = (dueDate: Date) =>
+  new Date(
+    dueDate.getFullYear(),
+    dueDate.getMonth(),
+    dueDate.getDate() + LATE_FEE_GRACE_DAYS,
+  );
+
 /** Late fee owed today for a payment due on `dueDate` (per day, after the grace days). */
 const lateFeeFor = (
   fares: FareRow[] | undefined,
@@ -175,8 +274,7 @@ const lateFeeFor = (
 ) => {
   if (!dueDate) return { days: 0, amount: 0 };
   const days = Math.max(0, daysBetween(dueDate, today) - LATE_FEE_GRACE_DAYS);
-  const perDay = fares?.find((f) => f.type === "late_fee")?.fare ?? 800;
-  return { days, amount: days * perDay };
+  return { days, amount: days * lateFeePerDay(fares) };
 };
 
 /** The annual fee isn't charged in November and December. */
@@ -202,12 +300,17 @@ export const sanitizeYouTubeUrl = (url: string) => {
 };
 
 export {
+  attendanceRate,
   capitalize,
+  classWhen,
   daysBetween,
+  detectVideoPlatform,
   emptyToNull,
   formatCurrency,
   formatDate,
+  formatDayMonth,
   formatDDMMYYYY,
+  formatLongDate,
   formatMonthLabel,
   formatShortDate,
   formatYYYYMMDD,
@@ -216,9 +319,14 @@ export {
   initials,
   isAnnualFeeExemptMonth,
   isUniqueViolation,
+  lastDayWithoutLateFee,
   lateFeeFor,
+  lateFeePerDay,
   monthlyFareFor,
+  monthName,
   parseLocalDate,
+  paymentStatusLabel,
+  presentByClass,
   shortDayName,
   standingLabel,
   statusTranslations,

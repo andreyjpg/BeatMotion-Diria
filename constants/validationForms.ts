@@ -1,5 +1,6 @@
 import { string } from "yup";
 
+import { detectVideoPlatform } from "@/constants/helpers";
 import type { SurveyQuestionInput } from "@/hooks/surveys/surveySchema";
 import * as yup from "yup";
 
@@ -247,6 +248,24 @@ export const resetPasswordFormSchema = yup.object({
     .oneOf([yup.ref("password")], "Las contraseñas no coinciden"),
 });
 
+// Help section (app/private/help, a mock: nothing is sent yet).
+export const helpQuestionFormSchema = yup.object({
+  topic: yup.string().required("Elige un tema."),
+  message: yup
+    .string()
+    .trim()
+    .required("Escribe tu consulta.")
+    .max(500, "La consulta no puede superar 500 caracteres."),
+});
+
+export const helpPaymentFormSchema = yup.object({
+  message: yup
+    .string()
+    .trim()
+    .required("Cuéntanos qué pasó con este pago.")
+    .max(500, "El mensaje no puede superar 500 caracteres."),
+});
+
 // Limits match the database constraints on public.branches.
 export const branchFormSchema = yup.object({
   name: yup
@@ -276,6 +295,19 @@ export const courseFormSchema = yup.object({
   description: yup
     .string()
     .max(1000, "La descripción no puede superar 1000 caracteres."),
+});
+
+// One video being added to a class (components/courses/ClassForm.tsx).
+export const videoLinkFormSchema = yup.object({
+  url: yup
+    .string()
+    .trim()
+    .required("Escribe el enlace del video.")
+    .test(
+      "platform",
+      "Solo se permiten enlaces de YouTube o Vimeo.",
+      (url) => !!url && detectVideoPlatform(url) !== null,
+    ),
 });
 
 export const classFormSchema = yup.object({

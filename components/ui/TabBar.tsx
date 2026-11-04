@@ -44,7 +44,9 @@ export default function TabBar({ state, emitter, navigateToTab, insets, items }:
             accessibilityLabel={item.badge ? `${item.label}, hay avisos sin leer` : item.label}
             className="flex-1 items-center gap-1 py-0.5"
           >
-            <View className={`h-[30px] w-[54px] items-center justify-center rounded-full ${focused ? "bg-ink" : ""}`}>
+            {/* White when off, not transparent: Android drops the rounded corners
+                when a background is added to a view after its first render. */}
+            <View className={`h-[30px] w-[54px] items-center justify-center rounded-full ${focused ? "bg-ink" : "bg-surface"}`}>
               <Ionicons name={item.icon} size={21} color={focused ? palette.surface : palette.muted} />
               {item.badge && (
                 <View className="absolute right-3 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-danger" />

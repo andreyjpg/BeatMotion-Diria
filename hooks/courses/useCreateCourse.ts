@@ -12,6 +12,7 @@ type CreateCourseInput = {
   level: string;
   day: string;
   branchId?: string | null;
+  startDate?: string | null; // "YYYY-MM-DD"
   createdBy: string;
 };
 
@@ -29,6 +30,7 @@ export const useCreateCourse = () => {
           level: Number(input.level),
           day: input.day as Weekday,
           branch_id: input.branchId ?? null,
+          start_date: input.startDate ?? null,
           created_by: input.createdBy,
         })
         .select("id")

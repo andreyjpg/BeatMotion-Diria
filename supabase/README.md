@@ -14,7 +14,7 @@ except the one-time secrets below.
 | `functions/delete-account` | Deletes an account, its data and its receipt files |
 | `functions/purge-receipts` | Deletes receipt photos 6 months after review |
 | `scripts/migrate-from-firebase` | One-time copy of Firebase users, data and files (see its README) |
-| `TODO.md` | Database changes the app still needs (pending migrations) |
+| [`../TODO.md`](../TODO.md) | Database changes the app still needs (with the rest of the to-do list) |
 
 There are two projects, **preview** and **production**. Do every step below
 once per project.

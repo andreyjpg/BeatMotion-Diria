@@ -1,3 +1,4 @@
+import ClassRow from "@/components/courses/ClassRow";
 import DataLoader from "@/components/DataLoader";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
@@ -6,7 +7,14 @@ import Chip from "@/components/ui/Chip";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
-import { capitalize, formatShortDate, formatYYYYMMDD, hhmmTo12h, parseLocalDate } from "@/constants/helpers";
+import {
+  attendanceRate,
+  capitalize,
+  classWhen,
+  formatShortDate,
+  formatYYYYMMDD,
+  presentByClass,
+} from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { useAttendanceByCourse } from "@/hooks/attendance/useAttendanceByCourse";
 import { useBranchById } from "@/hooks/branches/useBranchById";
@@ -17,7 +25,7 @@ import { useCourseById } from "@/hooks/courses/useCourseById";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, RefreshControl, View } from "react-native";
+import { RefreshControl, View } from "react-native";
 
 /**
  * A teacher's course: its numbers and its classes. Read only: teachers open
@@ -39,16 +47,8 @@ export default function TeacherCourseScreen() {
 
   const today = formatYYYYMMDD(new Date());
   const members = membersQuery.data;
-  const memberIds = new Set((members ?? []).map((m) => m.userId));
-  const attendedByClass = new Map<string, number>();
-  for (const row of attendanceQuery.data ?? []) {
-    if (row.attended) attendedByClass.set(row.classId, (attendedByClass.get(row.classId) ?? 0) + 1);
-  }
-  // Over the classes where attendance was taken: present marks of current
-  // students / (students × those classes).
-  const presentMarks = (attendanceQuery.data ?? []).filter((r) => r.attended && memberIds.has(r.userId)).length;
-  const possibleMarks = memberIds.size * attendedByClass.size;
-  const rate = possibleMarks > 0 ? `${Math.min(100, Math.round((presentMarks / possibleMarks) * 100))}%` : "—";
+  const attendedByClass = presentByClass(attendanceQuery.data);
+  const rate = attendanceRate(attendanceQuery.data, new Set((members ?? []).map((m) => m.userId)));
 
   const subtitle = course
     ? [
@@ -116,49 +116,27 @@ export default function TeacherCourseScreen() {
                     {classes.map((cls, i) => {
                       const isToday = cls.date === today;
                       const isPast = !!cls.date && cls.date < today;
-                      const date = parseLocalDate(cls.date);
-                      const when = [isToday ? "Hoy" : date ? formatShortDate(date) : "Sin fecha", hhmmTo12h(cls.startTime)]
-                        .filter(Boolean)
-                        .join(" · ");
+                      const when = classWhen(cls.date, cls.startTime);
                       const attended = attendedByClass.get(cls.id);
-                      const title = cls.title || `Clase ${i + 1}`;
                       return (
-                        <View
+                        <ClassRow
                           key={cls.id}
-                          className={`flex-row items-center gap-3 py-2.5 pl-3.5 pr-3 ${
-                            i < classes.length - 1 ? "border-b border-line-soft" : ""
-                          }`}
-                        >
-                          <Pressable
-                            onPress={() => openClass(cls)}
-                            accessibilityRole="button"
-                            accessibilityLabel={`${title}, ${when}`}
-                            className="flex-1 flex-row items-center gap-3 active:opacity-70"
-                          >
-                            <View
-                              className={`h-9 w-9 items-center justify-center rounded-[10px] ${isToday ? "bg-ink" : "bg-ground"}`}
-                            >
-                              <AppText variant="label-bold" tone={isToday ? "inverse" : "ink"} className="text-[12px]">
-                                {String(i + 1).padStart(2, "0")}
-                              </AppText>
-                            </View>
-                            <View className="flex-1">
-                              <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
-                                {title}
-                              </AppText>
-                              <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
-                                {isPast && attended ? `${when} · ${attended} asistieron` : when}
-                              </AppText>
-                            </View>
-                          </Pressable>
-                          {isToday ? (
-                            <Button label="Asistencia" size="sm" onPress={() => openAttendance(cls)} />
-                          ) : isPast ? (
-                            <Chip label="Hecha" tone="muted" />
-                          ) : (
-                            <Ionicons name="chevron-forward" size={18} color={palette.faint} />
-                          )}
-                        </View>
+                          number={i + 1}
+                          title={cls.title || `Clase ${i + 1}`}
+                          detail={isPast && attended ? `${when} · ${attended} asistieron` : when}
+                          highlighted={isToday}
+                          divider={i < classes.length - 1}
+                          onPress={() => openClass(cls)}
+                          right={
+                            isToday ? (
+                              <Button label="Asistencia" size="sm" onPress={() => openAttendance(cls)} />
+                            ) : isPast ? (
+                              <Chip label="Hecha" tone="muted" />
+                            ) : (
+                              <Ionicons name="chevron-forward" size={18} color={palette.faint} />
+                            )
+                          }
+                        />
                       );
                     })}
                   </Card>

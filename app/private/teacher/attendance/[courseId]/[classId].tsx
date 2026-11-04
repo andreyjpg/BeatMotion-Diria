@@ -203,8 +203,15 @@ const Attendance = () => {
                                   accessibilityRole="radio"
                                   aria-checked={on}
                                   accessibilityLabel={choice.label}
-                                  className={`h-9 w-11 items-center justify-center rounded-lg ${
-                                    on ? (isNo ? "border-[1.5px] border-danger bg-surface" : "bg-ink") : ""
+                                  // Always a border and a solid color (the track's when off):
+                                  // Android drops the rounded corners when a background is
+                                  // added to a view after its first render.
+                                  className={`h-9 w-11 items-center justify-center rounded-lg border-[1.5px] ${
+                                    on
+                                      ? isNo
+                                        ? "border-danger bg-surface"
+                                        : "border-ink bg-ink"
+                                      : "border-control-track bg-control-track"
                                   }`}
                                 >
                                   <AppText

@@ -28,11 +28,16 @@ export default function PrivateLayout() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
+          name="user/class/[classId]"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="user/events/index"
           options={{ headerShown: false }}
         />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
         <Stack.Screen name="teacher" options={{ headerShown: false }} />
+        <Stack.Screen name="help" options={{ headerShown: false }} />
         {/* MarketPlace */}
         <Stack.Screen
           name="marketplace/MarketplaceList"

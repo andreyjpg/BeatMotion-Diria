@@ -1,259 +1,151 @@
 import DataLoader from "@/components/DataLoader";
-import FilterPills from "@/components/FilterPills";
-import HeaderTitle from "@/components/headerTitle";
-import ImageModal from "@/components/ImageModal";
-import PhotoCard from "@/components/PhotoCard";
-import {
-  formatCurrency,
-  formatDDMMYYYY,
-  getEnrollmentColor,
-  statusTranslations,
-} from "@/constants/helpers";
-import { ReviewStatus } from "@/hooks/enrollment/schema";
-import { PaymentDetail } from "@/hooks/payment/schema";
+import AppText from "@/components/ui/AppText";
+import Avatar from "@/components/ui/Avatar";
+import Card from "@/components/ui/Card";
+import Chip, { type ChipTone } from "@/components/ui/Chip";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import SegmentedControl from "@/components/ui/SegmentedControl";
+import { formatCurrency, formatDayMonth } from "@/constants/helpers";
+import palette from "@/constants/palette.json";
+import type { ReviewStatus } from "@/hooks/enrollment/schema";
+import type { PaymentDetail } from "@/hooks/payment/schema";
+import { usePaymentCount } from "@/hooks/payment/usePaymentCount";
 import { usePayments } from "@/hooks/payment/usePayments";
-import { useReviewPayment } from "@/hooks/payment/useReviewPayment";
-import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  RefreshControl,
-  Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native";
 
-const FILTER_OPTIONS: { label: string; value: ReviewStatus }[] = [
-  { label: "Pendientes", value: "pending" },
-  { label: "Aceptadas", value: "approved" },
-  { label: "Rechazadas", value: "rejected" },
+const SEGMENTS: { value: ReviewStatus; label: string }[] = [
+  { value: "pending", label: "Pendientes" },
+  { value: "approved", label: "Aprobados" },
+  { value: "rejected", label: "Rechazados" },
 ];
 
-const statusBg: Record<ReviewStatus, string> = {
-  pending: "bg-yellow-950",
-  approved: "bg-green-950",
-  rejected: "bg-red-950",
+const EMPTY: Record<ReviewStatus, string> = {
+  pending: "No hay comprobantes por revisar.",
+  approved: "Todavía no hay pagos aprobados.",
+  rejected: "No hay pagos rechazados.",
 };
 
 const studentName = (payment: PaymentDetail) =>
-  payment.user ? `${payment.user.name} ${payment.user.lastName}`.trim() : "";
+  payment.user ? `${payment.user.name} ${payment.user.lastName}`.trim() : "Estudiante";
 
+/** Pending: whether it came late or includes the annual fee. Reviewed: the decision. */
+const listChip = (payment: PaymentDetail): { label: string; tone: ChipTone } => {
+  if (payment.status === "approved") return { label: "Aprobado", tone: "ok" };
+  if (payment.status === "rejected") return { label: "Rechazado", tone: "muted" };
+  if (payment.isLate) return { label: `Atrasado ${payment.daysLate} d`, tone: "late" };
+  if (payment.annualFeeYear) return { label: "+ Anual", tone: "pending" };
+  return { label: "A tiempo", tone: "line" };
+};
+
+const listDetails = (payment: PaymentDetail) => {
+  const courses =
+    payment.courses.length === 1 ? payment.courses[0].title : `${payment.courses.length} cursos`;
+  if (payment.status !== "pending") {
+    return `${formatDayMonth(payment.reviewedAt ?? payment.createdAt)} · ${courses}`;
+  }
+  if (payment.isLate) return `${courses} · recargo ${formatCurrency(payment.lateFare)}`;
+  if (payment.annualFeeYear) return `${courses} + matrícula anual`;
+  return `${courses} · enviado ${formatDayMonth(payment.createdAt)}`;
+};
+
+/** Admin "Cobros" tab: the receipts students sent, by review status. */
 const PaymentCenter = () => {
-  const [filterSelected, setFilterSelected] = useState<ReviewStatus>("pending");
-  const [image, setImage] = useState("");
-  const [isModalImageOpen, setIsModalImageOpen] = useState(false);
+  const router = useRouter();
+  const [status, setStatus] = useState<ReviewStatus>("pending");
+  const paymentsQuery = usePayments(status);
+  const pendingCount = usePaymentCount("pending");
+  const approvedCount = usePaymentCount("approved");
+  const rejectedCount = usePaymentCount("rejected");
 
-  const paymentsQuery = usePayments(filterSelected);
-  const reviewPayment = useReviewPayment();
+  const counts: Record<ReviewStatus, number | undefined> = {
+    pending: pendingCount.data,
+    approved: approvedCount.data,
+    rejected: rejectedCount.data,
+  };
+  const count = counts[status];
+  const subtitle =
+    count === undefined
+      ? undefined
+      : status === "pending"
+        ? count === 0
+          ? "Nada por revisar"
+          : `${count} ${count === 1 ? "comprobante" : "comprobantes"} por revisar · los atrasados primero`
+        : `${count} ${count === 1 ? "pago" : "pagos"} ${status === "approved" ? "aprobados" : "rechazados"}`;
 
-  const handleFilterChange = (value: string) => {
-    const option = FILTER_OPTIONS.find((o) => o.value === value);
-    if (option) setFilterSelected(option.value);
+  const refresh = () => {
+    paymentsQuery.refetch();
+    pendingCount.refetch();
+    approvedCount.refetch();
+    rejectedCount.refetch();
   };
 
-  const handleClickImage = (url: string) => {
-    setIsModalImageOpen(true);
-    setImage(url);
-  };
-
-  const toggleModal = () => {
-    setIsModalImageOpen((prev) => !prev);
-  };
-
-  const handleClickStatusChange = (
-    payment: PaymentDetail,
-    action: "approve" | "reject",
-  ) => {
-    Alert.alert(
-      `Confirmar ${action === "approve" ? "aprobar" : "rechazar"}`,
-      `¿Estás seguro de que deseas ${
-        action === "approve" ? "aprobar" : "rechazar"
-      } el pago de ${studentName(payment)}?`,
-      [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Confirmar",
-          onPress: () =>
-            reviewPayment.mutate({
-              paymentId: payment.id,
-              status: action === "approve" ? "approved" : "rejected",
-            }),
-        },
-      ],
-    );
-  };
+  const openPayment = (payment: PaymentDetail) =>
+    router.push({
+      pathname: "/private/admin/payments/[paymentId]",
+      params: { paymentId: payment.id, status },
+    });
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-950">
-      <HeaderTitle title="Centro de cobros" />
-      <View className="items-center mb-2">
-        <FilterPills
-          options={FILTER_OPTIONS}
-          onSelect={handleFilterChange}
-          selected={filterSelected}
-        />
-      </View>
-      <DataLoader
-        query={paymentsQuery}
-        emptyMessage="No existen datos disponibles"
-      >
-        {(data, isRefetching, refetch) => (
+    <Screen scroll={false} inTabs>
+      <ScreenHeader nav={false} title="Cobros" subtitle={subtitle} />
+      <SegmentedControl
+        segments={SEGMENTS.map((segment) => ({ ...segment, count: counts[segment.value] }))}
+        value={status}
+        onChange={setStatus}
+        accessibilityLabel="Estado de los cobros"
+        className="mx-5 mt-4"
+      />
+      <DataLoader query={paymentsQuery} emptyMessage={EMPTY[status]}>
+        {(data, isRefetching) => (
           <FlatList
             data={data}
-            contentContainerStyle={{ gap: 15 }}
             keyExtractor={(item) => item.id}
+            contentContainerClassName="gap-2 px-3 pb-8 pt-3.5"
+            showsVerticalScrollIndicator={false}
             // Loads the next 20 when nearing the end of the list.
             onEndReached={() => {
-              if (
-                paymentsQuery.hasNextPage &&
-                !paymentsQuery.isFetchingNextPage
-              ) {
+              if (paymentsQuery.hasNextPage && !paymentsQuery.isFetchingNextPage) {
                 paymentsQuery.fetchNextPage();
               }
             }}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
-              paymentsQuery.isFetchingNextPage ? (
-                <ActivityIndicator color="#facc15" />
-              ) : undefined
+              paymentsQuery.isFetchingNextPage ? <ActivityIndicator color={palette.faint} /> : undefined
             }
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefetching}
-                onRefresh={refetch}
-                tintColor="#facc15"
-              />
-            }
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refresh} />}
             renderItem={({ item }) => (
-              <View className="px-3">
-                <PhotoCard
-                  image={item.receiptUrl}
-                  item={item}
-                  onClickImage={handleClickImage}
-                  showStatusApprovement
-                  onConfirmation={(item, status) =>
-                    handleClickStatusChange(item, status)
-                  }
-                >
-                  <View className="gap-3">
-                    {/* Status + Date */}
-                    <View className="flex-row items-center justify-between">
-                      <View
-                        className={`px-2 py-1 rounded-full ${statusBg[item.status]}`}
-                      >
-                        <Text
-                          className={`text-xs font-bold ${getEnrollmentColor(item.status)}`}
-                        >
-                          {statusTranslations[item.status]}
-                        </Text>
-                      </View>
-                      <View className="flex-row items-center gap-1">
-                        <Ionicons
-                          name="calendar-outline"
-                          size={13}
-                          color="#6b7280"
-                        />
-                        <Text className="text-gray-400 text-xs">
-                          {formatDDMMYYYY(item.createdAt)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Student */}
-                    <View className="flex-row items-center gap-2">
-                      <Ionicons
-                        name="person-outline"
-                        size={16}
-                        color="#9ca3af"
-                      />
-                      <Text className="text-white">{studentName(item)}</Text>
-                    </View>
-
-                    <View className="h-px bg-gray-800" />
-
-                    {/* Courses + Amount */}
-                    <View className="gap-2">
-                      <View className="flex-row items-center gap-2">
-                        <Ionicons
-                          name="school-outline"
-                          size={16}
-                          color="#9ca3af"
-                        />
-                        <Text className="text-white font-semibold">Cursos</Text>
-                      </View>
-                      <View className="flex-row justify-between items-start ml-6">
-                        <View className="flex-1">
-                          {item.courses.map((course) => (
-                            <Text
-                              className="text-gray-300 text-sm"
-                              key={course.id}
-                            >
-                              · {course.title}
-                            </Text>
-                          ))}
-                        </View>
-                        <View className="flex-row items-center gap-1">
-                          <Ionicons
-                            name="cash-outline"
-                            size={14}
-                            color="#9ca3af"
-                          />
-                          <Text className="text-white font-bold">
-                            {formatCurrency(item.monthlyFare)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Late fee warning */}
-                    {item.isLate && (
-                      <View className="bg-red-950 rounded-xl p-3 gap-2">
-                        <View className="flex-row items-center gap-2">
-                          <Ionicons
-                            name="warning-outline"
-                            size={15}
-                            color="#f87171"
-                          />
-                          <Text className="text-red-400 text-sm font-semibold">
-                            Pago atrasado
-                          </Text>
-                        </View>
-                        <View className="flex-row justify-between items-center">
-                          <Text className="text-red-300 text-xs">
-                            {item.daysLate} día(s) de atraso
-                          </Text>
-                          <Text className="text-red-400 font-bold">
-                            {formatCurrency(item.lateFare)}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-
-                    {/* Total: what the receipt should show */}
-                    <View className="flex-row justify-between items-center">
-                      <Text className="text-white font-semibold">Total</Text>
-                      <Text className="text-white font-bold">
-                        {formatCurrency(item.totalAmount)}
-                      </Text>
-                    </View>
+              <Card
+                onPress={() => openPayment(item)}
+                accessibilityLabel={`${studentName(item)}, ${formatCurrency(item.totalAmount)}, ${listChip(item).label}`}
+                padded={false}
+                className="flex-row items-center gap-3 px-3.5 py-3"
+              >
+                <Avatar name={item.user?.name} lastName={item.user?.lastName} />
+                <View className="flex-1 gap-1.5">
+                  <View className="flex-row items-baseline justify-between gap-2">
+                    <AppText variant="bold" className="flex-1 text-[15.5px]" numberOfLines={1}>
+                      {studentName(item)}
+                    </AppText>
+                    <AppText variant="heavy" className="text-[17px]">
+                      {formatCurrency(item.totalAmount)}
+                    </AppText>
                   </View>
-                </PhotoCard>
-              </View>
+                  <View className="flex-row items-center gap-1.5">
+                    <Chip {...listChip(item)} />
+                    <AppText tone="muted" className="flex-1 text-[12.5px]" numberOfLines={1}>
+                      {listDetails(item)}
+                    </AppText>
+                  </View>
+                </View>
+              </Card>
             )}
           />
         )}
       </DataLoader>
-      <ImageModal
-        isVisible={isModalImageOpen}
-        imageSelected={image}
-        toggleVisibility={toggleModal}
-      />
-    </SafeAreaView>
+    </Screen>
   );
 };
 
