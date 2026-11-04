@@ -11,7 +11,7 @@ import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 /** A class of one of the teacher's courses, read only, with the button to take attendance. */
-export default function TeacherClassScreen() {
+const TeacherClassScreen = () => {
   const router = useRouter();
   const { classId } = useLocalSearchParams<{ classId: string }>();
   const { user } = useActiveUser();
@@ -54,4 +54,6 @@ export default function TeacherClassScreen() {
       </DataLoader>
     </Screen>
   );
-}
+};
+
+export default TeacherClassScreen;

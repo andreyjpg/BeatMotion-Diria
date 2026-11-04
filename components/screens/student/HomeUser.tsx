@@ -1,3 +1,4 @@
+import ConoceDiriaCardMock from "@/components/mocks/ConoceDiriaCardMock";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -6,6 +7,7 @@ import HomeHero from "@/components/ui/HomeHero";
 import Screen from "@/components/ui/Screen";
 import SectionHeader from "@/components/ui/SectionHeader";
 import ShortcutCard from "@/components/ui/ShortcutCard";
+import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
 import {
   formatCurrency,
   formatShortDate,
@@ -75,7 +77,7 @@ const HomeUser = () => {
         <HomeHero
           eyebrow={dateLabel}
           title={`Hola, ${user?.name ?? ""}`.trim()}
-          subtitle="Todavía no tienes cursos. Matricúlate y empieza a bailar."
+          subtitle="Todavía no tienes cursos. Matricúlate en tres pasos y empieza a bailar."
         >
           <Button
             label="Matricular mi primer curso"
@@ -86,12 +88,14 @@ const HomeUser = () => {
           />
         </HomeHero>
 
+        {SHOW_FEATURE_MOCKS && <ConoceDiriaCardMock />}
+
         <SectionHeader title="Cómo matricularte" />
         <Card className="mx-3 py-1.5">
           {[
+            { title: "Lee las reglas", sub: "Pagos, ausencias y reposiciones" },
             { title: "Elige tus cursos", sub: "Ves el precio al instante" },
-            { title: "Transfiere y sube el comprobante", sub: "Desde la misma pantalla" },
-            { title: "La academia lo revisa", sub: "Te avisamos cuando quede aprobada" },
+            { title: "Transfiere y sube el comprobante", sub: "La academia lo revisa y te confirma" },
           ].map((step, i, all) => (
             <View
               key={step.title}

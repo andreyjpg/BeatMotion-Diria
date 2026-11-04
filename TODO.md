@@ -40,7 +40,8 @@ Each one is a new migration in `supabase/migrations/`. Follow the rules in
   `profiles`, ask for it in the sign-up and profile forms, and add it to the
   profile `*_COLUMNS`. Staff already read profiles.
   - Designed in the canvas: "Registro · fecha de nacimiento". Ages are also
-    shown to admins and teachers.
+    shown to admins and teachers: the user's profile (birth date and age), the
+    Usuarios list, Matrículas and the enrollment review.
   - Unlocks the birthdays alert and the group ages bar (see the mocks below).
   - It's new personal data, so the privacy texts must mention it: in the app
     (`app/public/signIn.tsx`, `components/PrivacyConsentModal.tsx`) and on the
@@ -69,6 +70,9 @@ Each one is a new migration in `supabase/migrations/`. Follow the rules in
 
 ### Cleanup (only once no store build uses them)
 
+- [ ] **Accepting the rules.** Step 1 of the enrollment asks the student to accept
+  the academy's rules, but nothing records it. If the academy wants proof, add
+  `rules_accepted_at` to `enrollments` and set it in `request_enrollment`.
 - [ ] **Unused class assignment on enrollments.** Drop
   `enrollments.assigned_class_id`, `class_assigned_by` and `class_assigned_at`;
   nothing uses them since the "assign class" screen was removed. First update
@@ -130,19 +134,100 @@ page "Funciones nuevas (mock)".
   `app/private/teacher/course/[courseId].tsx` and
   `app/private/admin/courses/[id].tsx`). Needs the birth date. Also show each
   student's age in the admin's list of the course's students.
+- [ ] **Academy ages** (`TODO(edades)`). Shown in the admin's Estadísticas by
+  `components/mocks/AcademyAgesMock.tsx`, with sample numbers. Needs the birth
+  date: count active students per age group and show the average.
+- [ ] **Conoce Diriá** (`TODO(conoce)`). For students with no courses: a card on
+  the home (`components/mocks/ConoceDiriaCardMock.tsx`) that opens
+  `app/private/user/conoce.tsx` (`components/mocks/ConoceDiriaMock.tsx`).
+  Teachers and branches are real data; the rest is a placeholder.
+  - The academy provides the presentation text, the main video, the other
+    videos, the styles it teaches, photos for the gallery and teachers' photos.
+  - Decide where it lives: constants and files in the app, or tables the admin
+    can edit without a new release.
+  - Make the videos play (classes already open YouTube and Vimeo links).
 - [ ] When all of them are done, remove `SHOW_FEATURE_MOCKS` and
   `components/mocks/`.
+
+## New features
+
+Not built or mocked yet. Both come from the academy's new membership poster:
+1 course is Plan 1 día (₡28.000), 2 courses Plan 2 días (₡35.000), and 3 or more
+Plan Diriá (₡40.000, unlimited classes). `planName` and `monthlyFareFor` in
+`constants/helpers.ts` have this rule; no plan is stored, it comes from how many
+courses the student is in. Two courses on the same day count as two: today
+classes run from 7 to 9 p. m., so a student can't take two at once.
+
+- [ ] **Invitees.** Students with Plan Diriá ask to bring a new person who might
+  be interested, and an admin approves it first. The poster offers a free week
+  of classes for new people, in the schedules of their level, with a prior
+  reservation, once per invitee.
+  - Rules to enforce in the database, not only in the app (a function like
+    `request_enrollment`): the student has Plan Diriá (3 or more active courses),
+    the request is made at least 24 hours in advance, at most 2 invitees per week
+    per student, and each invitee only once.
+  - New table, e.g. `guest_invitations`: who invites, the invitee's name and
+    phone or email, course or class, status (pending, approved, rejected), who
+    reviewed it and when. Access rules: students create and read their own,
+    admins review, teachers read the approved ones for their classes.
+  - Screens: the student's request form and list of requests with their status,
+    the admin's review (also counted in "Pendiente hoy" on the admin home), and
+    approved invitees on the teacher's attendance sheet.
+  - Push notifications: to admins on a new request, to the student on the
+    decision.
+  - Decide before building:
+    - Is it 2 invitees every week, or 2 in total? The poster only says "2
+      personas".
+    - Does the 24 hours count from the first class of the free week, or for each
+      class?
+    - What identifies an invitee as new (phone, email)? Do they need an account?
+    - Does a student who is behind on payments keep the benefit?
+- [ ] **Free talleres with Plan Diriá.** One taller per week at no cost ("Incluye
+  1 taller por semana en una sede").
+  - Talleres are already events with the category "Taller"
+    (`components/events/EventForm.tsx`). In a new migration, extend the signup
+    trigger `private.prepare_event_signup`
+    (`20261017000100_event_signup_rules.sql`), which sets the price and status:
+    a Plan Diriá student with no free taller yet that week gets it free and
+    auto-approved, with no receipt.
+  - In the app: say on the event's screen that it's free with their plan, or that
+    they already used this week's, and skip the receipt in the signup.
+  - Decide before building:
+    - Which week counts: the taller's date, Monday to Sunday in Costa Rica time?
+    - Does cancelling give the free taller back?
+    - What does "en una sede" mean? Events have a free-text location, not a
+      branch.
+    - Does a student who is behind on payments keep the benefit?
 
 ## Open decisions
 
 - [ ] **How teachers take attendance.** This process may change: there's a new
   idea for how the teacher should do it. Today the sheet pre-marks the students
   who answered the RSVP, until attendance is first saved.
+- [ ] **Sent drafts.** Sending a saved notification draft leaves it in Borradores
+  (`useSendBroadcast` doesn't touch the draft). Should sending remove it?
 - [ ] **Confirm with the academy:**
-  - **Late fee.** It starts after 5 grace days in the app (`lateFeeFor` in
-    `constants/helpers.ts`). An old FAQ text said 3 days.
-  - **5 or more courses.** Adding courses at 5+ charges only the fare
-    difference plus the annual fee.
+  - **Adding courses mid-month.** It charges the difference between the plans,
+    so a course added on Plan Diriá costs ₡0, with no receipt, and only needs
+    the admin's approval.
+
+## Cleanup
+
+- [ ] Remove the packages nothing imports since the redesign:
+  `react-native-bouncy-checkbox`, `react-native-vector-icons` and
+  `@react-native-picker/picker`.
+
+## Before going live
+
+- [ ] **Check the packages for known vulnerabilities.** A safety check to do
+  before the app goes live; no rush until then.
+  - Do it after removing the unused packages above, so there's less to review.
+  - Run `npm audit`, and `npm audit --omit=dev` to see what ships in the app.
+  - Update Expo's packages with `npx expo install --check`. Avoid
+    `npm audit fix --force`: it can install versions the Expo SDK doesn't support.
+- [ ] **Revoke the Firebase migration's credentials.** Delete its service account
+  key in the Firebase console (Project settings > Service accounts), and change
+  the Supabase secret key and database passwords its `.env` files held.
 
 ## Release steps left from the move to Supabase
 
@@ -159,6 +244,11 @@ Carried over from the migration notes of 2026-10-19; some may already be done.
   - for `supabase-backup.yml`: `BACKUP_PASSPHRASE`.
 - [ ] Supabase project secrets: run `supabase secrets set CRON_SECRET=…` in each
   project.
+- [ ] Production fares: `course_1` ₡28.000, `course_2` ₡35.000, `course_3`
+  ₡40.000, `annual` ₡15.000 and `late_fee` ₡500, as in preview. Until no store
+  build uses the old calculation, also keep `course_4` and `course_5` rows at
+  ₡40.000: without them, the old calculation charges students with 4 or more
+  courses ₡0.
 - [ ] One EAS preview build.
 - [ ] Preview database: `delete from public.push_tokens;`. The rehearsal
   imported real devices, so preview could send them pushes.
@@ -168,8 +258,6 @@ Carried over from the migration notes of 2026-10-19; some may already be done.
   - update the external policy page (beatmotion-politica-privacidad.netlify.app),
     which still names Firebase;
   - check that the production Supabase region matches the "Estados Unidos" text.
-- [ ] At cutover: run `supabase/scripts/migrate-from-firebase --only=users,fares`
-  against production.
 - [ ] After the new store version is adopted, clean up Firebase project
   `beatmotion-b1ec6`:
   - delete the Cloud Functions: `deleteUser` and `sendExpoPushNotification`

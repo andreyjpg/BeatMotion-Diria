@@ -13,7 +13,7 @@ type CardProps = {
 };
 
 /** White rounded surface that groups related content. */
-export default function Card({ children, onPress, accessibilityLabel, padded = true, className = "" }: CardProps) {
+const Card = ({ children, onPress, accessibilityLabel, padded = true, className = "" }: CardProps) => {
   const classes = `rounded-[18px] bg-surface ${padded ? "p-4" : ""} ${className}`;
   if (!onPress) return <View className={classes}>{children}</View>;
   return (
@@ -26,4 +26,6 @@ export default function Card({ children, onPress, accessibilityLabel, padded = t
       {children}
     </Pressable>
   );
-}
+};
+
+export default Card;

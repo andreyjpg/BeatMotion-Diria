@@ -18,7 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { View } from "react-native";
 
 /** What a class is about, read only: date, description, objectives, content and videos. */
-export default function ClassContent({ cls }: { cls: ClassesType }) {
+const ClassContent = ({ cls }: { cls: ClassesType }) => {
   const date = parseLocalDate(cls.date);
   const isToday = cls.date === formatYYYYMMDD(new Date());
   const time = [hhmmTo12h(cls.startTime), hhmmTo12h(cls.endTime)].filter(Boolean).join("–");
@@ -95,4 +95,6 @@ export default function ClassContent({ cls }: { cls: ClassesType }) {
       )}
     </>
   );
-}
+};
+
+export default ClassContent;

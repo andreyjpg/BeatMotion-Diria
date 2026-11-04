@@ -8,7 +8,7 @@ import { useUpdateCourse } from "@/hooks/courses/useUpdateCourse";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Alert, View } from "react-native";
 
-export default function EditCourseScreen() {
+const EditCourseScreen = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const courseQuery = useCourseById(id);
@@ -73,4 +73,6 @@ export default function EditCourseScreen() {
       onDelete={() => confirmDelete(course.title)}
     />
   );
-}
+};
+
+export default EditCourseScreen;

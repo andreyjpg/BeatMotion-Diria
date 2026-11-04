@@ -5,6 +5,7 @@ import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Field from "@/components/ui/Field";
+import Pill from "@/components/ui/Pill";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import palette from "@/constants/palette.json";
@@ -19,7 +20,7 @@ import { Image, Pressable, View } from "react-native";
 const TOPICS = ["Clases", "Horarios", "Mi cuenta", "La app", "Otro"];
 
 /** Help: a question about anything other than a payment. */
-export default function HelpQuestionScreen() {
+const HelpQuestionScreen = () => {
   const router = useRouter();
   const { user } = useActiveUser();
   const [topic, setTopic] = useState("");
@@ -61,24 +62,9 @@ export default function HelpQuestionScreen() {
           Tema
         </AppText>
         <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-1.5">
-          {TOPICS.map((option) => {
-            const selected = option === topic;
-            return (
-              <Pressable
-                key={option}
-                onPress={() => setTopic(option)}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: selected }}
-                className={`h-[38px] justify-center rounded-full border-[1.5px] px-3.5 ${
-                  selected ? "border-ink bg-ink" : "border-line-strong bg-surface"
-                }`}
-              >
-                <AppText variant="semibold" tone={selected ? "inverse" : "ink"} className="text-[13.5px]">
-                  {option}
-                </AppText>
-              </Pressable>
-            );
-          })}
+          {TOPICS.map((option) => (
+            <Pill key={option} label={option} selected={option === topic} onPress={() => setTopic(option)} />
+          ))}
         </View>
         <FieldError message={errors.topic} />
       </View>
@@ -113,4 +99,6 @@ export default function HelpQuestionScreen() {
       </Pressable>
     </Screen>
   );
-}
+};
+
+export default HelpQuestionScreen;

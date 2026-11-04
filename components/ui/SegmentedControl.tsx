@@ -28,14 +28,14 @@ type SegmentedControlProps<T extends string> = {
 };
 
 /** Gray track with one white segment selected: switches between views of a screen. */
-export default function SegmentedControl<T extends string>({
+const SegmentedControl = <T extends string>({
   segments,
   value,
   onChange,
   accessibilityLabel,
   tone = "light",
   className = "",
-}: SegmentedControlProps<T>) {
+}: SegmentedControlProps<T>) => {
   const dark = tone === "dark";
   const selectedText = dark ? "inverse" : "ink";
 
@@ -71,4 +71,6 @@ export default function SegmentedControl<T extends string>({
       })}
     </View>
   );
-}
+};
+
+export default SegmentedControl;

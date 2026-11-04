@@ -2,6 +2,7 @@ import FormScrollView from "@/components/FormScrollView";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Field from "@/components/ui/Field";
+import { PRIVACY_POLICY_URL } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import {
   loginFormSchema,
@@ -23,7 +24,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const URL_POLICIES = "https://beatmotion-politica-privacidad.netlify.app";
 
 const LogIn = () => {
   const [email, setEmail] = useState("");
@@ -44,12 +44,12 @@ const LogIn = () => {
   );
 
   const handlePressPolicy = useCallback(async () => {
-    const supported = await Linking.canOpenURL(URL_POLICIES);
+    const supported = await Linking.canOpenURL(PRIVACY_POLICY_URL);
 
     if (supported) {
-      await Linking.openURL(URL_POLICIES);
+      await Linking.openURL(PRIVACY_POLICY_URL);
     } else {
-      Alert.alert(`Error al abrir enlace: ${URL_POLICIES}`);
+      Alert.alert(`Error al abrir enlace: ${PRIVACY_POLICY_URL}`);
     }
   }, []);
 

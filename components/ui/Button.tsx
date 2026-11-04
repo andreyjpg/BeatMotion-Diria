@@ -31,7 +31,7 @@ type ButtonProps = {
   className?: string;
 };
 
-export default function Button({
+const Button = ({
   label,
   onPress,
   variant = "primary",
@@ -40,7 +40,7 @@ export default function Button({
   loading = false,
   disabled = false,
   className = "",
-}: ButtonProps) {
+}: ButtonProps) => {
   const inactive = disabled || loading;
   const look = VARIANT[variant];
   const box = disabled ? "bg-line-strong" : look.box;
@@ -67,4 +67,6 @@ export default function Button({
       )}
     </Pressable>
   );
-}
+};
+
+export default Button;

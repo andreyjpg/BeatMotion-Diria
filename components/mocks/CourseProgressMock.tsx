@@ -21,7 +21,7 @@ const BLOCK = {
 } as const;
 
 /** One block per class: attended (black), missed (gray), today, still to come. */
-export default function CourseProgressMock() {
+const CourseProgressMock = () => {
   return (
     <View className="gap-2 border-t border-line-soft pt-3">
       <View className="flex-row items-center justify-between gap-2">
@@ -44,4 +44,6 @@ export default function CourseProgressMock() {
       </AppText>
     </View>
   );
-}
+};
+
+export default CourseProgressMock;

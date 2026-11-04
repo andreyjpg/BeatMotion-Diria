@@ -35,7 +35,7 @@ const SEGMENTS: { value: CourseView; label: string }[] = [
 ];
 
 /** Admin: one course with its numbers, classes and students. */
-export default function AdminCourseScreen() {
+const AdminCourseScreen = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const courseQuery = useCourseById(id);
@@ -212,4 +212,6 @@ export default function AdminCourseScreen() {
       </DataLoader>
     </Screen>
   );
-}
+};
+
+export default AdminCourseScreen;

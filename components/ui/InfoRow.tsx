@@ -11,7 +11,7 @@ type InfoRowProps = {
 };
 
 /** "LABEL ........ value" row of a summary card. */
-export default function InfoRow({ label, children, divider = true }: InfoRowProps) {
+const InfoRow = ({ label, children, divider = true }: InfoRowProps) => {
   return (
     <View className={`flex-row items-center justify-between gap-2.5 py-2.5 ${divider ? "border-b border-line-soft" : ""}`}>
       <AppText variant="label" tone="muted" className="text-[10px]">
@@ -26,4 +26,6 @@ export default function InfoRow({ label, children, divider = true }: InfoRowProp
       )}
     </View>
   );
-}
+};
+
+export default InfoRow;

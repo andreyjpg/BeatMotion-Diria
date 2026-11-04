@@ -2,7 +2,7 @@ import BranchForm from "@/components/branches/BranchForm";
 import { useCreateBranch } from "@/hooks/branches/useCreateBranch";
 import { useRouter } from "expo-router";
 
-export default function NewBranchScreen() {
+const NewBranchScreen = () => {
   const router = useRouter();
   const createBranch = useCreateBranch();
 
@@ -14,4 +14,6 @@ export default function NewBranchScreen() {
       onSave={(values) => createBranch.mutate(values, { onSuccess: () => router.back() })}
     />
   );
-}
+};
+
+export default NewBranchScreen;

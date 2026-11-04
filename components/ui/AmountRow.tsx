@@ -14,7 +14,7 @@ type AmountRowProps = {
 };
 
 /** "Concept ......... ₡46.000" line of a payment breakdown. */
-export default function AmountRow({ label, amount, muted = false, total = false, divider = true }: AmountRowProps) {
+const AmountRow = ({ label, amount, muted = false, total = false, divider = true }: AmountRowProps) => {
   const tone = muted ? "muted" : "ink";
   return (
     <View className={`flex-row items-baseline justify-between gap-2.5 py-2.5 ${divider ? "border-b border-line-soft" : ""}`}>
@@ -26,4 +26,6 @@ export default function AmountRow({ label, amount, muted = false, total = false,
       </AppText>
     </View>
   );
-}
+};
+
+export default AmountRow;

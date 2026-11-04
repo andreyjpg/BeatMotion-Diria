@@ -39,7 +39,7 @@ type ChipProps = {
 };
 
 /** Small uppercase status tag. */
-export default function Chip({ label, tone = "line", icon }: ChipProps) {
+const Chip = ({ label, tone = "line", icon }: ChipProps) => {
   const look = TONE[tone];
   return (
     <View className={`h-[22px] flex-row items-center gap-1 self-start rounded-md px-2 ${look.box}`}>
@@ -49,4 +49,6 @@ export default function Chip({ label, tone = "line", icon }: ChipProps) {
       </AppText>
     </View>
   );
-}
+};
+
+export default Chip;

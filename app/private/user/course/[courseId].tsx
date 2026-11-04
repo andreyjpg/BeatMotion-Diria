@@ -4,6 +4,7 @@ import CourseProgressCardMock from "@/components/mocks/CourseProgressCardMock";
 import AppText from "@/components/ui/AppText";
 import Card from "@/components/ui/Card";
 import Chip, { statusTone, type ChipTone } from "@/components/ui/Chip";
+import ProgressBar from "@/components/ui/ProgressBar";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
@@ -127,9 +128,7 @@ const CourseDetail = () => {
                     {` / ${classes.length}`}
                   </AppText>
                 </AppText>
-                <View className="h-1.5 overflow-hidden rounded-full bg-control">
-                  <View className="h-full bg-ink" style={{ width: `${attendedPercent}%` }} />
-                </View>
+                <ProgressBar percent={attendedPercent} height={6} />
               </Card>
             </View>
 

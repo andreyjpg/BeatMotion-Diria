@@ -18,7 +18,7 @@ type BranchFormProps = {
 };
 
 /** The branch form, for creating and for editing. */
-export default function BranchForm({ heading, initial, saveLabel, saving, onSave }: BranchFormProps) {
+const BranchForm = ({ heading, initial, saveLabel, saving, onSave }: BranchFormProps) => {
   const [name, setName] = useState(initial?.name ?? "");
   const [location, setLocation] = useState(initial?.location ?? "");
   const [errors, setErrors] = useState<FormErrors<typeof branchFormSchema>>({});
@@ -45,4 +45,6 @@ export default function BranchForm({ heading, initial, saveLabel, saving, onSave
       </Card>
     </Screen>
   );
-}
+};
+
+export default BranchForm;

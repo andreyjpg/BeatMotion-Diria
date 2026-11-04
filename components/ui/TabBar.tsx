@@ -17,7 +17,7 @@ export type TabItem = {
 type TabBarProps = BottomTabBarProps & { items: TabItem[] };
 
 /** Bottom navigation: only the tabs of the signed-in role, in `items` order. */
-export default function TabBar({ state, emitter, navigateToTab, insets, items }: TabBarProps) {
+const TabBar = ({ state, emitter, navigateToTab, insets, items }: TabBarProps) => {
   const activeName = state.routes[state.index]?.name;
 
   return (
@@ -60,4 +60,6 @@ export default function TabBar({ state, emitter, navigateToTab, insets, items }:
       })}
     </View>
   );
-}
+};
+
+export default TabBar;

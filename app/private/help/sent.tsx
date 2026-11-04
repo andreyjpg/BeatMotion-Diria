@@ -14,7 +14,7 @@ import { useState } from "react";
 import { View } from "react-native";
 
 /** Help: confirmation after sending a question (a payment problem when `paymentId` is set). */
-export default function HelpSentScreen() {
+const HelpSentScreen = () => {
   const router = useRouter();
   const { paymentId, topic } = useLocalSearchParams<{ paymentId?: string; topic?: string }>();
   const { user } = useActiveUser();
@@ -69,4 +69,6 @@ export default function HelpSentScreen() {
       </View>
     </Screen>
   );
-}
+};
+
+export default HelpSentScreen;

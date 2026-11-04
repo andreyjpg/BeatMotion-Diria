@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Alert, FlatList, RefreshControl, View } from "react-native";
 
-export default function BranchesListScreen() {
+const BranchesListScreen = () => {
   const router = useRouter();
   const branchesQuery = useBranches();
   const coursesQuery = useCourses();
@@ -99,4 +99,6 @@ export default function BranchesListScreen() {
       <Fab label="Nueva sucursal" onPress={() => router.push("/private/admin/branches/new")} />
     </Screen>
   );
-}
+};
+
+export default BranchesListScreen;

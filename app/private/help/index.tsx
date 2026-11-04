@@ -58,7 +58,7 @@ const Option = ({ icon, title, text, dark = false, onPress }: OptionProps) => (
 );
 
 /** Help center: write to the academy about a payment or anything else, plus common questions. */
-export default function HelpScreen() {
+const HelpScreen = () => {
   const router = useRouter();
   const { user } = useActiveUser();
   const paymentsQuery = usePaymentsByUser(user?.uid);
@@ -127,4 +127,6 @@ export default function HelpScreen() {
       </Card>
     </Screen>
   );
-}
+};
+
+export default HelpScreen;

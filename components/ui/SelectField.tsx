@@ -22,7 +22,7 @@ type SelectFieldProps = {
 };
 
 /** Looks like a text field; opens a sheet with the options to choose from. */
-export default function SelectField({
+const SelectField = ({
   label,
   value,
   options,
@@ -32,7 +32,7 @@ export default function SelectField({
   hint,
   disabled = false,
   className = "",
-}: SelectFieldProps) {
+}: SelectFieldProps) => {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
@@ -101,4 +101,6 @@ export default function SelectField({
       </Modal>
     </View>
   );
-}
+};
+
+export default SelectField;

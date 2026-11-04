@@ -4,7 +4,7 @@ import { useCreateCourse } from "@/hooks/courses/useCreateCourse";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useRouter } from "expo-router";
 
-export default function NewCourseScreen() {
+const NewCourseScreen = () => {
   const router = useRouter();
   const { user } = useActiveUser();
   const createCourse = useCreateCourse();
@@ -29,4 +29,6 @@ export default function NewCourseScreen() {
       }
     />
   );
-}
+};
+
+export default NewCourseScreen;

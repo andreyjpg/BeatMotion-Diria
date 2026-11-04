@@ -19,7 +19,7 @@ const ACCOUNTS = [
 ];
 
 /** Where to send the transfer, one row per account with a copy button. */
-export default function TransferDetailsMock() {
+const TransferDetailsMock = () => {
   const [copied, setCopied] = useState<string | null>(null);
 
   return (
@@ -62,4 +62,6 @@ export default function TransferDetailsMock() {
       })}
     </Card>
   );
-}
+};
+
+export default TransferDetailsMock;

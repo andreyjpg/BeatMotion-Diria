@@ -4,10 +4,12 @@ import HomeTeacher from "@/components/screens/teacher/HomeTeacher";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 
 /** First tab: each role has its own home. */
-export default function HomeScreen() {
+const HomeScreen = () => {
   const { user } = useActiveUser();
 
   if (user?.role === "admin") return <HomeAdmin />;
   if (user?.role === "teacher") return <HomeTeacher />;
   return <HomeUser />;
-}
+};
+
+export default HomeScreen;

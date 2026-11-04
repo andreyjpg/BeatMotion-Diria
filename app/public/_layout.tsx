@@ -5,7 +5,7 @@ import { Stack } from "expo-router";
 export const unstable_settings = { anchor: "login" };
 
 // Every public screen draws its own header (ScreenHeader or the login hero).
-export default function PublicLayout() {
+const PublicLayout = () => {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="login" />
@@ -13,4 +13,6 @@ export default function PublicLayout() {
       <Stack.Screen name="resetPassword" />
     </Stack>
   );
-}
+};
+
+export default PublicLayout;

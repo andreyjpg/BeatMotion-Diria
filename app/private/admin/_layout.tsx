@@ -1,18 +1,21 @@
+import AppText from "@/components/ui/AppText";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Redirect, Stack } from "expo-router";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 // Admins only: creating and editing courses, classes and the rest. Teachers
 // have their own read-only screens in app/private/teacher. This only hides
 // screens: what each role may actually change is enforced by the database's
 // access rules.
-export default function AdminLayout() {
+const AdminLayout = () => {
   const { user, isLoading } = useActiveUser();
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-black">
-        <Text className="text-white">Cargando acceso...</Text>
+      <View className="flex-1 items-center justify-center bg-ground">
+        <AppText tone="faint" className="text-[14px]">
+          Cargando acceso…
+        </AppText>
       </View>
     );
   }
@@ -52,6 +55,10 @@ export default function AdminLayout() {
       />
       <Stack.Screen
         name="events/[id]"
+        options={{ title: "Evento", headerShown: false }}
+      />
+      <Stack.Screen
+        name="events/edit/[id]"
         options={{ title: "Editar evento", headerShown: false }}
       />
 
@@ -76,6 +83,10 @@ export default function AdminLayout() {
         name="enrollments/enrollmentList"
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="enrollments/[enrollmentId]"
+        options={{ headerShown: false }}
+      />
 
       {/* notification Center */}
       <Stack.Screen
@@ -86,10 +97,7 @@ export default function AdminLayout() {
         name="notifications/[draftId]"
         options={{ headerShown: false }}
       />
-      <Stack.Screen
-        name="notifications/notificationsHistory"
-        options={{ headerShown: false }}
-      />
+      <Stack.Screen name="Dashboard" options={{ headerShown: false }} />
       <Stack.Screen
         name="surveys/list"
         options={{
@@ -135,4 +143,6 @@ export default function AdminLayout() {
       />
     </Stack>
   );
-}
+};
+
+export default AdminLayout;

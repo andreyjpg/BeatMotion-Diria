@@ -32,7 +32,7 @@ const tabsFor = (role: string | undefined, unreadNotices: boolean): (TabItem & {
 };
 
 /** Main navigation once signed in: a bottom tab bar per role. */
-export default function TabsLayout() {
+const TabsLayout = () => {
   const { user } = useActiveUser();
   const notificationsQuery = useMyNotifications();
   useCreateFCMToken();
@@ -53,4 +53,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="profile" options={{ href: hrefFor("profile") }} />
     </Tabs>
   );
-}
+};
+
+export default TabsLayout;

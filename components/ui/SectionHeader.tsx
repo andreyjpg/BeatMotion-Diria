@@ -10,7 +10,7 @@ type SectionHeaderProps = {
 };
 
 /** Uppercase label that opens a block of content. */
-export default function SectionHeader({ title, action, note }: SectionHeaderProps) {
+const SectionHeader = ({ title, action, note }: SectionHeaderProps) => {
   return (
     <View className="flex-row items-baseline justify-between px-5 pb-2.5 pt-6">
       <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
@@ -31,4 +31,6 @@ export default function SectionHeader({ title, action, note }: SectionHeaderProp
       )}
     </View>
   );
-}
+};
+
+export default SectionHeader;

@@ -15,17 +15,23 @@ type ScreenHeaderProps = {
   onNav?: () => void;
   /** Action on the right of the top bar (edit, next…). */
   right?: ReactNode;
+  /** Beside the title (a person's avatar). */
+  leading?: ReactNode;
+  /** Between the top bar and the title (a form's steps). */
+  belowBar?: ReactNode;
 };
 
 /** Top bar + big italic title used at the top of every screen. */
-export default function ScreenHeader({
+const ScreenHeader = ({
   title,
   subtitle,
   eyebrow,
   nav = "back",
   onNav,
   right,
-}: ScreenHeaderProps) {
+  leading,
+  belowBar,
+}: ScreenHeaderProps) => {
   const router = useRouter();
   const hasBar = nav !== false || !!eyebrow || !!right;
 
@@ -52,16 +58,22 @@ export default function ScreenHeader({
           {right ?? <View className="w-11" />}
         </View>
       )}
-      <View className={`px-5 ${hasBar ? "pt-3.5" : "pt-7"}`}>
-        <AppText variant="display" className="text-[34px] leading-[38px]">
-          {title}
-        </AppText>
-        {subtitle && (
-          <AppText tone="muted" className="text-[14.5px] leading-[20px] mt-1.5">
-            {subtitle}
+      {belowBar}
+      <View className={`flex-row items-center gap-3.5 px-5 ${hasBar ? "pt-3.5" : "pt-7"}`}>
+        {leading}
+        <View className="flex-1">
+          <AppText variant="display" className="text-[34px] leading-[38px]">
+            {title}
           </AppText>
-        )}
+          {subtitle && (
+            <AppText tone="muted" className="text-[14.5px] leading-[20px] mt-1.5">
+              {subtitle}
+            </AppText>
+          )}
+        </View>
       </View>
     </View>
   );
-}
+};
+
+export default ScreenHeader;

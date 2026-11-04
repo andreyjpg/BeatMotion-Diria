@@ -53,7 +53,7 @@ type ClassFormProps = {
 };
 
 /** The class form, for creating and for editing. Admins only. */
-export default function ClassForm({
+const ClassForm = ({
   heading,
   initial,
   preselectedCourseId,
@@ -61,7 +61,7 @@ export default function ClassForm({
   saving,
   onSave,
   onDelete,
-}: ClassFormProps) {
+}: ClassFormProps) => {
   const router = useRouter();
   const coursesQuery = useCourses();
   const courses = coursesQuery.data ?? [];
@@ -258,4 +258,6 @@ export default function ClassForm({
       )}
     </Screen>
   );
-}
+};
+
+export default ClassForm;

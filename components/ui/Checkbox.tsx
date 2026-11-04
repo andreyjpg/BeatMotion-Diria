@@ -9,16 +9,18 @@ type CheckboxProps = {
   /** Text next to the box; tapping it toggles too. */
   children: ReactNode;
   accessibilityLabel?: string;
+  /** Extra classes for the whole row (a card's padding and border). */
+  className?: string;
 };
 
-export default function Checkbox({ checked, onChange, children, accessibilityLabel }: CheckboxProps) {
+const Checkbox = ({ checked, onChange, children, accessibilityLabel, className = "" }: CheckboxProps) => {
   return (
     <Pressable
       onPress={() => onChange(!checked)}
       accessibilityRole="checkbox"
       aria-checked={checked}
       accessibilityLabel={accessibilityLabel}
-      className="flex-row items-start gap-3"
+      className={`flex-row items-start gap-3 ${className}`}
     >
       <View
         className={`h-6 w-6 items-center justify-center rounded-[7px] border-2 ${
@@ -30,4 +32,6 @@ export default function Checkbox({ checked, onChange, children, accessibilityLab
       <View className="flex-1">{children}</View>
     </Pressable>
   );
-}
+};
+
+export default Checkbox;

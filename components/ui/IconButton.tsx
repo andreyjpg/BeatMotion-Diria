@@ -24,7 +24,7 @@ type IconButtonProps = {
 };
 
 /** Round button with only an icon (back, close, edit, delete…). */
-export default function IconButton({
+const IconButton = ({
   icon,
   onPress,
   accessibilityLabel,
@@ -32,7 +32,7 @@ export default function IconButton({
   size = 44,
   iconColor,
   disabled,
-}: IconButtonProps) {
+}: IconButtonProps) => {
   return (
     <Pressable
       onPress={onPress}
@@ -46,4 +46,6 @@ export default function IconButton({
       <Ionicons name={icon} size={Math.round(size * 0.45)} color={iconColor ?? TONE[tone].icon} />
     </Pressable>
   );
-}
+};
+
+export default IconButton;

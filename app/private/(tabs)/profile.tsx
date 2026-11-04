@@ -1,26 +1,55 @@
+import DataLoader from "@/components/DataLoader";
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
-import FormScrollView from "@/components/FormScrollView";
-import HeaderTitle from "@/components/headerTitle";
-import { UserProfileValidationSchema } from "@/constants/validationForms";
+import AppText from "@/components/ui/AppText";
+import Avatar from "@/components/ui/Avatar";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import Chip from "@/components/ui/Chip";
+import Field from "@/components/ui/Field";
+import type { IconName } from "@/components/ui/IconButton";
+import InfoRow from "@/components/ui/InfoRow";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import { digitsOnly, PRIVACY_POLICY_URL, roleLabel } from "@/constants/helpers";
+import palette from "@/constants/palette.json";
+import { FormErrors, profileFormSchema, validationErrors } from "@/constants/validationForms";
 import { useDeleteAccount } from "@/hooks/auth/useDeleteAccount";
 import { useSignOut } from "@/hooks/auth/useSignOut";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useUpdateProfile } from "@/hooks/user/useUpdateProfile";
 import { useUserInfo } from "@/hooks/user/useUserInfo";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import {
-  Alert,
-  Image,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { object, ValidationError } from "yup";
+import { useState } from "react";
+import { Alert, Linking, Pressable, View } from "react-native";
 
-export default function ProfileScreen() {
+const ActionRow = ({
+  icon,
+  label,
+  onPress,
+  chevron = false,
+  divider = false,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  chevron?: boolean;
+  divider?: boolean;
+}) => (
+  <Pressable
+    onPress={onPress}
+    accessibilityRole="button"
+    className={`flex-row items-center gap-3 px-4 py-3.5 active:opacity-70 ${divider ? "border-b border-line-soft" : ""}`}
+  >
+    <Ionicons name={icon} size={20} color={palette.ink} />
+    <AppText variant="semibold" className="flex-1 text-[15px]">
+      {label}
+    </AppText>
+    {chevron && <Ionicons name="chevron-forward" size={18} color={palette.ink} />}
+  </Pressable>
+);
+
+const ProfileScreen = () => {
   const { user: activeUser } = useActiveUser();
   const userInfo = useUserInfo(activeUser?.uid as string);
   const updateProfile = useUpdateProfile();
@@ -31,71 +60,29 @@ export default function ProfileScreen() {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [photoUrl, setPhotoUrl] = useState<string | null>("");
-  const [email, setEmail] = useState<string | null>("");
+  const [errors, setErrors] = useState<FormErrors<typeof profileFormSchema>>({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const [formErrors, setFormErrors] = useState({
-    name: "",
-    lastName: "",
-    phone: "",
-  });
-
-  useEffect(() => {
-    if (userInfo.data) {
-      setName(userInfo.data.name);
-      setLastName(userInfo.data.lastName);
-      setPhone(userInfo.data.phone || "");
-      setPhotoUrl(userInfo.data?.photoURL || null);
-      setEmail(userInfo.data.email);
-    }
-  }, [userInfo.data]);
-
-  const validation = () => {
-    try {
-      object(UserProfileValidationSchema).validateSync(
-        {
-          name,
-          lastName,
-          phone,
-        },
-        {
-          abortEarly: false,
-        },
-      );
-      setFormErrors({
-        name: "",
-        lastName: "",
-        phone: "",
-      });
-    } catch (err) {
-      if (!(err instanceof ValidationError)) throw err;
-      const errors = {
-        name: "",
-        lastName: "",
-        phone: "",
-      };
-      err.inner.forEach((error) => {
-        errors[error.path as keyof typeof errors] = error.message;
-      });
-      setFormErrors(errors);
-      return false;
-    }
-    return true;
+  const handleEdit = () => {
+    setName(userInfo.data?.name ?? "");
+    setLastName(userInfo.data?.lastName ?? "");
+    setPhone(userInfo.data?.phone ?? "");
+    setErrors({});
+    setEditing(true);
   };
 
   const handleSave = async () => {
-    if (validation()) {
-      updateProfile.mutate({
-        uid: activeUser?.uid || "",
-        body: {
-          name,
-          lastName,
-          phone,
-        },
-      });
-      setEditing(false);
-    }
+    const phoneDigits = digitsOnly(phone);
+    const found = validationErrors(profileFormSchema, { name, lastName, phone: phoneDigits });
+    setErrors(found);
+    if (Object.keys(found).length > 0) return;
+    await updateProfile.mutateAsync({
+      uid: activeUser?.uid || "",
+      body: { name, lastName, phone: phoneDigits },
+    });
+    // Back to the saved data, not what it said before saving.
+    await userInfo.refetch();
+    setEditing(false);
   };
 
   // Signing out unmounts this screen (the root layout switches to the login
@@ -120,163 +107,102 @@ export default function ProfileScreen() {
     }
   };
 
-  const resetState = () => {
-    if (userInfo.data) {
-      setName(userInfo.data.name);
-      setLastName(userInfo.data.lastName);
-      setPhone(userInfo.data.phone || "");
-      setPhotoUrl(userInfo.data?.photoURL || null);
-      setEmail(userInfo.data.email);
-    }
-  };
-
-  if (userInfo.isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-black px-6">
-        <Text className="text-white text-lg">Cargando usuario...</Text>
-      </View>
-    );
-  }
-
   return (
-    <SafeAreaView className="flex-1 bg-black">
-      <HeaderTitle title="Mi Perfil" />
+    <Screen form inTabs>
+      <ScreenHeader nav={false} title="Perfil" />
+      <DataLoader query={userInfo} emptyMessage="No encontramos tu perfil.">
+        {(profile) => (
+          <>
+            <Card className="mx-3 mt-4 flex-row items-center gap-3.5">
+              <Avatar name={profile.name} lastName={profile.lastName} photoUrl={profile.photoURL} size={68} tone="dark" />
+              <View className="flex-1 gap-1">
+                <AppText variant="bold" className="text-[19px]">
+                  {`${profile.name} ${profile.lastName}`.trim() || "Sin nombre"}
+                </AppText>
+                <AppText tone="muted" className="text-[13.5px]" numberOfLines={1}>
+                  {profile.email || "Sin correo"}
+                </AppText>
+                {activeUser && <Chip label={roleLabel[activeUser.role] ?? activeUser.role} tone="ok" />}
+              </View>
+            </Card>
 
-      <FormScrollView className="px-4">
-        <View className="items-center mb-8">
-          {photoUrl ? (
-            <Image
-              source={{ uri: photoUrl }}
-              className="w-28 h-28 rounded-full mb-4"
-            />
-          ) : (
-            <View className="w-28 h-28 rounded-full bg-gray-800 mb-4 items-center justify-center">
-              <Text className="text-white text-xl">
-                {(name?.[0] ?? email?.[0] ?? "U").toUpperCase()}
-              </Text>
-            </View>
-          )}
-          <Text className="text-white text-xl font-semibold">
-            {`${name} ${lastName}`.trim() || "Sin nombre"}
-          </Text>
-          <Text className="text-gray-400">{email || "Sin correo"}</Text>
-        </View>
+            {/* TODO(cumpleaños): the design also shows the birth date and age, which
+                need birth_date on profiles (see TODO.md). */}
+            {editing ? (
+              <Card className="mx-3 mt-2.5 gap-3">
+                <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
+                  Editar datos
+                </AppText>
+                <View className="flex-row items-start gap-2.5">
+                  <Field label="Nombre" value={name} onChangeText={setName} placeholder="Tu nombre" error={errors.name} className="flex-1" />
+                  <Field label="Apellido" value={lastName} onChangeText={setLastName} placeholder="Tu apellido" error={errors.lastName} className="flex-1" />
+                </View>
+                <Field
+                  label="Teléfono"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  placeholder="Tu teléfono"
+                  error={errors.phone}
+                />
+                <View className="flex-row gap-2.5">
+                  <Button
+                    label="Cancelar"
+                    variant="secondary"
+                    onPress={() => setEditing(false)}
+                    disabled={updateProfile.isPending}
+                    className="flex-1"
+                  />
+                  <Button label="Guardar" onPress={handleSave} loading={updateProfile.isPending} className="flex-1" />
+                </View>
+              </Card>
+            ) : (
+              <Card className="mx-3 mt-2.5 py-2">
+                <View className="flex-row items-center justify-between py-1.5">
+                  <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
+                    Mis datos
+                  </AppText>
+                  <Button label="Editar" icon="create-outline" variant="secondary" size="sm" onPress={handleEdit} />
+                </View>
+                <InfoRow label="Nombre">{profile.name || "—"}</InfoRow>
+                <InfoRow label="Apellido">{profile.lastName || "—"}</InfoRow>
+                <InfoRow label="Teléfono">{profile.phone || "—"}</InfoRow>
+                <InfoRow label="Correo" divider={false}>
+                  {profile.email || "—"}
+                </InfoRow>
+              </Card>
+            )}
 
-        {!editing ? (
-          <View className="bg-gray-900 rounded-2xl p-4 mb-8">
-            <Text className="text-white font-semibold mb-3">Datos</Text>
-            <View className="mb-3">
-              <Text className="text-gray-400 text-xs mb-1">Nombre</Text>
-              <Text className="text-white">{name || "—"}</Text>
-            </View>
-            <View className="mb-3">
-              <Text className="text-gray-400 text-xs mb-1">Apellido</Text>
-              <Text className="text-white">{lastName || "—"}</Text>
-            </View>
-            <View className="mb-3">
-              <Text className="text-gray-400 text-xs mb-1">Teléfono</Text>
-              <Text className="text-white">{phone || "—"}</Text>
-            </View>
-
-            <View className="gap-3 mt-2">
-              <TouchableOpacity
-                className="bg-white rounded-2xl px-5 py-4 active:opacity-80"
-                onPress={() => setEditing(true)}
-              >
-                <Text className="text-center font-semibold">Editar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View className="bg-gray-900 rounded-2xl p-4 mb-8">
-            <Text className="text-white font-semibold mb-3">Editar datos</Text>
-            <View className="mb-3">
-              <Text className="text-gray-400 text-xs mb-1">Nombre</Text>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Tu nombre"
-                placeholderTextColor="#9CA3AF"
-                className="bg-gray-800 text-white rounded-xl px-3 py-3"
+            <Card padded={false} className="mx-3 mt-2.5 py-1">
+              <ActionRow
+                icon="lock-closed-outline"
+                label="Políticas de privacidad"
+                onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+                chevron
+                divider
               />
-              {formErrors.name && (
-                <Text className="text-red-500">{formErrors.name}</Text>
-              )}
-            </View>
-            <View className="mb-3">
-              <Text className="text-gray-400 text-xs mb-1">Apellido</Text>
-              <TextInput
-                value={lastName}
-                onChangeText={setLastName}
-                placeholder="Tu apellido"
-                placeholderTextColor="#9CA3AF"
-                className="bg-gray-800 text-white rounded-xl px-3 py-3"
-              />
-              {formErrors.name && (
-                <Text className="text-red-500">{formErrors.lastName}</Text>
-              )}
-            </View>
-            <View className="mb-3">
-              <Text className="text-gray-400 text-xs mb-1">Teléfono</Text>
-              <TextInput
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                placeholder="Tu teléfono"
-                placeholderTextColor="#9CA3AF"
-                className="bg-gray-800 text-white rounded-xl px-3 py-3"
-              />
-              {formErrors.name && (
-                <Text className="text-red-500">{formErrors.phone}</Text>
-              )}
-            </View>
+              <ActionRow icon="log-out-outline" label="Cerrar sesión" onPress={handleLogout} />
+            </Card>
 
-            <View className="gap-3 mt-2">
-              <TouchableOpacity
-                className="bg-primary rounded-2xl px-5 py-4 active:opacity-80"
-                onPress={handleSave}
-              >
-                <Text className="text-center font-semibold">Guardar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="bg-gray-700 rounded-2xl px-5 py-4 active:opacity-80"
-                onPress={() => {
-                  setEditing(false);
-                  resetState();
-                }}
-              >
-                <Text className="text-center font-semibold text-white">
-                  Cancelar
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            <Pressable
+              onPress={() => setShowDeleteModal(true)}
+              accessibilityRole="button"
+              className="mt-2 items-center py-3.5 active:opacity-70"
+            >
+              <AppText variant="semibold" tone="danger" className="text-[14px]">
+                Eliminar mi cuenta
+              </AppText>
+            </Pressable>
+          </>
         )}
-
-        <TouchableOpacity
-          className="bg-red-500 rounded-2xl px-5 py-4 active:opacity-80"
-          onPress={handleLogout}
-          accessibilityLabel="Cerrar sesión"
-        >
-          <Text className="text-center font-semibold text-white">
-            Cerrar sesión
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          className="border border-red-500 rounded-2xl px-5 py-4 active:opacity-80 mt-8"
-          onPress={() => setShowDeleteModal(true)}
-          accessibilityLabel="Eliminar Cuenta"
-        >
-          <Text className="text-center font-semibold text-red-500">
-            Eliminar cuenta
-          </Text>
-        </TouchableOpacity>
-      </FormScrollView>
+      </DataLoader>
       <DeleteAccountModal
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteAccount}
       />
-    </SafeAreaView>
+    </Screen>
   );
-}
+};
+
+export default ProfileScreen;

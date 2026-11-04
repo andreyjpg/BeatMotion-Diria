@@ -20,7 +20,7 @@ const TONE = {
 } as const;
 
 /** Profile photo, or the person's initials when there's none. */
-export default function Avatar({
+const Avatar = ({
   name,
   lastName,
   photoUrl,
@@ -28,7 +28,7 @@ export default function Avatar({
   tone = "soft",
   onPress,
   accessibilityLabel,
-}: AvatarProps) {
+}: AvatarProps) => {
   const circle = (
     <View
       className={`items-center justify-center overflow-hidden rounded-full ${TONE[tone].box}`}
@@ -49,4 +49,6 @@ export default function Avatar({
       {circle}
     </Pressable>
   );
-}
+};
+
+export default Avatar;

@@ -10,7 +10,7 @@ import { useCourseById } from "@/hooks/courses/useCourseById";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 /** A class of the student's course. Today's class also asks if they're coming. */
-export default function StudentClassScreen() {
+const StudentClassScreen = () => {
   const router = useRouter();
   const { classId } = useLocalSearchParams<{ classId: string }>();
   const classQuery = useGetClassInfo(classId);
@@ -44,4 +44,6 @@ export default function StudentClassScreen() {
       </DataLoader>
     </Screen>
   );
-}
+};
+
+export default StudentClassScreen;

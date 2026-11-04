@@ -2,7 +2,7 @@ import ClassForm from "@/components/courses/ClassForm";
 import { useCreateClass } from "@/hooks/classes/useCreateClass";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-export default function NewClassScreen() {
+const NewClassScreen = () => {
   const router = useRouter();
   const { courseId } = useLocalSearchParams<{ courseId?: string }>();
   const createClass = useCreateClass();
@@ -26,4 +26,6 @@ export default function NewClassScreen() {
       }
     />
   );
-}
+};
+
+export default NewClassScreen;

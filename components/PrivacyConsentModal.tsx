@@ -1,3 +1,4 @@
+import { PRIVACY_POLICY_URL } from "@/constants/helpers";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -9,7 +10,6 @@ import {
   View,
 } from "react-native";
 
-const PRIVACY_POLICY_URL = "https://beatmotion-politica-privacidad.netlify.app";
 
 const Section = ({
   title,

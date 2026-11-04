@@ -16,7 +16,7 @@ type HomeHeroProps = {
 };
 
 /** Black card at the top of every home: logo, avatar, the day's headline. */
-export default function HomeHero({ eyebrow, title, subtitle, children }: HomeHeroProps) {
+const HomeHero = ({ eyebrow, title, subtitle, children }: HomeHeroProps) => {
   const router = useRouter();
   const { user } = useActiveUser();
 
@@ -47,4 +47,6 @@ export default function HomeHero({ eyebrow, title, subtitle, children }: HomeHer
       {children}
     </View>
   );
-}
+};
+
+export default HomeHero;

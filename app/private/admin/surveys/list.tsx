@@ -1,210 +1,137 @@
 import DataLoader from "@/components/DataLoader";
-import HeaderTitle from "@/components/headerTitle";
-import { useSurveys } from "@/hooks/surveys/useSurveys";
-import { useSetSurveyActive } from "@/hooks/surveys/useSetSurveyActive";
+import AppText from "@/components/ui/AppText";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import Chip from "@/components/ui/Chip";
+import Fab from "@/components/ui/Fab";
+import IconButton from "@/components/ui/IconButton";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import { formatDayMonth } from "@/constants/helpers";
+import palette from "@/constants/palette.json";
+import type { Survey } from "@/hooks/surveys/surveySchema";
 import { useDeleteSurvey } from "@/hooks/surveys/useDeleteSurvey";
-import { Ionicons } from "@expo/vector-icons";
+import { useSetSurveyActive } from "@/hooks/surveys/useSetSurveyActive";
+import { useSurveys } from "@/hooks/surveys/useSurveys";
 import { useRouter } from "expo-router";
-import {
-  Alert,
-  FlatList,
-  RefreshControl,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Survey } from "@/hooks/surveys/surveySchema";
-import type { Href } from "expo-router";
+import { Alert, FlatList, RefreshControl, View } from "react-native";
 
-export default function SurveysListScreen() {
+/** Admin: every survey, to see its results, edit it or turn it on and off. */
+const SurveysListScreen = () => {
   const router = useRouter();
   const surveysQuery = useSurveys();
   const toggleActive = useSetSurveyActive();
   const deleteSurvey = useDeleteSurvey();
 
   const handleToggleActive = (survey: Survey) => {
-    const action = survey.isActive ? "desactivar" : "activar";
-    Alert.alert(
-      `¿${action.charAt(0).toUpperCase() + action.slice(1)} encuesta?`,
-      `La encuesta "${survey.title}" será ${action}da.`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: action.charAt(0).toUpperCase() + action.slice(1),
-          onPress: () => {
-            toggleActive.mutate({
-              surveyId: survey.id,
-              isActive: !survey.isActive,
-            });
-          },
-        },
-      ]
-    );
+    const action = survey.isActive ? "Desactivar" : "Activar";
+    Alert.alert(`¿${action} encuesta?`, `La encuesta "${survey.title}" será ${action.toLowerCase()}da.`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: action,
+        onPress: () => toggleActive.mutate({ surveyId: survey.id, isActive: !survey.isActive }),
+      },
+    ]);
   };
 
   const handleDeleteSurvey = (survey: Survey) => {
-    Alert.alert(
-      "Eliminar encuesta",
-      `¿Estás seguro de eliminar "${survey.title}"? Esta acción no se puede deshacer.`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: () => deleteSurvey.mutate(survey.id),
-        },
-      ]
-    );
-  };
-
-  const handleViewResults = (surveyId: string) => {
-    router.push(`/private/admin/surveys/results/${surveyId}`);
-  };
-
-  const handleEditSurvey = (surveyId: string) => {
-    router.push(`/private/admin/surveys/create?surveyId=${surveyId}` as Href);
-  };
-
-  const handleCreateSurvey = () => {
-    router.push("/private/admin/surveys/create");
+    Alert.alert("Eliminar encuesta", `¿Estás seguro de eliminar "${survey.title}"? Esta acción no se puede deshacer.`, [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Eliminar", style: "destructive", onPress: () => deleteSurvey.mutate(survey.id) },
+    ]);
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-black">
-      <HeaderTitle
-        title="Gestión de Encuestas"
-        subtitle="Crea y administra encuestas de satisfacción"
+    <Screen scroll={false}>
+      <ScreenHeader
+        eyebrow="Administración"
+        title="Encuestas"
+        subtitle="Crea encuestas por curso y revisa las respuestas."
       />
-
-      <DataLoader
-        query={surveysQuery}
-        emptyMessage="No hay encuestas creadas aún."
-      >
+      <DataLoader query={surveysQuery} emptyMessage="Todavía no hay encuestas.">
         {(surveys, isRefetching, refetch) => (
           <FlatList
             data={surveys}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 100 }}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefetching}
-                onRefresh={refetch}
-                tintColor="#40E0D0"
-              />
-            }
-            renderItem={({ item: survey }) => (
-              <View className="bg-gray-900 rounded-3xl p-4 mb-4">
-                {/* Header */}
-                <View className="flex-row items-start justify-between mb-3">
-                  <View className="flex-1 mr-2">
-                    <Text className="text-white text-lg font-bold">
-                      {survey.title}
-                    </Text>
-                    {survey.description && (
-                      <Text className="text-gray-400 text-sm mt-1">
-                        {survey.description}
-                      </Text>
+            // Bottom space so the floating button doesn't cover the last card.
+            contentContainerClassName="gap-2.5 px-3 pb-28 pt-5"
+            showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+            renderItem={({ item: survey }) => {
+              const expired = !!survey.expiresAt && survey.expiresAt < new Date();
+              return (
+                <Card className={`gap-2.5 ${survey.isActive ? "" : "opacity-75"}`}>
+                  <View className="flex-row items-center justify-between gap-2">
+                    <View className="flex-1 flex-row flex-wrap gap-1.5">
+                      <Chip label={survey.isActive ? "Activa" : "Inactiva"} tone={survey.isActive ? "ok" : "muted"} />
+                      {survey.courseName ? <Chip label={survey.courseName} /> : null}
+                    </View>
+                    {survey.expiresAt && (
+                      <AppText variant="label" tone="muted" className="text-[10px]">
+                        {`${expired ? "Cerró" : "Vence"} ${formatDayMonth(survey.expiresAt)}`}
+                      </AppText>
                     )}
                   </View>
-                  <View
-                    className={`px-3 py-1 rounded-full ${
-                      survey.isActive ? "bg-green-600" : "bg-gray-700"
-                    }`}
-                  >
-                    <Text className="text-white text-xs font-semibold">
-                      {survey.isActive ? "Activa" : "Inactiva"}
-                    </Text>
+                  <AppText variant="bold" className="text-[17px] leading-[21px]">
+                    {survey.title}
+                  </AppText>
+                  <View className="flex-row items-baseline gap-1.5">
+                    <AppText variant="heavy" className="text-[22px]">
+                      {survey.responseCount}
+                    </AppText>
+                    <AppText tone="muted" className="text-[13px]">
+                      {`${survey.responseCount === 1 ? "respuesta" : "respuestas"} · ${
+                        survey.questions.length === 1 ? "1 pregunta" : `${survey.questions.length} preguntas`
+                      }`}
+                    </AppText>
                   </View>
-                </View>
-
-                {/* Info */}
-                <View className="flex-row items-center gap-4 mb-3">
-                  <View className="flex-row items-center gap-1">
-                    <Ionicons name="help-circle-outline" size={16} color="#9CA3AF" />
-                    <Text className="text-gray-400 text-sm">
-                      {survey.questions.length} preguntas
-                    </Text>
-                  </View>
-                  {survey.courseName && (
-                    <View className="flex-row items-center gap-1">
-                      <Ionicons name="book-outline" size={16} color="#9CA3AF" />
-                      <Text className="text-gray-400 text-sm" numberOfLines={1}>
-                        {survey.courseName}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                {survey.expiresAt && (
-                  <View className="flex-row items-center gap-1 mb-3">
-                    <Ionicons name="time-outline" size={14} color="#facc15" />
-                    <Text className="text-yellow-400 text-xs">
-                      Expira: {new Date(survey.expiresAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Actions */}
-                <View className="flex-row gap-2">
-                  <TouchableOpacity
-                    className="flex-1 bg-primary rounded-xl py-2 items-center flex-row justify-center gap-1"
-                    onPress={() => handleViewResults(survey.id)}
-                  >
-                    <Ionicons name="bar-chart-outline" size={16} color="black" />
-                    <Text className="text-black font-semibold text-sm">
-                      Resultados
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    className="flex-1 bg-gray-800 rounded-xl py-2 items-center flex-row justify-center gap-1"
-                    onPress={() => handleEditSurvey(survey.id)}
-                  >
-                    <Ionicons name="create-outline" size={16} color="white" />
-                    <Text className="text-white font-semibold text-sm">
-                      Editar
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    className="w-10 h-10 bg-gray-800 rounded-xl items-center justify-center"
-                    onPress={() => handleToggleActive(survey)}
-                  >
-                    <Ionicons
-                      name={survey.isActive ? "pause" : "play"}
-                      size={20}
-                      color="#40E0D0"
+                  <View className="flex-row items-center gap-1.5">
+                    <Button
+                      label="Ver resultados"
+                      size="sm"
+                      onPress={() =>
+                        router.push({
+                          pathname: "/private/admin/surveys/results/[surveyId]",
+                          params: { surveyId: survey.id },
+                        })
+                      }
+                      className="flex-1"
                     />
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    className="w-10 h-10 bg-red-600 rounded-xl items-center justify-center"
-                    onPress={() => handleDeleteSurvey(survey)}
-                  >
-                    <Ionicons name="trash-outline" size={20} color="white" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+                    <IconButton
+                      icon="create-outline"
+                      tone="outline"
+                      size={40}
+                      onPress={() =>
+                        router.push({ pathname: "/private/admin/surveys/create", params: { surveyId: survey.id } })
+                      }
+                      accessibilityLabel="Editar encuesta"
+                    />
+                    <IconButton
+                      icon={survey.isActive ? "pause-outline" : "play-outline"}
+                      tone="outline"
+                      size={40}
+                      onPress={() => handleToggleActive(survey)}
+                      accessibilityLabel={survey.isActive ? "Desactivar encuesta" : "Activar encuesta"}
+                    />
+                    <IconButton
+                      icon="trash-outline"
+                      tone="outline"
+                      size={40}
+                      iconColor={palette.danger.DEFAULT}
+                      onPress={() => handleDeleteSurvey(survey)}
+                      accessibilityLabel="Eliminar encuesta"
+                    />
+                  </View>
+                </Card>
+              );
+            }}
           />
         )}
       </DataLoader>
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
-        className="absolute bottom-8 right-8 w-16 h-16 bg-primary rounded-full items-center justify-center shadow-lg"
-        onPress={handleCreateSurvey}
-        style={{
-          shadowColor: "#40E0D0",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
-          elevation: 8,
-        }}
-      >
-        <Ionicons name="add" size={32} color="black" />
-      </TouchableOpacity>
-    </SafeAreaView>
+      <Fab label="Nueva encuesta" onPress={() => router.push("/private/admin/surveys/create")} />
+    </Screen>
   );
-}
+};
+
+export default SurveysListScreen;

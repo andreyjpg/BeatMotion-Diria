@@ -17,6 +17,7 @@ import {
   lateFeePerDay,
   monthlyFareFor,
   monthName,
+  planName,
 } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
@@ -142,7 +143,10 @@ const Detail = () => {
               </View>
 
               <Card padded={false} className="mx-3 mt-2.5 px-4 pb-1">
-                <AmountRow label={myCourses.map((course) => course.title).join(" + ")} amount={monthlyFare} />
+                <AmountRow
+                  label={`${planName(myCourses.length)} · ${myCourses.map((course) => course.title).join(" + ")}`}
+                  amount={monthlyFare}
+                />
                 <AmountRow
                   label={
                     lateFee.days > 0

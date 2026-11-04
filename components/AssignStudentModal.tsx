@@ -20,7 +20,7 @@ type AssignStudentModalProps = {
 };
 
 /** Sheet to search for a student and add them to the course. */
-export default function AssignStudentModal({ visible, courseId, courseName, onClose }: AssignStudentModalProps) {
+const AssignStudentModal = ({ visible, courseId, courseName, onClose }: AssignStudentModalProps) => {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
@@ -133,4 +133,6 @@ export default function AssignStudentModal({ visible, courseId, courseName, onCl
       </View>
     </Modal>
   );
-}
+};
+
+export default AssignStudentModal;

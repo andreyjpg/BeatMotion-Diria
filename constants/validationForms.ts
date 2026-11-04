@@ -36,6 +36,13 @@ export const ProfileAdminValidationSchema = {
     .required("El rol es obligatorio"),
 };
 
+/** An admin editing someone's profile (admin/user/[uid]); the role has its own control. */
+export const adminProfileFormSchema = yup.object({
+  name: ProfileAdminValidationSchema.name,
+  lastName: ProfileAdminValidationSchema.lastName,
+  phone: ProfileAdminValidationSchema.phone,
+});
+
 /** Notification draft (admin notifications/[draftId]). */
 export const draftFormSchema = yup.object().shape({
   title: yup.string().trim().required("El título es obligatorio"),
@@ -58,6 +65,9 @@ export const UserProfileValidationSchema = {
     .min(8, "Debe de ingresar un número válido")
     .max(8, "Debe de ingresar un número válido"),
 };
+
+/** The user's own profile (tabs/profile). */
+export const profileFormSchema = yup.object(UserProfileValidationSchema);
 
 /** Event form (admin events new / edit). */
 export const eventFormSchema = yup.object().shape({
@@ -146,6 +156,18 @@ export const surveyFormSchema = yup.object().shape({
     .min(3, "El título debe tener al menos 3 caracteres.")
     .max(200, "El título puede tener hasta 200 caracteres."),
   courseId: yup.string().required("Debes seleccionar un curso."),
+  expiresAt: yup
+    .date()
+    .nullable()
+    .test("future", "La fecha no puede ser en el pasado.", function (value) {
+      if (!value) return true;
+      // Editing may keep a survey's old date; checked at the time of saving.
+      const original: unknown = this.parent?.originalExpiresAt;
+      if (original instanceof Date && value.getTime() === original.getTime())
+        return true;
+      return value.getTime() > Date.now();
+    }),
+  originalExpiresAt: yup.date().nullable(),
   questions: yup
     .array()
     .of(yup.mixed<SurveyQuestionInput>().required())

@@ -1,5 +1,5 @@
 import DataLoader from "@/components/DataLoader";
-import ImageModal from "@/components/ImageModal";
+import ReceiptPreview from "@/components/ReceiptPreview";
 import AmountRow from "@/components/ui/AmountRow";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
@@ -9,22 +9,19 @@ import IconButton from "@/components/ui/IconButton";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import { formatShortDate, paymentStatusLabel, to12hLabel } from "@/constants/helpers";
-import palette from "@/constants/palette.json";
 import type { ReviewStatus } from "@/hooks/enrollment/schema";
 import { usePaymentCount } from "@/hooks/payment/usePaymentCount";
 import { usePayments } from "@/hooks/payment/usePayments";
 import { useReviewPayment } from "@/hooks/payment/useReviewPayment";
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
-import { Alert, Image, Pressable, View } from "react-native";
+import { Alert, View } from "react-native";
 
 /**
  * Admin: one receipt next to the amount it should show, to approve or reject
  * it. Opened from the "Cobros" list, whose loaded page (`status`) gives the
  * position and the next payment to review.
  */
-export default function PaymentReviewScreen() {
+const PaymentReviewScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ paymentId: string; status?: string }>();
   const listStatus: ReviewStatus =
@@ -32,7 +29,6 @@ export default function PaymentReviewScreen() {
   const paymentsQuery = usePayments(listStatus);
   const countQuery = usePaymentCount(listStatus);
   const reviewPayment = useReviewPayment();
-  const [zoomed, setZoomed] = useState(false);
 
   const payments = paymentsQuery.data ?? [];
   const index = payments.findIndex((p) => p.id === params.paymentId);
@@ -120,34 +116,7 @@ export default function PaymentReviewScreen() {
                 Enviado {formatShortDate(payment.createdAt).toLowerCase()}, {to12hLabel(payment.createdAt)}
               </AppText>
 
-              <Pressable
-                onPress={() => setZoomed(true)}
-                disabled={!payment.receiptUrl}
-                accessibilityRole="button"
-                accessibilityLabel="Ampliar comprobante"
-                className="mx-3 mt-4 h-[330px] overflow-hidden rounded-[18px] bg-control"
-              >
-                {payment.receiptUrl ? (
-                  <Image source={{ uri: payment.receiptUrl }} className="h-full w-full" resizeMode="cover" />
-                ) : (
-                  <View className="flex-1 items-center justify-center gap-2">
-                    <Ionicons name="image-outline" size={32} color={palette.faint} />
-                    <AppText tone="muted" className="text-[13px]">
-                      El comprobante ya se eliminó.
-                    </AppText>
-                  </View>
-                )}
-                <View className="absolute left-3 top-3 rounded-md bg-surface px-2 py-1">
-                  <AppText variant="label" tone="muted" className="text-[10px]">
-                    Comprobante
-                  </AppText>
-                </View>
-                {payment.receiptUrl && (
-                  <View className="absolute bottom-3 right-3 h-10 w-10 items-center justify-center rounded-full bg-surface">
-                    <Ionicons name="expand-outline" size={18} color={palette.ink} />
-                  </View>
-                )}
-              </Pressable>
+              <ReceiptPreview url={payment.receiptUrl} height={330} emptyMessage="El comprobante ya se eliminó." />
 
               <Card padded={false} className="mx-3 mt-2.5 px-4">
                 <AmountRow label={payment.courses.map((course) => course.title).join(" + ")} amount={payment.monthlyFare} />
@@ -162,16 +131,12 @@ export default function PaymentReviewScreen() {
                 ) : null}
                 <AmountRow label="Total esperado" amount={payment.totalAmount} total divider={false} />
               </Card>
-
-              <ImageModal
-                isVisible={zoomed}
-                imageSelected={payment.receiptUrl ?? ""}
-                toggleVisibility={() => setZoomed(false)}
-              />
             </>
           );
         }}
       </DataLoader>
     </Screen>
   );
-}
+};
+
+export default PaymentReviewScreen;

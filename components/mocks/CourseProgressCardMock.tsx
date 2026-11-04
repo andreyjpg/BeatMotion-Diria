@@ -22,7 +22,7 @@ const LEGEND = [
 ];
 
 /** Black card: how far along the course is, one block per class. */
-export default function CourseProgressCardMock() {
+const CourseProgressCardMock = () => {
   return (
     <View className="mx-3 mt-2.5 gap-3.5 rounded-[22px] bg-ink p-[18px]">
       <View className="flex-row items-end justify-between">
@@ -65,4 +65,6 @@ export default function CourseProgressCardMock() {
       </AppText>
     </View>
   );
-}
+};
+
+export default CourseProgressCardMock;

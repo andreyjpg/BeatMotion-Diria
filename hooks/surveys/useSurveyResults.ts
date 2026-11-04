@@ -8,9 +8,13 @@ export type SurveyResults = {
   totalResponses: number;
   /** Average 1-5 per rating question, over the answers it got. */
   averageRatings: Record<string, number>;
+  /** Times each score (1-5) was given, per rating question. */
+  ratingDistribution: Record<string, Record<number, number>>;
   /** Times each option was chosen, per multiple choice question. */
   responseDistribution: Record<string, Record<string, number>>;
   textResponses: Record<string, string[]>;
+  /** The course's current students. */
+  studentCount: number;
   /** Responses over the course's current students, in percent. */
   completionRate: number;
 };
@@ -56,6 +60,7 @@ export const useSurveyResults = (surveyId: string) => {
     if (students.error) throw students.error;
 
     const ratingSums: Record<string, { total: number; count: number }> = {};
+    const ratingDistribution: Record<string, Record<number, number>> = {};
     const responseDistribution: Record<string, Record<string, number>> = {};
     const textResponses: Record<string, string[]> = {};
 
@@ -65,6 +70,8 @@ export const useSurveyResults = (surveyId: string) => {
         const sum = (ratingSums[questionId] ??= { total: 0, count: 0 });
         sum.total += answer.rating;
         sum.count += 1;
+        const scores = (ratingDistribution[questionId] ??= {});
+        scores[answer.rating] = (scores[answer.rating] ?? 0) + 1;
       } else if (answer.question.questionType === "multiple_choice" && answer.textValue) {
         const options = (responseDistribution[questionId] ??= {});
         options[answer.textValue] = (options[answer.textValue] ?? 0) + 1;
@@ -86,8 +93,10 @@ export const useSurveyResults = (surveyId: string) => {
       surveyId,
       totalResponses,
       averageRatings,
+      ratingDistribution,
       responseDistribution,
       textResponses,
+      studentCount,
       completionRate: studentCount > 0 ? Math.min(100, (totalResponses / studentCount) * 100) : 0,
     };
   };

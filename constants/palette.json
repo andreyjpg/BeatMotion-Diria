@@ -20,6 +20,7 @@
   "sand": {
     "DEFAULT": "#E6D8C3",
     "soft": "#EFE6D7",
+    "strong": "#C9B48F",
     "ink": "#574326"
   },
   "danger": {

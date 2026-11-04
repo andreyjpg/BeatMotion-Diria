@@ -12,7 +12,7 @@ type ShortcutCardProps = {
 };
 
 /** Tile of the "Accesos" grid on the home screens (two per row). */
-export default function ShortcutCard({ label, sub, icon, onPress }: ShortcutCardProps) {
+const ShortcutCard = ({ label, sub, icon, onPress }: ShortcutCardProps) => {
   return (
     <Pressable
       onPress={onPress}
@@ -34,4 +34,6 @@ export default function ShortcutCard({ label, sub, icon, onPress }: ShortcutCard
       </View>
     </Pressable>
   );
-}
+};
+
+export default ShortcutCard;

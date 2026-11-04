@@ -5,7 +5,9 @@ import { Redirect, Stack } from "expo-router";
 // "Funciones nuevas (mock)" canvas page). Nothing is sent: the real version
 // emails the support address (still to be defined) from an Edge Function, see
 // TODO.md. These screens don't exist in production builds.
-export default function HelpLayout() {
+const HelpLayout = () => {
   if (!SHOW_FEATURE_MOCKS) return <Redirect href="/private/home" />;
   return <Stack screenOptions={{ headerShown: false }} />;
-}
+};
+
+export default HelpLayout;

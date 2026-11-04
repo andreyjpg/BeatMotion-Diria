@@ -27,11 +27,11 @@ type DataLoaderProps<T> = {
 
 // The "faint" gray reads on the new light screens and on the old dark ones
 // still waiting for the redesign.
-export default function DataLoader<T>({
+const DataLoader = <T,>({
   query,
   children,
   emptyMessage = "No hay datos disponibles",
-}: DataLoaderProps<T>) {
+}: DataLoaderProps<T>) => {
   const { data, isLoading, isError, error, isRefetching, refetch } = query;
 
   // Spinner only until there's data: background refetches (pull to refresh,
@@ -72,4 +72,6 @@ export default function DataLoader<T>({
   }
 
   return <>{children(data, isRefetching, refetch)}</>;
-}
+};
+
+export default DataLoader;

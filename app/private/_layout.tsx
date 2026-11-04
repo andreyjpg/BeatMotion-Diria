@@ -10,7 +10,7 @@ import { ActivityIndicator } from "react-native";
 // when a link opens a deeper screen. Replaces Stack's initialRouteName (SDK 58).
 export const unstable_settings = { anchor: "(tabs)" };
 
-export default function PrivateLayout() {
+const PrivateLayout = () => {
   const { user, isLoading } = useActiveUser();
   const { data: userData } = useUserInfo(user?.uid ?? "");
   const { mutateAsync: acceptConsent } = useAcceptConsent();
@@ -35,6 +35,10 @@ export default function PrivateLayout() {
           name="user/events/index"
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="user/events/[id]"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
         <Stack.Screen name="teacher" options={{ headerShown: false }} />
         <Stack.Screen name="help" options={{ headerShown: false }} />
@@ -45,6 +49,10 @@ export default function PrivateLayout() {
         />
         <Stack.Screen
           name="marketplace/MarketplaceDetail"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="marketplace/MarketplaceAdminForm"
           options={{ headerShown: false }}
         />
         {/* Encuestas */}
@@ -68,6 +76,10 @@ export default function PrivateLayout() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
+          name="user/conoce"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="user/attendance/rsvp"
           options={{ headerShown: false }}
         />
@@ -78,4 +90,6 @@ export default function PrivateLayout() {
       />
     </React.Fragment>
   );
-}
+};
+
+export default PrivateLayout;

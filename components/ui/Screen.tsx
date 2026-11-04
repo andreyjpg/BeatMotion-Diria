@@ -19,7 +19,7 @@ type ScreenProps = {
 };
 
 /** Page frame of the redesign: ground color, safe areas, scroll and footer. */
-export default function Screen({
+const Screen = ({
   children,
   footer,
   scroll = true,
@@ -27,7 +27,7 @@ export default function Screen({
   refreshControl,
   inTabs = false,
   contentClassName = "",
-}: ScreenProps) {
+}: ScreenProps) => {
   const insets = useSafeAreaInsets();
   const Scroller = form ? FormScrollView : ScrollView;
   const bottomEdge = !footer && !inTabs;
@@ -56,4 +56,6 @@ export default function Screen({
       )}
     </SafeAreaView>
   );
-}
+};
+
+export default Screen;

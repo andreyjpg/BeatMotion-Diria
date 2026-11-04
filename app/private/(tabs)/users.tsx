@@ -1,134 +1,161 @@
 import DataLoader from "@/components/DataLoader";
-import HeaderTitle from "@/components/headerTitle";
-import { formatDDMMYYYY, parseLocalDate } from "@/constants/helpers";
+import AppText from "@/components/ui/AppText";
+import Avatar from "@/components/ui/Avatar";
+import Card from "@/components/ui/Card";
+import Chip, { statusTone, type ChipTone } from "@/components/ui/Chip";
+import Field from "@/components/ui/Field";
+import Pill from "@/components/ui/Pill";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import { formatDayMonth, parseLocalDate, roleLabel, standingLabel } from "@/constants/helpers";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { useSetUserActive } from "@/hooks/user/useSetUserActive";
 import { useUsers } from "@/hooks/user/useUsers";
 import type { PaymentStanding, UserListItem } from "@/hooks/user/userSchema";
-import { useRouter } from "expo-router";
-import { useEffect } from "react";
-import { Alert, FlatList, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Redirect, useRouter } from "expo-router";
+import { useState } from "react";
+import { FlatList, RefreshControl, ScrollView, View } from "react-native";
 
-const ROLE_LABELS: Record<UserListItem["role"], string> = {
-  user: "Estudiante",
-  teacher: "Instructor",
-  admin: "Administrador",
+type Filter = "all" | PaymentStanding;
+
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "all", label: "Todos" },
+  { value: "ok", label: "Al día" },
+  { value: "pending", label: "Pendiente" },
+  { value: "late", label: "Atrasado" },
+];
+
+const userChip = (user: UserListItem): { label: string; tone: ChipTone } => {
+  if (!user.isActive) return { label: "Inactivo", tone: "muted" };
+  if (user.role !== "user") return { label: roleLabel[user.role], tone: "line" };
+  if (user.paymentStatus) return { label: standingLabel[user.paymentStatus], tone: statusTone(user.paymentStatus) };
+  return { label: "Sin cursos", tone: "muted" };
 };
 
-const PAYMENT_BADGES: Record<PaymentStanding, { label: string; className: string }> = {
-  ok: { label: "Al día", className: "bg-green-900 text-green-300" },
-  pending: { label: "Pago pendiente", className: "bg-yellow-900 text-yellow-300" },
-  late: { label: "Atrasado", className: "bg-red-900 text-red-300" },
+/** Second line of a user's row: their courses and next payment, or their email. */
+const userDetail = (user: UserListItem) => {
+  if (!user.isActive) return "Cuenta desactivada";
+  if (user.role !== "user") return user.email;
+  if (user.courses.length === 0) return "Sin cursos activos";
+  const courses = user.courses.length === 1 ? "1 curso" : `${user.courses.length} cursos`;
+  const nextPayment = parseLocalDate(user.nextPaymentDate);
+  return nextPayment ? `${courses} · próximo pago ${formatDayMonth(nextPayment)}` : courses;
 };
 
-export default function AdminUsersScreen() {
+/** Ignores upper case and accents: "maria" finds "María". */
+const normalize = (text: string) =>
+  text
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+
+/** Admin "Usuarios" tab: everyone in the app, to search and filter by how their payments stand. */
+const AdminUsersScreen = () => {
   const { user } = useActiveUser();
   const router = useRouter();
   const usersQuery = useUsers();
-  const setUserActive = useSetUserActive();
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
 
-  // Protect access
-  useEffect(() => {
-    if (user?.role !== "admin") {
-      Alert.alert(
-        "Acceso restringido",
-        "Solo los administradores pueden ver esta sección",
-      );
-      router.replace("/private/home");
-    }
-  }, [user, router]);
+  if (user && user.role !== "admin") return <Redirect href="/private/home" />;
 
-  const renderUser = ({ item }: { item: UserListItem }) => {
-    const badge = item.paymentStatus ? PAYMENT_BADGES[item.paymentStatus] : null;
-    const nextPayment = parseLocalDate(item.nextPaymentDate);
+  const users = usersQuery.data ?? [];
+  const activeStudents = users.filter((u) => u.role === "user" && u.isActive).length;
+  const teachers = users.filter((u) => u.role === "teacher" && u.isActive).length;
+  const countFor = (value: Filter) =>
+    value === "all" ? undefined : users.filter((u) => u.isActive && u.paymentStatus === value).length;
 
-    return (
-      <View className={`bg-gray-900 rounded-2xl p-4 mb-3 ${item.isActive ? "" : "opacity-60"}`}>
-        <View className="flex-row items-start justify-between gap-2">
-          <View className="flex-1">
-            <Text className="text-white font-semibold">
-              {item.name} {item.lastName}
-            </Text>
-            <Text className="text-gray-400">{item.email}</Text>
-            <Text className="text-gray-500 italic">
-              {ROLE_LABELS[item.role]}
-              {item.isActive ? "" : " · Inactivo"}
-            </Text>
-          </View>
-          {badge && (
-            <Text className={`px-2 py-1 rounded-full text-xs font-semibold overflow-hidden ${badge.className}`}>
-              {badge.label}
-            </Text>
-          )}
-        </View>
-
-        {/* Courses and payment (students) */}
-        {item.role === "user" && (
-          <View className="mt-2 gap-1">
-            {item.courses.length > 0 ? (
-              <View className="flex-row flex-wrap gap-1">
-                {item.courses.map((course) => (
-                  <Text
-                    key={course}
-                    className="bg-gray-800 text-gray-200 text-xs px-2 py-1 rounded-full overflow-hidden"
-                  >
-                    {course}
-                  </Text>
-                ))}
-              </View>
-            ) : (
-              <Text className="text-gray-500 text-sm">Sin cursos activos</Text>
-            )}
-            {nextPayment && (
-              <Text className="text-gray-400 text-xs">
-                Próximo pago: {formatDDMMYYYY(nextPayment)}
-              </Text>
-            )}
-          </View>
-        )}
-
-        <View className="flex-row mt-3 gap-3">
-          <TouchableOpacity
-            className="bg-blue-500 px-3 py-2 rounded-xl"
-            onPress={() =>
-              router.push({ pathname: "/private/admin/user/[uid]", params: { uid: item.id } })
-            }
-          >
-            <Text className="text-white">Ver Perfil</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="bg-yellow-500 px-3 py-2 rounded-xl"
-            disabled={setUserActive.isPending}
-            onPress={() => setUserActive.mutate({ userId: item.id, isActive: !item.isActive })}
-          >
-            <Text className="text-white">
-              {item.isActive ? "Desactivar" : "Activar"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
+  const query = normalize(search.trim());
+  const shown = users.filter(
+    (u) =>
+      (filter === "all" || (u.isActive && u.paymentStatus === filter)) &&
+      normalize(`${u.name} ${u.lastName} ${u.email}`).includes(query),
+  );
 
   return (
-    <SafeAreaView className="flex-1 bg-black">
-      <HeaderTitle title="Gestión de usuarios" />
-      <DataLoader
-        query={usersQuery}
-        emptyMessage="No hay usuarios registrados."
-      >
-        {(data, isRefetching, refetch) => (
+    <Screen scroll={false} inTabs>
+      <ScreenHeader
+        nav={false}
+        title="Usuarios"
+        subtitle={
+          usersQuery.data
+            ? `${activeStudents} ${activeStudents === 1 ? "estudiante activo" : "estudiantes activos"} · ${teachers} ${teachers === 1 ? "profesor" : "profesores"}`
+            : undefined
+        }
+      />
+      <Field
+        label="Buscar"
+        hideLabel
+        icon="search"
+        value={search}
+        onChangeText={setSearch}
+        placeholder="Buscar por nombre o correo"
+        autoCapitalize="none"
+        className="mx-5 mt-4"
+      />
+      <View className="pt-3">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Filtrar por estado de pago"
+          contentContainerClassName="gap-1.5 px-5"
+        >
+          {FILTERS.map((option) => (
+            <Pill
+              key={option.value}
+              label={option.label}
+              count={countFor(option.value)}
+              selected={option.value === filter}
+              onPress={() => setFilter(option.value)}
+            />
+          ))}
+        </ScrollView>
+      </View>
+
+      <DataLoader query={usersQuery} emptyMessage="No hay usuarios registrados.">
+        {(_data, isRefetching, refetch) => (
           <FlatList
-            data={data}
+            data={shown}
             keyExtractor={(item) => item.id}
-            renderItem={renderUser}
-            refreshing={isRefetching}
-            onRefresh={refetch}
-            contentContainerStyle={{ paddingHorizontal: 10 }}
+            contentContainerClassName="gap-2 px-3 pb-8 pt-3.5"
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+            ListEmptyComponent={
+              <AppText tone="faint" className="px-5 pt-8 text-center text-[14.5px]">
+                Ningún usuario coincide con la búsqueda.
+              </AppText>
+            }
+            renderItem={({ item }) => {
+              const chip = userChip(item);
+              const name = `${item.name} ${item.lastName}`.trim();
+              return (
+                <Card
+                  onPress={() => router.push({ pathname: "/private/admin/user/[uid]", params: { uid: item.id } })}
+                  accessibilityLabel={`${name}, ${chip.label}`}
+                  padded={false}
+                  className={`flex-row items-center gap-3 px-3.5 py-3 ${item.isActive ? "" : "opacity-60"}`}
+                >
+                  <Avatar name={item.name} lastName={item.lastName} size={42} />
+                  <View className="flex-1 gap-0.5">
+                    <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
+                      {name || "Sin nombre"}
+                    </AppText>
+                    <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+                      {userDetail(item)}
+                    </AppText>
+                  </View>
+                  <View>
+                    <Chip {...chip} />
+                  </View>
+                </Card>
+              );
+            }}
           />
         )}
       </DataLoader>
-    </SafeAreaView>
+    </Screen>
   );
-}
+};
+
+export default AdminUsersScreen;

@@ -56,7 +56,7 @@ type CourseFormProps = {
 };
 
 /** The course form, for creating and for editing. */
-export default function CourseForm({ heading, initial, saveLabel, saving, onSave, onDelete }: CourseFormProps) {
+const CourseForm = ({ heading, initial, saveLabel, saving, onSave, onDelete }: CourseFormProps) => {
   const branchesQuery = useBranches();
   const teachersQuery = useTeachers();
   const teachers = teachersQuery.data ?? [];
@@ -203,4 +203,6 @@ export default function CourseForm({ heading, initial, saveLabel, saving, onSave
       )}
     </Screen>
   );
-}
+};
+
+export default CourseForm;

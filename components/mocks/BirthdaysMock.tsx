@@ -17,7 +17,7 @@ const SAMPLE = [
 ];
 
 /** Students of the teacher's courses with a birthday this week. */
-export default function BirthdaysMock() {
+const BirthdaysMock = () => {
   return (
     <View className="mx-3 mt-2.5 gap-2.5 rounded-[18px] bg-sand-soft px-4 py-3.5">
       <View className="flex-row items-center gap-2.5">
@@ -55,4 +55,6 @@ export default function BirthdaysMock() {
       </View>
     </View>
   );
-}
+};
+
+export default BirthdaysMock;

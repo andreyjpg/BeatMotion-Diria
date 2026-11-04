@@ -7,7 +7,7 @@ import { useUpdateBranch } from "@/hooks/branches/useUpdateBranch";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { View } from "react-native";
 
-export default function EditBranchScreen() {
+const EditBranchScreen = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const branchQuery = useBranchById(id);
@@ -36,4 +36,6 @@ export default function EditBranchScreen() {
       onSave={(values) => updateBranch.mutate({ id, ...values }, { onSuccess: () => router.back() })}
     />
   );
-}
+};
+
+export default EditBranchScreen;

@@ -12,7 +12,7 @@ export const formatEventCapacity = (capacity: Event["capacity"]) => {
 };
 
 export const formatEventAudience = (isPublic: boolean) =>
-  isPublic ? "Abierto al publico" : "Solo miembros";
+  isPublic ? "Abierto al público" : "Solo miembros";
 
 export const formatEventDateTime = (date: Date) =>
   date.toLocaleString("es-CR", {

@@ -7,10 +7,10 @@ type FieldErrorProps = {
 };
 
 /** Validation message shown under a form field (renders nothing when empty). */
-export default function FieldError({
+const FieldError = ({
   message,
   className = "mt-1.5",
-}: FieldErrorProps) {
+}: FieldErrorProps) => {
   if (!message) return null;
   return (
     <AppText
@@ -20,4 +20,6 @@ export default function FieldError({
       {message}
     </AppText>
   );
-}
+};
+
+export default FieldError;

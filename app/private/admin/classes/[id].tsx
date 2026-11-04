@@ -8,7 +8,7 @@ import { useUpdateClass } from "@/hooks/classes/useUpdateClass";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Alert, View } from "react-native";
 
-export default function EditClassScreen() {
+const EditClassScreen = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const classQuery = useGetClassInfo(id);
@@ -67,4 +67,6 @@ export default function EditClassScreen() {
       onDelete={() => confirmDelete(cls.title || "esta clase")}
     />
   );
-}
+};
+
+export default EditClassScreen;

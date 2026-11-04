@@ -1,12 +1,9 @@
+import FieldError from "@/components/FieldError";
+import AppText from "@/components/ui/AppText";
+import Button from "@/components/ui/Button";
+import Field from "@/components/ui/Field";
 import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  Modal,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Modal, View } from "react-native";
 
 type Props = {
   visible: boolean;
@@ -54,63 +51,44 @@ export const DeleteAccountModal = ({ visible, onClose, onConfirm }: Props) => {
     <Modal
       visible={visible}
       transparent
+      statusBarTranslucent
+      navigationBarTranslucent
       animationType="fade"
       onRequestClose={handleClose}
     >
       <View className="flex-1 items-center justify-center bg-black/50 px-6">
-        <View className="w-full max-w-md rounded-2xl bg-white p-6">
-          <Text className="mb-2 text-xl font-semibold text-gray-900">
+        <View className="w-full max-w-md gap-3.5 rounded-[18px] bg-surface p-5">
+          <AppText variant="display" accessibilityRole="header" className="text-[26px] leading-[30px]">
             Eliminar cuenta
-          </Text>
-
-          <Text className="mb-4 text-sm leading-5 text-gray-600">
-            Esta acción es permanente y no se puede deshacer. Para confirmar,
-            escribe{" "}
-            <Text className="font-semibold text-gray-900">
-              &quot;{CONFIRM_TEXT}&quot;
-            </Text>
-            .
-          </Text>
-
-          <TextInput
-            value={input}
-            onChangeText={(text) => {
-              setInput(text);
-              if (error) setError("");
-            }}
-            placeholder='Escribe "Eliminar cuenta"'
-            autoCapitalize="none"
-            editable={!loading}
-            className="rounded-xl border border-gray-300 px-4 py-3 text-gray-900"
-            placeholderTextColor="#9CA3AF"
-          />
-
-          {!!error && (
-            <Text className="mt-2 text-sm text-red-600">{error}</Text>
-          )}
-
-          <View className="mt-6 flex-row items-center justify-end gap-3">
-            <TouchableOpacity
-              onPress={handleClose}
-              disabled={loading}
-              className="rounded-xl px-4 py-3"
-            >
-              <Text className="font-medium text-gray-700">Cancelar</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
+          </AppText>
+          <AppText tone="muted" className="text-[14px] leading-[20px]">
+            {`Esta acción es permanente y no se puede deshacer. Para confirmar, escribe "${CONFIRM_TEXT}".`}
+          </AppText>
+          <View>
+            <Field
+              label="Confirmación"
+              hideLabel
+              value={input}
+              onChangeText={(text) => {
+                setInput(text);
+                if (error) setError("");
+              }}
+              placeholder={`Escribe "${CONFIRM_TEXT}"`}
+              autoCapitalize="none"
+              editable={!loading}
+            />
+            <FieldError message={error || undefined} />
+          </View>
+          <View className="flex-row gap-2.5">
+            <Button label="Cancelar" variant="secondary" onPress={handleClose} disabled={loading} className="flex-1" />
+            <Button
+              label="Eliminar"
+              variant="danger"
               onPress={handleDelete}
-              disabled={!isValid || loading}
-              className={`min-w-[120px] items-center rounded-xl px-4 py-3 ${
-                !isValid || loading ? "bg-red-300" : "bg-red-600"
-              }`}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="font-semibold text-white">Eliminar</Text>
-              )}
-            </TouchableOpacity>
+              loading={loading}
+              disabled={!isValid}
+              className="flex-1"
+            />
           </View>
         </View>
       </View>

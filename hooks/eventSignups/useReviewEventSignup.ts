@@ -28,6 +28,7 @@ export const useReviewEventSignup = () => {
     },
     onSuccess: (_data, { eventId }) => {
       queryClient.invalidateQueries({ queryKey: eventSignupsKeys.event(eventId) });
+      queryClient.invalidateQueries({ queryKey: eventSignupsKeys.allCounts });
     },
     onError: (error) => {
       console.error("Error actualizando inscripción de evento:", error);

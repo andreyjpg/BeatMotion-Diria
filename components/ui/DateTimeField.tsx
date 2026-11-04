@@ -18,20 +18,23 @@ type DateTimeFieldProps = {
   onClear?: () => void;
   /** Validation message, shown under the field. */
   error?: string;
+  /** Help text under the field, hidden while there's an error. */
+  hint?: string;
   /** Layout of the whole field (margins, flex-1 in a row). */
   className?: string;
 };
 
 /** Looks like a text field; opens the system's date or time picker. */
-export default function DateTimeField({
+const DateTimeField = ({
   label,
   mode,
   value,
   onChange,
   onClear,
   error,
+  hint,
   className = "",
-}: DateTimeFieldProps) {
+}: DateTimeFieldProps) => {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const isDate = mode === "date";
@@ -66,6 +69,11 @@ export default function DateTimeField({
           </Pressable>
         )}
       </Pressable>
+      {hint && !error && (
+        <AppText tone="muted" className="mt-1.5 text-[12.5px] leading-[17px]">
+          {hint}
+        </AppText>
+      )}
       <FieldError message={error} />
 
       {/* Android opens its own dialog; iOS needs a sheet around the spinner. */}
@@ -106,4 +114,6 @@ export default function DateTimeField({
       )}
     </View>
   );
-}
+};
+
+export default DateTimeField;

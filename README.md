@@ -92,7 +92,7 @@ Courses are priced by the number of courses enrolled simultaneously. The `fares`
 - `numCourse` tiers (1–4 courses) with their monthly price
 - `type: "course_5"` — fixed rate for 5 or more courses
 - `type: "annual"` — yearly registration fee charged at enrollment or first monthly payment (not charged in November or December)
-- `type: "late_fee"` — daily penalty applied after the 5-day grace period past the payment due date
+- `type: "late_fee"` — daily penalty applied after the 3-day grace period past the payment due date
 
 ### Payment due dates
 Calculated by `private.next_payment_date()` in the database: if enrolled on or before the 15th, the next payment is the 15th of the following month; if after the 15th, the 30th. New courses share the student's existing due date.

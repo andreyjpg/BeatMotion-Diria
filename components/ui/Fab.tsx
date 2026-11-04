@@ -11,7 +11,7 @@ type FabProps = {
 };
 
 /** Floating button at the bottom right of a list, to add to it. */
-export default function Fab({ label, onPress, icon = "add" }: FabProps) {
+const Fab = ({ label, onPress, icon = "add" }: FabProps) => {
   return (
     <Pressable
       onPress={onPress}
@@ -25,4 +25,6 @@ export default function Fab({ label, onPress, icon = "add" }: FabProps) {
       </AppText>
     </Pressable>
   );
-}
+};
+
+export default Fab;

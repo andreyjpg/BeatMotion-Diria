@@ -9,12 +9,12 @@ import {
   validationErrors,
   type FormErrors,
 } from "@/constants/validationForms";
+import { PRIVACY_POLICY_URL } from "@/constants/helpers";
 import { useSignUp } from "@/hooks/auth/useSignUp";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Linking, Pressable, View } from "react-native";
 
-const PRIVACY_POLICY_URL = "https://beatmotion-politica-privacidad.netlify.app";
 
 const SignIn = () => {
   const router = useRouter();

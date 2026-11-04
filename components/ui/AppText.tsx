@@ -39,11 +39,13 @@ type AppTextProps = TextProps & {
   className?: string;
 };
 
-export default function AppText({
+const AppText = ({
   variant = "body",
   tone = "ink",
   className = "",
   ...props
-}: AppTextProps) {
+}: AppTextProps) => {
   return <Text className={`${VARIANT[variant]} ${TONE[tone]} ${className}`} {...props} />;
-}
+};
+
+export default AppText;

@@ -31,7 +31,7 @@ import { RefreshControl, View } from "react-native";
  * A teacher's course: its numbers and its classes. Read only: teachers open
  * a class and take attendance; creating or editing is for admins.
  */
-export default function TeacherCourseScreen() {
+const TeacherCourseScreen = () => {
   const router = useRouter();
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
   const { user } = useActiveUser();
@@ -148,4 +148,6 @@ export default function TeacherCourseScreen() {
       </DataLoader>
     </Screen>
   );
-}
+};
+
+export default TeacherCourseScreen;

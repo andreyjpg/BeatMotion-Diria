@@ -9,7 +9,7 @@ import { ScrollView, type ScrollViewProps } from "react-native";
  * (react-native-keyboard-controller does this more smoothly, but it isn't
  * available in Expo Go.)
  */
-export default function FormScrollView(props: ScrollViewProps) {
+const FormScrollView = (props: ScrollViewProps) => {
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
@@ -17,4 +17,6 @@ export default function FormScrollView(props: ScrollViewProps) {
       {...props}
     />
   );
-}
+};
+
+export default FormScrollView;

@@ -18,7 +18,7 @@ type ClassRowProps = {
 };
 
 /** One class in a course's list: number, title and date. */
-export default function ClassRow({ number, title, detail, highlighted = false, onPress, right, divider = true }: ClassRowProps) {
+const ClassRow = ({ number, title, detail, highlighted = false, onPress, right, divider = true }: ClassRowProps) => {
   return (
     <View className={`flex-row items-center gap-3 py-2.5 pl-3.5 pr-3 ${divider ? "border-b border-line-soft" : ""}`}>
       <Pressable
@@ -44,4 +44,6 @@ export default function ClassRow({ number, title, detail, highlighted = false, o
       <View>{right}</View>
     </View>
   );
-}
+};
+
+export default ClassRow;

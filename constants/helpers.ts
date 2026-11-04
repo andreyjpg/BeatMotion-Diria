@@ -78,6 +78,10 @@ const formatYYYYMMDD = (date: Date) =>
 const formatDDMMYYYY = (date: Date) =>
   `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 
+/** The last moment of that calendar day: something due on a day lasts all of it. */
+const endOfDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+
 /** Date -> "HH:MM" (24-hour), as stored in `time` columns. */
 const to24h = (date: Date) =>
   `${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -228,6 +232,13 @@ const paymentStatusLabel: Record<string, string> = {
   rejected: "Rechazado",
 };
 
+/** A user's role, as shown to admins. */
+const roleLabel: Record<string, string> = {
+  user: "Estudiante",
+  teacher: "Profesor",
+  admin: "Admin",
+};
+
 /** A student's monthly payment standing in a course, as shown on chips. */
 const standingLabel: Record<string, string> = {
   ok: "Al día",
@@ -243,16 +254,29 @@ const initials = (name?: string | null, lastName?: string | null) =>
 
 type FareRow = { type: string; fare: number; numCourse: number };
 
-/** Monthly price for a number of courses; from 5 courses on it's the flat `course_5` fare. */
+/**
+ * Monthly price for a number of courses: the fare with the most courses that
+ * still fits the count, so the last plan (3 courses, Plan Diriá) covers any
+ * number above it.
+ */
 const monthlyFareFor = (fares: FareRow[] | undefined, courseCount: number) => {
-  if (!fares || courseCount <= 0) return 0;
-  if (courseCount >= 5)
-    return fares.find((f) => f.type === "course_5")?.fare ?? 0;
-  return fares.find((f) => f.numCourse === courseCount)?.fare ?? 0;
+  const plans = (fares ?? []).filter(
+    (f) => f.numCourse > 0 && f.numCourse <= courseCount,
+  );
+  return plans.reduce((best, f) => (f.numCourse > best.numCourse ? f : best), {
+    numCourse: 0,
+    fare: 0,
+  }).fare;
 };
 
-/** Days after the due date students can still pay without the late fee. */
-const LATE_FEE_GRACE_DAYS = 5;
+/** The plan a number of courses falls in, as the academy names it. */
+const planName = (courseCount: number) => {
+  if (courseCount >= 3) return "Plan Diriá";
+  return courseCount === 2 ? "Plan 2 días" : "Plan 1 día";
+};
+
+/** Days after the due date students can still pay without the late fee (the academy's notice). */
+export const LATE_FEE_GRACE_DAYS = 3;
 
 /** Late fee charged for each day after the grace days. */
 const lateFeePerDay = (fares: FareRow[] | undefined) =>
@@ -299,13 +323,29 @@ export const sanitizeYouTubeUrl = (url: string) => {
   return match ? match[1] : null;
 };
 
+/** "8606-1644" -> "86061644": sign-up accepts phones in any format. */
+const digitsOnly = (value: string) => value.replace(/\D/g, "");
+
+/** "1 curso", "3 cursos". */
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** "Lun" for a date. */
+const weekdayShort = (date: Date) => WEEKDAYS_SHORT[date.getDay()];
+
+/** "oct" for a date. */
+const monthShort = (date: Date) => MONTHS_SHORT[date.getMonth()];
+
+export const PRIVACY_POLICY_URL = "https://beatmotion-politica-privacidad.netlify.app";
+
 export {
   attendanceRate,
   capitalize,
   classWhen,
   daysBetween,
   detectVideoPlatform,
+  digitsOnly,
   emptyToNull,
+  endOfDay,
   formatCurrency,
   formatDate,
   formatDayMonth,
@@ -324,9 +364,13 @@ export {
   lateFeePerDay,
   monthlyFareFor,
   monthName,
+  monthShort,
   parseLocalDate,
   paymentStatusLabel,
+  planName,
+  plural,
   presentByClass,
+  roleLabel,
   shortDayName,
   standingLabel,
   statusTranslations,
@@ -334,4 +378,5 @@ export {
   to12hLabel,
   to24h,
   toHHMM,
+  weekdayShort,
 };

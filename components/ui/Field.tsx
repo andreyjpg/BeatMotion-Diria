@@ -8,6 +8,8 @@ import type { IconName } from "./IconButton";
 
 type FieldProps = TextInputProps & {
   label: string;
+  /** Search boxes: the placeholder says it all (screen readers still read the label). */
+  hideLabel?: boolean;
   /** Validation message (from validationErrors), shown under the input. */
   error?: string;
   /** Help text under the input, hidden while there's an error. */
@@ -22,19 +24,21 @@ type FieldProps = TextInputProps & {
 };
 
 /** Label + input + hint/error: the one text field used by every form. */
-const Field = forwardRef<TextInputInstance, FieldProps>(function Field(
-  { label, error, hint, icon, prefix, password, className = "", multiline, onFocus, onBlur, ...input },
+const Field = forwardRef<TextInputInstance, FieldProps>((
+  { label, hideLabel = false, error, hint, icon, prefix, password, className = "", multiline, onFocus, onBlur, ...input },
   ref,
-) {
+) => {
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const border = error ? "border-danger" : focused ? "border-ink" : "border-field-line";
 
   return (
     <View className={className}>
-      <AppText variant="semibold" className="text-[13px] mb-1.5">
-        {label}
-      </AppText>
+      {!hideLabel && (
+        <AppText variant="semibold" className="text-[13px] mb-1.5">
+          {label}
+        </AppText>
+      )}
       <View
         className={`flex-row gap-2.5 rounded-[14px] border-[1.5px] bg-surface px-3.5 ${border} ${
           multiline ? "min-h-[100px] items-start py-3" : "h-[52px] items-center"
@@ -88,5 +92,8 @@ const Field = forwardRef<TextInputInstance, FieldProps>(function Field(
     </View>
   );
 });
+
+// forwardRef with an arrow function has no name of its own.
+Field.displayName = "Field";
 
 export default Field;

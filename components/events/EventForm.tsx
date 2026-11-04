@@ -1,29 +1,22 @@
 import FieldError from "@/components/FieldError";
 import { pickImage } from "@/components/pickImage";
-import {
-  eventFormSchema,
-  FormErrors,
-  validationErrors,
-} from "@/constants/validationForms";
+import AppText from "@/components/ui/AppText";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import DateTimeField from "@/components/ui/DateTimeField";
+import Field from "@/components/ui/Field";
+import FormActions from "@/components/ui/FormActions";
+import Pill from "@/components/ui/Pill";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import SwitchRow from "@/components/ui/SwitchRow";
+import palette from "@/constants/palette.json";
+import { eventFormSchema, FormErrors, validationErrors } from "@/constants/validationForms";
 import type { Event, EventInput, EventStatus } from "@/hooks/events/schema";
-import {
-  formatEventCapacity,
-  formatEventDateTime,
-  formatEventPrice,
-} from "@/hooks/events/utils";
 import type { PickedImage } from "@/hooks/storage/compressImage";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Picker } from "@react-native-picker/picker";
+import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import {
-  Image,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import Icon from "react-native-vector-icons/Ionicons";
+import { Image, Pressable, View } from "react-native";
 
 const CATEGORIES = ["Taller", "Social", "Curso Intensivo", "Otro"];
 
@@ -70,44 +63,57 @@ export const eventToForm = (event: Event): EventFormValues => ({
 });
 
 type EventFormProps = {
+  heading: string;
   initialValues: EventFormValues;
   /** Banner already saved (edit). */
   initialBannerUrl?: string;
   /** Editing: the saved date may stay in the past. */
   originalDatetime?: Date | null;
-  submitLabel: string;
+  /** New events: says whether it publishes or stays a draft. */
+  submitLabel?: string;
   isSubmitting: boolean;
   onSubmit: (input: EventInput) => void;
+  /** Editing only: asks for confirmation first, on the screen. */
+  onDelete?: () => void;
 };
 
-/** Fields shared by "Nuevo evento" and "Editar evento", validated with eventFormSchema. */
-export default function EventForm({
+/** The whole "Nuevo evento" / "Editar evento" screen, validated with eventFormSchema. */
+const EventForm = ({
+  heading,
   initialValues,
   initialBannerUrl = "",
   originalDatetime = null,
   submitLabel,
   isSubmitting,
   onSubmit,
-}: EventFormProps) {
+  onDelete,
+}: EventFormProps) => {
   const [values, setValues] = useState(initialValues);
   const [banner, setBanner] = useState<PickedImage | null>(null);
   const [errors, setErrors] = useState<FormErrors<typeof eventFormSchema>>({});
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const set = <K extends keyof EventFormValues>(key: K, value: EventFormValues[K]) =>
     setValues((prev) => ({ ...prev, [key]: value }));
 
-  const categories = CATEGORIES.includes(values.category)
-    ? CATEGORIES
-    : [values.category, ...CATEGORIES];
+  const categories = CATEGORIES.includes(values.category) ? CATEGORIES : [values.category, ...CATEGORIES];
   const bannerUri = banner?.uri ?? initialBannerUrl;
+  const published = values.status === "published";
 
   const handlePickBanner = async () => {
-    const picked = await pickImage(
-      "Necesitamos acceso a tu galería para que puedas seleccionar la imagen del evento.",
-    );
+    const picked = await pickImage("Necesitamos acceso a tu galería para que puedas seleccionar la imagen del evento.");
     if (picked) setBanner(picked);
+  };
+
+  const setDate = (date: Date) => {
+    const next = new Date(date);
+    next.setHours(values.datetime.getHours(), values.datetime.getMinutes(), 0, 0);
+    set("datetime", next);
+  };
+
+  const setTime = (time: Date) => {
+    const next = new Date(values.datetime);
+    next.setHours(time.getHours(), time.getMinutes(), 0, 0);
+    set("datetime", next);
   };
 
   const handleSubmit = () => {
@@ -130,241 +136,173 @@ export default function EventForm({
   };
 
   return (
-    <View className="gap-3">
-      <View className="gap-2">
-        <Text className="text-white font-semibold">Título *</Text>
-        <TextInput
+    <Screen
+      form
+      footer={
+        <FormActions
+          saveLabel={submitLabel ?? (published ? "Publicar evento" : "Guardar borrador")}
+          onSave={handleSubmit}
+          loading={isSubmitting}
+          hasErrors={Object.keys(errors).length > 0}
+        />
+      }
+    >
+      <ScreenHeader nav="close" eyebrow="Eventos" title={heading} />
+
+      <Pressable
+        onPress={handlePickBanner}
+        disabled={isSubmitting}
+        accessibilityRole="button"
+        accessibilityLabel={bannerUri ? "Cambiar banner" : "Seleccionar banner"}
+        className={`mx-3 mt-4 h-[150px] items-center justify-center gap-1.5 overflow-hidden rounded-[18px] border-2 ${
+          bannerUri ? "border-surface" : "border-dashed border-faint"
+        }`}
+      >
+        {bannerUri ? (
+          <>
+            <Image source={{ uri: bannerUri }} className="absolute inset-0 h-full w-full" resizeMode="cover" />
+            <View className="absolute bottom-2.5 right-2.5 rounded-md bg-surface px-2 py-1">
+              <AppText variant="label" tone="muted" className="text-[10px]">
+                Cambiar
+              </AppText>
+            </View>
+          </>
+        ) : (
+          <>
+            <Ionicons name="image-outline" size={26} color={palette.ink} />
+            <AppText variant="bold" className="text-[15px]">
+              Seleccionar banner
+            </AppText>
+            <AppText tone="muted" className="text-[12.5px]">
+              Imagen horizontal
+            </AppText>
+          </>
+        )}
+      </Pressable>
+
+      <Card className="mx-3 mt-2.5 gap-3.5">
+        <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
+          Información
+        </AppText>
+        <Field
+          label="Título *"
           value={values.title}
           onChangeText={(text) => set("title", text)}
           placeholder="Nombre del evento"
-          placeholderTextColor="#9CA3AF"
-          className="bg-gray-900 text-white rounded-xl px-4 py-3"
+          error={errors.title}
         />
-        <FieldError message={errors.title} className="" />
-      </View>
-
-      <View className="gap-2">
-        <Text className="text-white font-semibold">Descripción</Text>
-        <TextInput
+        <Field
+          label="Descripción"
           value={values.description}
           onChangeText={(text) => set("description", text)}
           placeholder="Detalle del evento"
-          placeholderTextColor="#9CA3AF"
-          className="bg-gray-900 text-white rounded-xl px-4 py-3"
           multiline
+          error={errors.description}
         />
-        <FieldError message={errors.description} className="" />
-      </View>
-
-      <View className="gap-2">
-        <Text className="text-white font-semibold">Fecha y hora</Text>
-        <View className="flex-row gap-3">
-          <TouchableOpacity
-            className="flex-1 bg-gray-900 rounded-xl px-4 py-3 flex-row items-center justify-between active:opacity-80"
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text className="text-white">
-              {formatEventDateTime(values.datetime).split(",")[0]}
-            </Text>
-            <Icon name="calendar-outline" size={18} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            className="flex-1 bg-gray-900 rounded-xl px-4 py-3 flex-row items-center justify-between active:opacity-80"
-            onPress={() => setShowTimePicker(true)}
-          >
-            <Text className="text-white">
-              {values.datetime.toLocaleTimeString("es-CR", {
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: true,
-              })}
-            </Text>
-            <Icon name="time-outline" size={18} color="#fff" />
-          </TouchableOpacity>
-        </View>
-        <FieldError message={errors.datetime} className="" />
-        {showDatePicker && (
-          <View className="bg-gray-900 rounded-xl mt-3 p-2">
-            <DateTimePicker
-              value={values.datetime}
-              mode="date"
-              display="spinner"
-              onChange={(_, date) => {
-                if (!date) return;
-                const next = new Date(date);
-                next.setHours(values.datetime.getHours(), values.datetime.getMinutes(), 0, 0);
-                set("datetime", next);
-              }}
-            />
-            <TouchableOpacity
-              className="mt-2 bg-gray-800 rounded-xl px-3 py-2 items-center"
-              onPress={() => setShowDatePicker(false)}
-            >
-              <Text className="text-white font-semibold">Listo</Text>
-            </TouchableOpacity>
+        <View>
+          <AppText variant="semibold" className="mb-1.5 text-[13px]">
+            Categoría
+          </AppText>
+          <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-1.5">
+            {categories.map((category) => (
+              <Pill
+                key={category}
+                label={category}
+                selected={category === values.category}
+                onPress={() => set("category", category)}
+              />
+            ))}
           </View>
-        )}
-        {showTimePicker && (
-          <View className="bg-gray-900 rounded-xl mt-3 p-2">
-            <DateTimePicker
-              value={values.datetime}
-              mode="time"
-              display="spinner"
-              is24Hour={false}
-              onChange={(_, date) => {
-                if (!date) return;
-                const next = new Date(values.datetime);
-                next.setHours(date.getHours(), date.getMinutes(), 0, 0);
-                set("datetime", next);
-              }}
-            />
-            <TouchableOpacity
-              className="mt-2 bg-gray-800 rounded-xl px-3 py-2 items-center"
-              onPress={() => setShowTimePicker(false)}
-            >
-              <Text className="text-white font-semibold">Listo</Text>
-            </TouchableOpacity>
+          <FieldError message={errors.category} />
+        </View>
+      </Card>
+
+      <Card className="mx-3 mt-2.5 gap-3.5">
+        <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
+          Cuándo y dónde
+        </AppText>
+        <View>
+          <View className="flex-row gap-2.5">
+            <DateTimeField label="Fecha" mode="date" value={values.datetime} onChange={setDate} className="flex-1" />
+            <DateTimeField label="Hora" mode="time" value={values.datetime} onChange={setTime} className="flex-1" />
           </View>
-        )}
-      </View>
-
-      <View className="flex-row items-center justify-between bg-gray-900 rounded-xl px-4 py-3">
-        <View>
-          <Text className="text-white font-semibold">Sin límite</Text>
-          <Text className="text-gray-400 text-sm">
-            {formatEventCapacity(
-              values.unlimited ? null : Number(values.capacityInput) || null,
-            )}
-          </Text>
+          <FieldError message={errors.datetime} />
         </View>
-        <Switch value={values.unlimited} onValueChange={(value) => set("unlimited", value)} />
-      </View>
+        <Field
+          label="Ubicación"
+          value={values.location}
+          onChangeText={(text) => set("location", text)}
+          placeholder="Academia Diriá, salón principal"
+          error={errors.location}
+        />
+      </Card>
 
-      {!values.unlimited && (
-        <View className="gap-2">
-          <Text className="text-white font-semibold">Cupos disponibles</Text>
-          <TextInput
-            value={values.capacityInput}
-            onChangeText={(text) => set("capacityInput", text)}
-            placeholder="30"
-            keyboardType="numeric"
-            placeholderTextColor="#9CA3AF"
-            className="bg-gray-900 text-white rounded-xl px-4 py-3"
-          />
-          <FieldError message={errors.capacityInput} className="" />
-        </View>
-      )}
-
-      <View className="flex-row items-center justify-between bg-gray-900 rounded-xl px-4 py-3">
-        <View>
-          <Text className="text-white font-semibold">Evento público</Text>
-          <Text className="text-gray-400 text-sm">
-            {values.isPublic ? "Visible para todos" : "Solo miembros"}
-          </Text>
-        </View>
-        <Switch value={values.isPublic} onValueChange={(value) => set("isPublic", value)} />
-      </View>
-
-      <View className="flex-row items-center justify-between bg-gray-900 rounded-xl px-4 py-3">
-        <View>
-          <Text className="text-white font-semibold">Evento gratuito</Text>
-          <Text className="text-gray-400 text-sm">
-            {formatEventPrice(values.isFree ? null : Number(values.priceInput) || 0)}
-          </Text>
-        </View>
-        <Switch value={values.isFree} onValueChange={(value) => set("isFree", value)} />
-      </View>
-
-      {!values.isFree && (
-        <View className="gap-2">
-          <Text className="text-white font-semibold">Costo de entrada (CRC)</Text>
-          <TextInput
+      <Card className="mx-3 mt-2.5 gap-3.5">
+        <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
+          Entrada y cupos
+        </AppText>
+        <SwitchRow
+          title="Evento gratuito"
+          hint={values.isFree ? "No se pide comprobante" : "Se pide comprobante al inscribirse"}
+          value={values.isFree}
+          onChange={(value) => set("isFree", value)}
+        />
+        {!values.isFree && (
+          <Field
+            label="Costo de entrada"
+            prefix="₡"
             value={values.priceInput}
             onChangeText={(text) => set("priceInput", text)}
             placeholder="12000"
             keyboardType="numeric"
-            placeholderTextColor="#9CA3AF"
-            className="bg-gray-900 text-white rounded-xl px-4 py-3"
+            error={errors.priceInput}
           />
-          <FieldError message={errors.priceInput} className="" />
-        </View>
-      )}
-
-      <View className="gap-2">
-        <Text className="text-white font-semibold">Categoría</Text>
-        <View className="bg-gray-900 rounded-xl">
-          <Picker
-            selectedValue={values.category}
-            onValueChange={(value) => set("category", String(value))}
-            dropdownIconColor="#ffffff"
-            style={{ color: "white" }}
-          >
-            {categories.map((category) => (
-              <Picker.Item key={category} label={category} value={category} />
-            ))}
-          </Picker>
-        </View>
-        <FieldError message={errors.category} className="" />
-      </View>
-
-      <View className="gap-2">
-        <Text className="text-white font-semibold">Ubicación</Text>
-        <TextInput
-          value={values.location}
-          onChangeText={(text) => set("location", text)}
-          placeholder="Academia Diria, Salón principal"
-          placeholderTextColor="#9CA3AF"
-          className="bg-gray-900 text-white rounded-xl px-4 py-3"
-        />
-        <FieldError message={errors.location} className="" />
-      </View>
-
-      <View className="flex-row items-center justify-between bg-gray-900 rounded-xl px-4 py-3">
-        <View>
-          <Text className="text-white font-semibold">Publicado</Text>
-          <Text className="text-gray-400 text-sm">
-            {values.status === "published" ? "Visible en listados" : "Queda como borrador"}
-          </Text>
-        </View>
-        <Switch
-          value={values.status === "published"}
-          onValueChange={(value) => set("status", value ? "published" : "draft")}
-        />
-      </View>
-
-      <View className="gap-3">
-        <Text className="text-white font-semibold">Banner</Text>
-        {bannerUri ? (
-          <Image
-            source={{ uri: bannerUri }}
-            className="w-full h-48 rounded-xl bg-gray-800"
-            resizeMode="cover"
-          />
-        ) : (
-          <View className="w-full h-48 rounded-xl bg-gray-800 items-center justify-center">
-            <Icon name="image-outline" size={32} color="#6b7280" />
-            <Text className="text-gray-400 mt-2">Sin imagen</Text>
-          </View>
         )}
-        <TouchableOpacity
-          className="bg-gray-800 rounded-2xl px-4 py-3 flex-row items-center gap-2 active:opacity-80"
-          onPress={handlePickBanner}
-          disabled={isSubmitting}
-        >
-          <Icon name="cloud-upload-outline" size={20} color="#fff" />
-          <Text className="text-white font-semibold">Seleccionar banner</Text>
-        </TouchableOpacity>
-      </View>
+        <View className="border-t border-line-soft pt-3.5">
+          <SwitchRow
+            title="Sin límite de cupos"
+            hint={values.unlimited ? "Cualquiera puede inscribirse" : "Se cierra al llenarse"}
+            value={values.unlimited}
+            onChange={(value) => set("unlimited", value)}
+          />
+        </View>
+        {!values.unlimited && (
+          <Field
+            label="Cupos disponibles"
+            value={values.capacityInput}
+            onChangeText={(text) => set("capacityInput", text)}
+            placeholder="30"
+            keyboardType="numeric"
+            error={errors.capacityInput}
+          />
+        )}
+      </Card>
 
-      <TouchableOpacity
-        className="bg-green-500 rounded-2xl px-4 py-4 items-center active:opacity-80 disabled:opacity-50"
-        onPress={handleSubmit}
-        disabled={isSubmitting}
-      >
-        <Text className="text-white font-semibold">
-          {isSubmitting ? "Guardando..." : submitLabel}
-        </Text>
-      </TouchableOpacity>
-    </View>
+      <Card className="mx-3 mt-2.5 gap-3.5">
+        <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
+          Visibilidad
+        </AppText>
+        <SwitchRow
+          title="Evento público"
+          hint={values.isPublic ? "Visible para todos" : "Solo miembros"}
+          value={values.isPublic}
+          onChange={(value) => set("isPublic", value)}
+        />
+        <View className="border-t border-line-soft pt-3.5">
+          <SwitchRow
+            title="Publicado"
+            hint={published ? "Visible en listados" : "Queda como borrador"}
+            value={published}
+            onChange={(value) => set("status", value ? "published" : "draft")}
+          />
+        </View>
+      </Card>
+
+      {onDelete && (
+        <Button label="Eliminar evento" variant="danger" icon="trash-outline" onPress={onDelete} className="mx-3 mt-4" />
+      )}
+    </Screen>
   );
-}
+};
+
+export default EventForm;

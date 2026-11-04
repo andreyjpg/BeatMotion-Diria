@@ -1,272 +1,141 @@
 import DataLoader from "@/components/DataLoader";
-import FilterPills from "@/components/FilterPills";
-import HeaderTitle from "@/components/headerTitle";
-import ImageModal from "@/components/ImageModal";
-import PhotoCard from "@/components/PhotoCard";
-import {
-  formatCurrency,
-  formatDDMMYYYY,
-  getEnrollmentColor,
-  statusTranslations,
-} from "@/constants/helpers";
-import { EnrollmentDetail, ReviewStatus } from "@/hooks/enrollment/schema";
+import AppText from "@/components/ui/AppText";
+import Card from "@/components/ui/Card";
+import Chip, { type ChipTone } from "@/components/ui/Chip";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import SegmentedControl from "@/components/ui/SegmentedControl";
+import { formatCurrency, formatDayMonth } from "@/constants/helpers";
+import palette from "@/constants/palette.json";
+import type { EnrollmentDetail, ReviewStatus } from "@/hooks/enrollment/schema";
+import { useEnrollmentCount } from "@/hooks/enrollment/useEnrollmentCount";
 import { useEnrollmentsByStatus } from "@/hooks/enrollment/useEnrollmentsByStatus";
-import { useReviewEnrollment } from "@/hooks/enrollment/useReviewEnrollment";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native";
 
-const FILTER_OPTIONS: { label: string; value: ReviewStatus }[] = [
-  { label: "Pendientes", value: "pending" },
-  { label: "Aceptadas", value: "approved" },
-  { label: "Rechazadas", value: "rejected" },
+const SEGMENTS: { value: ReviewStatus; label: string }[] = [
+  { value: "pending", label: "Pendientes" },
+  { value: "approved", label: "Aceptadas" },
+  { value: "rejected", label: "Rechazadas" },
 ];
 
-const statusBg: Record<ReviewStatus, string> = {
-  pending: "bg-yellow-950",
-  approved: "bg-green-950",
-  rejected: "bg-red-950",
+const EMPTY: Record<ReviewStatus, string> = {
+  pending: "No hay matrículas por revisar.",
+  approved: "Todavía no hay matrículas aceptadas.",
+  rejected: "No hay matrículas rechazadas.",
 };
 
+const STATUS_CHIP: Record<ReviewStatus, { label: string; tone: ChipTone }> = {
+  pending: { label: "Pendiente", tone: "pending" },
+  approved: { label: "Aceptada", tone: "ok" },
+  rejected: { label: "Rechazada", tone: "muted" },
+};
+
+const studentName = (enrollment: EnrollmentDetail) =>
+  enrollment.user ? `${enrollment.user.name} ${enrollment.user.lastName}`.trim() : "Estudiante";
+
+/** Admin: the students' enrollment requests, by review status. */
 const EnrollmentList = () => {
-  const [statusFilter, setStatusFilter] = useState<ReviewStatus>("pending");
-  const enrollmentByStatusQuery = useEnrollmentsByStatus(statusFilter);
-
   const router = useRouter();
-  const [imageSelected, setImageSelected] = useState<string>("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const reviewEnrollment = useReviewEnrollment();
+  const [status, setStatus] = useState<ReviewStatus>("pending");
+  const enrollmentsQuery = useEnrollmentsByStatus(status);
+  const pendingCount = useEnrollmentCount("pending");
+  const approvedCount = useEnrollmentCount("approved");
+  const rejectedCount = useEnrollmentCount("rejected");
 
-  const handleFilterChange = (value: string) => {
-    const option = FILTER_OPTIONS.find((o) => o.value === value);
-    if (option) setStatusFilter(option.value);
+  const counts: Record<ReviewStatus, number | undefined> = {
+    pending: pendingCount.data,
+    approved: approvedCount.data,
+    rejected: rejectedCount.data,
   };
+  const count = counts[status];
+  const subtitle =
+    count === undefined
+      ? undefined
+      : status === "pending"
+        ? count === 0
+          ? "Nada por revisar"
+          : `${count} ${count === 1 ? "solicitud espera" : "solicitudes esperan"} revisión`
+        : `${count} ${count === 1 ? "matrícula" : "matrículas"} ${
+            status === "approved" ? (count === 1 ? "aceptada" : "aceptadas") : count === 1 ? "rechazada" : "rechazadas"
+          }`;
 
-  const handleViewUserProfile = (userId: string) => {
-    router.push(`/private/admin/user/${userId}`);
-  };
-
-  const handleViewCourseDetails = (courseId: string) => {
-    router.push(`/private/admin/courses/${courseId}`);
-  };
-
-  const handleConfirmationEnrollment = (
-    enrollment: EnrollmentDetail,
-    action: "approve" | "reject",
-  ) => {
-    Alert.alert(
-      `Confirmar ${action === "approve" ? "aprobar" : "rechazar"}`,
-      `¿Estás seguro de que deseas ${
-        action === "approve" ? "aprobar" : "rechazar"
-      } la matrícula de ${enrollment.user?.name} ${enrollment.user?.lastName}?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Confirmar",
-          onPress: () =>
-            reviewEnrollment.mutate({
-              enrollmentId: enrollment.id,
-              status: action === "approve" ? "approved" : "rejected",
-            }),
-        },
-      ],
-    );
+  const refresh = () => {
+    enrollmentsQuery.refetch();
+    pendingCount.refetch();
+    approvedCount.refetch();
+    rejectedCount.refetch();
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-950">
-      <HeaderTitle title="Centro de Matriculas" />
-      <View className="items-center mb-2">
-        <FilterPills
-          options={FILTER_OPTIONS}
-          onSelect={handleFilterChange}
-          selected={statusFilter}
-        />
-      </View>
-      <DataLoader
-        query={enrollmentByStatusQuery}
-        emptyMessage="No existen matriculas"
-      >
-        {(data, isRefetching, refetch) => (
+    <Screen scroll={false}>
+      <ScreenHeader eyebrow="Administración" title="Matrículas" subtitle={subtitle} />
+      <SegmentedControl
+        segments={SEGMENTS.map((segment) => ({ ...segment, count: counts[segment.value] }))}
+        value={status}
+        onChange={setStatus}
+        accessibilityLabel="Estado de las matrículas"
+        className="mx-5 mt-4"
+      />
+      <DataLoader query={enrollmentsQuery} emptyMessage={EMPTY[status]}>
+        {(data, isRefetching) => (
           <FlatList
             data={data}
             keyExtractor={(item) => item.id}
-            numColumns={1}
+            contentContainerClassName="gap-2 px-3 pb-8 pt-3.5"
+            showsVerticalScrollIndicator={false}
             // Loads the next 20 when nearing the end of the list.
             onEndReached={() => {
-              if (
-                enrollmentByStatusQuery.hasNextPage &&
-                !enrollmentByStatusQuery.isFetchingNextPage
-              ) {
-                enrollmentByStatusQuery.fetchNextPage();
+              if (enrollmentsQuery.hasNextPage && !enrollmentsQuery.isFetchingNextPage) {
+                enrollmentsQuery.fetchNextPage();
               }
             }}
             onEndReachedThreshold={0.5}
             ListFooterComponent={
-              enrollmentByStatusQuery.isFetchingNextPage ? (
-                <ActivityIndicator color="#facc15" />
-              ) : undefined
+              enrollmentsQuery.isFetchingNextPage ? <ActivityIndicator color={palette.faint} /> : undefined
             }
-            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefetching}
-                onRefresh={refetch}
-                tintColor="#facc15"
-              />
-            }
-            renderItem={({ item }) => {
-              return (
-                <View className="mb-3">
-                  <PhotoCard
-                    image={item.receiptUrl}
-                    item={item}
-                    onClickImage={(url) => {
-                      setImageSelected(url);
-                      setIsModalOpen(true);
-                    }}
-                    showStatusApprovement
-                    onConfirmation={(i, action) =>
-                      handleConfirmationEnrollment(i, action)
-                    }
-                  >
-                    <View className="gap-3">
-                      {/* Student */}
-                      <Pressable
-                        onPress={() => handleViewUserProfile(item.userId)}
-                      >
-                        <View className="flex-row items-center gap-2">
-                          <Ionicons
-                            name="person-circle-outline"
-                            size={20}
-                            color="turquoise"
-                          />
-                          <Text className="text-primary text-lg font-bold">
-                            {item.user?.name} {item.user?.lastName}
-                          </Text>
-                        </View>
-                      </Pressable>
-
-                      <View className="h-px bg-gray-800" />
-
-                      {/* Courses: one request can cover several */}
-                      <View className="gap-2">
-                        {item.courses.map((course) => (
-                          <View key={course.id} className="gap-1">
-                            <Pressable
-                              onPress={() => handleViewCourseDetails(course.id)}
-                            >
-                              <View className="flex-row items-center gap-2">
-                                <Ionicons
-                                  name="school-outline"
-                                  size={16}
-                                  color="#9ca3af"
-                                />
-                                <Text className="text-white font-semibold">
-                                  {course.title}
-                                </Text>
-                              </View>
-                            </Pressable>
-                            {course.branch && (
-                              <View className="flex-row items-center gap-1 ml-6">
-                                <Ionicons
-                                  name="business-outline"
-                                  size={12}
-                                  color="turquoise"
-                                />
-                                <Text className="text-primary text-xs">
-                                  {course.branch.name}
-                                </Text>
-                              </View>
-                            )}
-                            {course.day && (
-                              <View className="flex-row items-center gap-1 ml-6">
-                                <Ionicons
-                                  name="calendar-outline"
-                                  size={12}
-                                  color="#6b7280"
-                                />
-                                <Text className="text-gray-500 text-xs capitalize">
-                                  {course.day}
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-                        ))}
-                      </View>
-
-                      <View className="h-px bg-gray-800" />
-
-                      {/* Status + Amount */}
-                      <View className="flex-row items-center justify-between">
-                        <View
-                          className={`px-2 py-1 rounded-full ${statusBg[item.status]}`}
-                        >
-                          <Text
-                            className={`text-xs font-bold ${getEnrollmentColor(item.status)}`}
-                          >
-                            {statusTranslations[item.status]}
-                          </Text>
-                        </View>
-                        <View className="flex-row items-center gap-1">
-                          <Ionicons
-                            name="cash-outline"
-                            size={14}
-                            color="#9ca3af"
-                          />
-                          <Text className="text-white font-semibold">
-                            {formatCurrency(item.totalAmount)}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Email + Date */}
-                      <View className="gap-1">
-                        <View className="flex-row items-center gap-2">
-                          <Ionicons
-                            name="mail-outline"
-                            size={13}
-                            color="#6b7280"
-                          />
-                          <Text className="text-gray-400 text-xs">
-                            {item.user?.email}
-                          </Text>
-                        </View>
-                        <View className="flex-row items-center gap-2">
-                          <Ionicons
-                            name="time-outline"
-                            size={13}
-                            color="#6b7280"
-                          />
-                          <Text className="text-gray-400 text-xs">
-                            {formatDDMMYYYY(item.submittedAt)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </PhotoCard>
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refresh} />}
+            renderItem={({ item }) => (
+              <Card
+                onPress={() =>
+                  router.push({
+                    pathname: "/private/admin/enrollments/[enrollmentId]",
+                    params: { enrollmentId: item.id, status },
+                  })
+                }
+                accessibilityLabel={`${studentName(item)}, ${formatCurrency(item.totalAmount)}, ${STATUS_CHIP[item.status].label}`}
+                padded={false}
+                className="gap-2 p-3.5"
+              >
+                <View className="flex-row items-baseline justify-between gap-2">
+                  <AppText variant="bold" className="flex-1 text-[16px]" numberOfLines={1}>
+                    {studentName(item)}
+                  </AppText>
+                  <AppText variant="heavy" className="text-[17px]">
+                    {formatCurrency(item.totalAmount)}
+                  </AppText>
                 </View>
-              );
-            }}
+                <View className="flex-row flex-wrap gap-1.5">
+                  {item.courses.map((course) => (
+                    <Chip key={course.id} label={course.title} />
+                  ))}
+                </View>
+                <View className="flex-row items-center justify-between">
+                  <AppText variant="label" tone="muted" className="text-[10px]">
+                    {`${item.source === "manual" ? "Asignada" : "Enviada"} ${formatDayMonth(item.submittedAt)}`}
+                  </AppText>
+                  <View>
+                    <Chip {...STATUS_CHIP[item.status]} />
+                  </View>
+                </View>
+              </Card>
+            )}
           />
         )}
       </DataLoader>
-      <ImageModal
-        isVisible={isModalOpen}
-        imageSelected={imageSelected}
-        toggleVisibility={() => setIsModalOpen(false)}
-      />
-    </SafeAreaView>
+    </Screen>
   );
 };
+
 export default EnrollmentList;

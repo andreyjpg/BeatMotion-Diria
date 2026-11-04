@@ -11,7 +11,7 @@ type LogoProps = {
 };
 
 /** The Diriá wordmark set in type (the PNG logo has a black square around it). */
-export default function Logo({ size = 26, tone = "ink", tagline = false }: LogoProps) {
+const Logo = ({ size = 26, tone = "ink", tagline = false }: LogoProps) => {
   return (
     <View accessibilityRole="header" accessibilityLabel="Diriá, academia de baile">
       <AppText variant="logo" tone={tone} style={{ fontSize: size, lineHeight: size * 1.05 }}>
@@ -28,4 +28,6 @@ export default function Logo({ size = 26, tone = "ink", tagline = false }: LogoP
       )}
     </View>
   );
-}
+};
+
+export default Logo;

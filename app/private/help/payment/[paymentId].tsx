@@ -17,7 +17,7 @@ import { useState } from "react";
 import { Image, View } from "react-native";
 
 /** Help: a problem with one payment, which goes along with the message so the student only describes it. */
-export default function HelpPaymentScreen() {
+const HelpPaymentScreen = () => {
   const router = useRouter();
   const { paymentId } = useLocalSearchParams<{ paymentId: string }>();
   const { user } = useActiveUser();
@@ -91,4 +91,6 @@ export default function HelpPaymentScreen() {
       </DataLoader>
     </Screen>
   );
-}
+};
+
+export default HelpPaymentScreen;

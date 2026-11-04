@@ -17,7 +17,7 @@ import { useRouter } from "expo-router";
 import { Pressable, RefreshControl, View } from "react-native";
 
 /** Admin "Cursos" tab: every course by branch, and the way in to create and edit them. */
-export default function CoursesMenuScreen() {
+const CoursesMenuScreen = () => {
   const router = useRouter();
   const coursesQuery = useCourses();
   const classesQuery = useActiveClasses();
@@ -140,4 +140,6 @@ export default function CoursesMenuScreen() {
       </DataLoader>
     </Screen>
   );
-}
+};
+
+export default CoursesMenuScreen;
