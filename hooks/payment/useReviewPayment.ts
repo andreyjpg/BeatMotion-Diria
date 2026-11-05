@@ -33,7 +33,6 @@ export const useReviewPayment = () => {
       queryClient.invalidateQueries({ queryKey: ["myCourses"] });
       queryClient.invalidateQueries({ queryKey: ["courseMember"] });
       queryClient.invalidateQueries({ queryKey: ["membersByCourse"] });
-      Alert.alert("Éxito", "El pago ha sido actualizado con éxito.");
     },
     onError: (error) => {
       console.error("Error reviewing payment:", error);

@@ -1,5 +1,6 @@
 import { string } from "yup";
 
+import { detectVideoPlatform } from "@/constants/helpers";
 import type { SurveyQuestionInput } from "@/hooks/surveys/surveySchema";
 import * as yup from "yup";
 
@@ -35,6 +36,13 @@ export const ProfileAdminValidationSchema = {
     .required("El rol es obligatorio"),
 };
 
+/** An admin editing someone's profile (admin/user/[uid]); the role has its own control. */
+export const adminProfileFormSchema = yup.object({
+  name: ProfileAdminValidationSchema.name,
+  lastName: ProfileAdminValidationSchema.lastName,
+  phone: ProfileAdminValidationSchema.phone,
+});
+
 /** Notification draft (admin notifications/[draftId]). */
 export const draftFormSchema = yup.object().shape({
   title: yup.string().trim().required("El título es obligatorio"),
@@ -58,6 +66,9 @@ export const UserProfileValidationSchema = {
     .max(8, "Debe de ingresar un número válido"),
 };
 
+/** The user's own profile (tabs/profile). */
+export const profileFormSchema = yup.object(UserProfileValidationSchema);
+
 /** Event form (admin events new / edit). */
 export const eventFormSchema = yup.object().shape({
   title: yup
@@ -74,7 +85,8 @@ export const eventFormSchema = yup.object().shape({
       // the time the app opened). Editing may keep an event's past date.
       if (!value) return true; // `required` reports it
       const original: unknown = this.parent?.originalDatetime;
-      if (original instanceof Date && value.getTime() === original.getTime()) return true;
+      if (original instanceof Date && value.getTime() === original.getTime())
+        return true;
       return value.getTime() > Date.now();
     }),
   originalDatetime: yup.date().nullable(),
@@ -144,6 +156,18 @@ export const surveyFormSchema = yup.object().shape({
     .min(3, "El título debe tener al menos 3 caracteres.")
     .max(200, "El título puede tener hasta 200 caracteres."),
   courseId: yup.string().required("Debes seleccionar un curso."),
+  expiresAt: yup
+    .date()
+    .nullable()
+    .test("future", "La fecha no puede ser en el pasado.", function (value) {
+      if (!value) return true;
+      // Editing may keep a survey's old date; checked at the time of saving.
+      const original: unknown = this.parent?.originalExpiresAt;
+      if (original instanceof Date && value.getTime() === original.getTime())
+        return true;
+      return value.getTime() > Date.now();
+    }),
+  originalExpiresAt: yup.date().nullable(),
   questions: yup
     .array()
     .of(yup.mixed<SurveyQuestionInput>().required())
@@ -153,15 +177,21 @@ export const surveyFormSchema = yup.object().shape({
         const label = `Pregunta ${index + 1}`;
         const length = question.questionText.trim().length;
         if (length < 3 || length > 500) {
-          return this.createError({ message: `${label}: escribe la pregunta (3 a 500 caracteres).` });
+          return this.createError({
+            message: `${label}: escribe la pregunta (3 a 500 caracteres).`,
+          });
         }
         if (question.questionType === "multiple_choice") {
           const options = question.options ?? [];
           if (options.length < 2) {
-            return this.createError({ message: `${label}: agrega al menos 2 opciones.` });
+            return this.createError({
+              message: `${label}: agrega al menos 2 opciones.`,
+            });
           }
           if (options.some((option) => !option.trim())) {
-            return this.createError({ message: `${label}: todas las opciones deben tener texto.` });
+            return this.createError({
+              message: `${label}: todas las opciones deben tener texto.`,
+            });
           }
         }
       }
@@ -170,7 +200,9 @@ export const surveyFormSchema = yup.object().shape({
 });
 
 /** Answering a survey: one field per required question (by question id). */
-export const surveyAnswersSchema = (questions: { id: string; required: boolean }[]) =>
+export const surveyAnswersSchema = (
+  questions: { id: string; required: boolean }[],
+) =>
   yup.object(
     Object.fromEntries(
       questions
@@ -209,6 +241,53 @@ export const validationErrors = <S extends yup.AnyObjectSchema>(
   }
 };
 
+// Login (app/public/login.tsx): only checks the fields are filled in; the
+// credentials themselves are checked by Supabase.
+export const loginFormSchema = yup.object({
+  email: yup
+    .string()
+    .trim()
+    .email("El correo no es válido")
+    .required("Escribe tu correo"),
+  password: yup.string().required("Escribe tu contraseña"),
+});
+
+// Sign-up (app/public/signIn.tsx).
+export const signUpFormSchema = yup.object(signInValidationSchema);
+
+// Password reset (app/public/resetPassword.tsx): step 1 asks for the email,
+// step 2 for the emailed code and the new password twice.
+export const resetEmailFormSchema = yup.object({
+  email: signInValidationSchema.email,
+});
+
+export const resetPasswordFormSchema = yup.object({
+  code: yup.string().trim().required("Escribe el código que te enviamos"),
+  password: signInValidationSchema.password,
+  confirmPassword: yup
+    .string()
+    .required("Confirma la contraseña")
+    .oneOf([yup.ref("password")], "Las contraseñas no coinciden"),
+});
+
+// Help section (app/private/help, a mock: nothing is sent yet).
+export const helpQuestionFormSchema = yup.object({
+  topic: yup.string().required("Elige un tema."),
+  message: yup
+    .string()
+    .trim()
+    .required("Escribe tu consulta.")
+    .max(500, "La consulta no puede superar 500 caracteres."),
+});
+
+export const helpPaymentFormSchema = yup.object({
+  message: yup
+    .string()
+    .trim()
+    .required("Cuéntanos qué pasó con este pago.")
+    .max(500, "El mensaje no puede superar 500 caracteres."),
+});
+
 // Limits match the database constraints on public.branches.
 export const branchFormSchema = yup.object({
   name: yup
@@ -238,6 +317,19 @@ export const courseFormSchema = yup.object({
   description: yup
     .string()
     .max(1000, "La descripción no puede superar 1000 caracteres."),
+});
+
+// One video being added to a class (components/courses/ClassForm.tsx).
+export const videoLinkFormSchema = yup.object({
+  url: yup
+    .string()
+    .trim()
+    .required("Escribe el enlace del video.")
+    .test(
+      "platform",
+      "Solo se permiten enlaces de YouTube o Vimeo.",
+      (url) => !!url && detectVideoPlatform(url) !== null,
+    ),
 });
 
 export const classFormSchema = yup.object({

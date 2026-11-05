@@ -17,7 +17,7 @@ export type UserType = NonNullable<Awaited<ReturnType<typeof fetchActiveUser>>>;
 const SessionContext = createContext<Session | null | undefined>(undefined);
 
 /** Tracks the Supabase session for the whole app. Mount once, at the root. */
-export function AuthProvider({ children }: { children: ReactNode }) {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
-}
+};
 
 /** The signed-in user's profile (with `uid`), or null when signed out. */
 export const useActiveUser = () => {

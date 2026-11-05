@@ -16,9 +16,9 @@ export const audienceSchema = zod.enum(["all", "user", "teacher"]);
 export type Audience = zod.infer<typeof audienceSchema>;
 
 export const AUDIENCE_LABELS: Record<Audience, string> = {
-  all: "Todos los usuarios",
+  all: "Todos",
   user: "Estudiantes",
-  teacher: "Instructores",
+  teacher: "Profesores",
 };
 
 export const draftSchema = zod.object({

@@ -57,9 +57,25 @@ export const eventSignupCollectionSchema = zod.array(eventSignupSchema);
 export type EventSignup = zod.infer<typeof eventSignupSchema>;
 export type EventSignupStatus = EventSignup["status"];
 
+/** Just enough of each signup to total them per event (admin events list). */
+export const eventSignupCountRowsSchema = zod.array(
+  zod.object({
+    eventId: zod.string(),
+    status: signupStatusSchema,
+    totalAttendees: zod.number(),
+  }),
+);
+
+/** Which events the student is signed up for (student events list). */
+export const myActiveSignupRowsSchema = zod.array(zod.object({ eventId: zod.string() }));
+
 /** Query keys; everything about one event sits under ["eventSignups", "event", id]. */
 export const eventSignupsKeys = {
   all: ["eventSignups"] as const,
+  allMyActive: ["eventSignups", "myActive"] as const,
+  myActive: (userId: string) => ["eventSignups", "myActive", userId] as const,
+  allCounts: ["eventSignups", "counts"] as const,
+  counts: (eventIds: string[]) => ["eventSignups", "counts", eventIds] as const,
   event: (eventId: string) => ["eventSignups", "event", eventId] as const,
   byEvent: (eventId: string) => ["eventSignups", "event", eventId, "list"] as const,
   mine: (eventId: string, userId: string) => ["eventSignups", "event", eventId, "user", userId] as const,

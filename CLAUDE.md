@@ -58,6 +58,9 @@ These rules apply to all new and edited code.
 
 ## TypeScript
 
+- **Components are arrow functions**, screens and layouts included:
+  `const Name = () => { … };` and then `export default Name;`. Never define a
+  component with the `function` keyword.
 - **Never use `any`**: type values with the generated `Database` types,
   Zod/Yup-inferred types, or `unknown` plus narrowing (`err instanceof ValidationError`).
 - **Declare with `const`**; use `let` only when a variable really is reassigned.

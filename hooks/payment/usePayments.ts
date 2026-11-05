@@ -7,19 +7,26 @@ import { PAYMENT_DETAIL_COLUMNS, PaymentDetailSchema, toPayment } from "./schema
 const PAGE_SIZE = 20;
 
 /**
- * Admin list: payments in one status, newest first, 20 at a time (the
- * approved list grows every month). Only the loaded page's receipts get a
- * signed URL. `data` is the flat list of loaded payments; call fetchNextPage
- * at the end of the list.
+ * Admin list: payments in one status, 20 at a time (the approved list grows
+ * every month). Pending ones come most days late first, then oldest first, so
+ * the ones waiting longest get reviewed; reviewed ones newest first. Only the
+ * loaded page's receipts get a signed URL. `data` is the flat list of loaded
+ * payments; call fetchNextPage at the end of the list.
  */
 export const usePayments = (status: ReviewStatus) => {
   const fetchPage = async ({ pageParam }: { pageParam: number }) => {
     const from = pageParam * PAGE_SIZE;
-    const { data, error } = await supabase
+    const query = supabase
       .from("payments")
       .select(PAYMENT_DETAIL_COLUMNS)
-      .eq("status", status)
-      .order("created_at", { ascending: false })
+      .eq("status", status);
+    const ordered =
+      status === "pending"
+        ? query
+            .order("days_late", { ascending: false })
+            .order("created_at", { ascending: true })
+        : query.order("created_at", { ascending: false });
+    const { data, error } = await ordered
       .order("id")
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw error;

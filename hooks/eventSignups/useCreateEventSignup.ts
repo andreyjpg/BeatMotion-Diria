@@ -46,6 +46,8 @@ export const useCreateEventSignup = () => {
     },
     onSuccess: (status, { eventId }) => {
       queryClient.invalidateQueries({ queryKey: eventSignupsKeys.event(eventId) });
+      queryClient.invalidateQueries({ queryKey: eventSignupsKeys.allCounts });
+      queryClient.invalidateQueries({ queryKey: eventSignupsKeys.allMyActive });
       Alert.alert(
         "Registro enviado",
         status === "autoApproved"

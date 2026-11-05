@@ -1,237 +1,125 @@
 import DataLoader from "@/components/DataLoader";
-import HeaderTitle from "@/components/headerTitle";
-import { formatDDMMYYYY, to12hLabel } from "@/constants/helpers";
+import QuestionResults from "@/components/surveys/QuestionResults";
+import AppText from "@/components/ui/AppText";
+import Card from "@/components/ui/Card";
+import ProgressBar from "@/components/ui/ProgressBar";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import SectionHeader from "@/components/ui/SectionHeader";
+import { formatDayMonth, to12hLabel } from "@/constants/helpers";
+import { useSurveyById } from "@/hooks/surveys/useSurveyById";
 import { useSurveyResponses } from "@/hooks/surveys/useSurveyResponses";
 import { useSurveyResults } from "@/hooks/surveys/useSurveyResults";
-import { useSurveyById } from "@/hooks/surveys/useSurveyById";
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import { RefreshControl, ScrollView, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { RefreshControl, View } from "react-native";
 
-export default function SurveyResultsScreen() {
+/** Seconds -> "2:40". */
+const formatMinutes = (seconds: number) => {
+  const whole = Math.round(seconds);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+};
+
+/** Admin: how a survey's questions were answered, and who answered it. */
+const SurveyResultsScreen = () => {
   const { surveyId } = useLocalSearchParams<{ surveyId: string }>();
-
   const surveyQuery = useSurveyById(surveyId);
   const resultsQuery = useSurveyResults(surveyId);
   const responsesQuery = useSurveyResponses(surveyId);
 
-  const renderStars = (rating: number) => {
-    return (
-      <View className="flex-row gap-1">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Ionicons
-            key={star}
-            name={star <= Math.round(rating) ? "star" : "star-outline"}
-            size={20}
-            color="#facc15"
-          />
-        ))}
-        <Text className="text-white ml-2 font-bold">{rating.toFixed(1)}</Text>
-      </View>
-    );
-  };
+  const survey = surveyQuery.data;
+  const responses = responsesQuery.data ?? [];
+  const times = responses.flatMap((r) => (r.completionTimeSeconds === null ? [] : [r.completionTimeSeconds]));
+  const averageTime = times.length > 0 ? times.reduce((sum, t) => sum + t, 0) / times.length : null;
 
-  const renderProgressBar = (value: number, total: number, color: string) => {
-    const percentage = total > 0 ? (value / total) * 100 : 0;
-    return (
-      <View className="flex-1">
-        <View className="bg-gray-800 rounded-full h-3 overflow-hidden">
-          <View
-            className={`h-full rounded-full ${color}`}
-            style={{ width: `${percentage}%` }}
-          />
-        </View>
-        <Text className="text-gray-400 text-xs mt-1">
-          {value} ({percentage.toFixed(0)}%)
-        </Text>
-      </View>
-    );
+  const refresh = () => {
+    surveyQuery.refetch();
+    resultsQuery.refetch();
+    responsesQuery.refetch();
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-black">
-      <HeaderTitle
-        title="Resultados de Encuesta"
-        subtitle="Análisis de respuestas"
+    <Screen refreshControl={<RefreshControl refreshing={resultsQuery.isRefetching} onRefresh={refresh} />}>
+      <ScreenHeader
+        eyebrow={survey?.courseName ? `Resultados · ${survey.courseName}` : "Resultados"}
+        title={survey?.title ?? "Encuesta"}
       />
-
-      <DataLoader query={surveyQuery} emptyMessage="Encuesta no encontrada">
+      <DataLoader query={surveyQuery} emptyMessage="No encontramos esta encuesta.">
         {(survey) => (
-          <DataLoader query={resultsQuery} emptyMessage="No hay respuestas aún">
-            {(results, isRefetching, refetch) => (
-              <ScrollView
-                className="flex-1 px-6"
-                refreshControl={
-                  <RefreshControl
-                    refreshing={isRefetching}
-                    onRefresh={refetch}
-                    tintColor="#40E0D0"
-                  />
-                }
-              >
-                <View className="bg-gray-900 rounded-3xl p-6 mb-6">
-                  <Text className="text-white text-xl font-bold mb-4">
-                    {survey.title}
-                  </Text>
-
-                  <View className="flex-row gap-4">
-                    <View className="flex-1 bg-gray-800 rounded-2xl p-4 items-center">
-                      <Text className="text-4xl font-bold text-primary">
-                        {results.totalResponses}
-                      </Text>
-                      <Text className="text-gray-400 text-sm mt-1">
-                        Respuestas
-                      </Text>
-                    </View>
-
-                    <View className="flex-1 bg-gray-800 rounded-2xl p-4 items-center">
-                      <Text className="text-4xl font-bold text-green-400">
-                        {results.completionRate.toFixed(0)}%
-                      </Text>
-                      <Text className="text-gray-400 text-sm mt-1">
-                        Completado
-                      </Text>
-                    </View>
-                  </View>
+          <DataLoader query={resultsQuery} emptyMessage="Todavía no hay respuestas.">
+            {(results) => (
+              <>
+                <View className="flex-row gap-2 px-3 pt-4">
+                  <Card padded={false} className="flex-1 gap-1 px-3.5 py-3">
+                    <AppText variant="heavy" className="text-[26px] leading-[30px]">
+                      {results.totalResponses}
+                      <AppText variant="semibold" tone="muted" className="text-[15px]">
+                        {` / ${results.studentCount}`}
+                      </AppText>
+                    </AppText>
+                    <AppText tone="muted" className="text-[12px]">
+                      Respondieron
+                    </AppText>
+                    <ProgressBar percent={results.completionRate} height={6} className="mt-1" />
+                  </Card>
+                  <Card padded={false} className="flex-1 gap-1 px-3.5 py-3">
+                    <AppText variant="heavy" className="text-[26px] leading-[30px]">
+                      {averageTime === null ? "—" : formatMinutes(averageTime)}
+                    </AppText>
+                    <AppText tone="muted" className="text-[12px]">
+                      Minutos en promedio
+                    </AppText>
+                  </Card>
                 </View>
 
-                {/* Preguntas y resultados */}
                 {survey.questions.map((question, index) => (
-                  <View
+                  <QuestionResults
                     key={question.id}
-                    className="bg-gray-900 rounded-3xl p-5 mb-4"
-                  >
-                    <Text className="text-primary font-semibold mb-2">
-                      Pregunta {index + 1}
-                    </Text>
-                    <Text className="text-white text-base mb-4">
-                      {question.questionText}
-                    </Text>
-
-                    {/* Rating */}
-                    {question.questionType === "rating" && (
-                      <View>
-                        {results.averageRatings[question.id] ? (
-                          <View className="bg-gray-800 rounded-2xl p-4 items-center">
-                            <Text className="text-gray-400 text-sm mb-2">
-                              Promedio
-                            </Text>
-                            {renderStars(results.averageRatings[question.id])}
-                            <Text className="text-gray-400 text-xs mt-2">
-                              Basado en {results.totalResponses} respuestas
-                            </Text>
-                          </View>
-                        ) : (
-                          <Text className="text-gray-500 text-center italic">
-                            Sin respuestas aún
-                          </Text>
-                        )}
-                      </View>
-                    )}
-
-                    {/* Multiple Choice */}
-                    {question.questionType === "multiple_choice" && (
-                      <View>
-                        {results.responseDistribution[question.id] ? (
-                          <View className="gap-3">
-                            {Object.entries(
-                              results.responseDistribution[question.id]
-                            )
-                              .sort((a, b) => b[1] - a[1])
-                              .map(([option, count]) => (
-                                <View key={option} className="gap-2">
-                                  <Text className="text-white">{option}</Text>
-                                  {renderProgressBar(
-                                    count,
-                                    results.totalResponses,
-                                    "bg-primary"
-                                  )}
-                                </View>
-                              ))}
-                          </View>
-                        ) : (
-                          <Text className="text-gray-500 text-center italic">
-                            Sin respuestas aún
-                          </Text>
-                        )}
-                      </View>
-                    )}
-
-                    {/* Text Responses */}
-                    {question.questionType === "text" && (
-                      <View>
-                        {results.textResponses[question.id] &&
-                        results.textResponses[question.id].length > 0 ? (
-                          <View className="gap-2">
-                            <Text className="text-gray-400 text-sm mb-2">
-                              {results.textResponses[question.id].length}{" "}
-                              respuestas:
-                            </Text>
-                            {results.textResponses[question.id].map(
-                              (response, idx) => (
-                                <View
-                                  key={idx}
-                                  className="bg-gray-800 rounded-xl p-3"
-                                >
-                                  <Text className="text-white"></Text>
-                                </View>
-                              )
-                            )}
-                          </View>
-                        ) : (
-                          <Text className="text-gray-500 text-center italic">
-                            Sin respuestas aún
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  </View>
+                    question={question}
+                    number={index + 1}
+                    results={results}
+                    responses={responses}
+                  />
                 ))}
 
-                {/* Lista de respondientes */}
-                <View className="bg-gray-900 rounded-3xl p-5 mb-6">
-                  <Text className="text-white text-lg font-bold mb-4">
-                    Respuestas ({responsesQuery.data?.length || 0})
-                  </Text>
-                  <DataLoader
-                    query={responsesQuery}
-                    emptyMessage="No hay respuestas"
-                  >
-                    {(responses) => (
-                      <View className="gap-2">
-                        {responses.map((response) => (
-                          <View
-                            key={response.id}
-                            className="bg-gray-800 rounded-xl p-3 flex-row items-center justify-between"
-                          >
-                            <View className="flex-1">
-                              <Text className="text-white">
-                                {response.userName || "Usuario"}
-                              </Text>
-                              <Text className="text-gray-400 text-xs">
-                                {formatDDMMYYYY(response.submittedAt)} -{" "}
-                                {to12hLabel(response.submittedAt)}
-                              </Text>
-                            </View>
-                            {response.completionTimeSeconds !== null && (
-                              <Text className="text-gray-500 text-xs">
-                                {response.completionTimeSeconds < 60
-                                  ? "< 1 min"
-                                  : `${Math.round(response.completionTimeSeconds / 60)} min`}
-                              </Text>
-                            )}
+                <SectionHeader
+                  title="Quiénes respondieron"
+                  note={responses.length === 1 ? "1 respuesta" : `${responses.length} respuestas`}
+                />
+                <DataLoader query={responsesQuery} emptyMessage="Todavía no hay respuestas.">
+                  {(list) => (
+                    <Card padded={false} className="mx-3 py-1">
+                      {list.map((response, i) => (
+                        <View
+                          key={response.id}
+                          className={`flex-row items-center justify-between gap-2 px-4 py-2.5 ${
+                            i < list.length - 1 ? "border-b border-line-soft" : ""
+                          }`}
+                        >
+                          <View className="flex-1">
+                            <AppText variant="bold" className="text-[14.5px]" numberOfLines={1}>
+                              {response.userName || "Usuario"}
+                            </AppText>
+                            <AppText tone="muted" className="text-[12.5px]">
+                              {`${formatDayMonth(response.submittedAt)}, ${to12hLabel(response.submittedAt)}`}
+                            </AppText>
                           </View>
-                        ))}
-                      </View>
-                    )}
-                  </DataLoader>
-                </View>
-              </ScrollView>
+                          {response.completionTimeSeconds !== null && (
+                            <AppText tone="muted" className="text-[12.5px]">
+                              {`${formatMinutes(response.completionTimeSeconds)} min`}
+                            </AppText>
+                          )}
+                        </View>
+                      ))}
+                    </Card>
+                  )}
+                </DataLoader>
+              </>
             )}
           </DataLoader>
         )}
       </DataLoader>
-    </SafeAreaView>
+    </Screen>
   );
-}
+};
+
+export default SurveyResultsScreen;

@@ -1,7 +1,7 @@
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
+import { Notifications } from "@/lib/notifications";
 import { useEffect } from "react";
 import { registerPushToken } from "./pushToken";
 
@@ -13,20 +13,22 @@ export const useCreateFCMToken = () => {
   const { user } = useActiveUser();
 
   useEffect(() => {
-    if (!user?.uid) return;
+    // No notifications module in Expo Go on Android (see lib/notifications.ts).
+    const notifications = Notifications;
+    if (!user?.uid || !notifications) return;
 
     const registerToken = async () => {
       if (!Device.isDevice) {
-        console.error("Push notifications only work on a physical device");
+        console.warn("Push notifications only work on a physical device");
         return;
       }
 
       // Request permission if needed
       const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
+        await notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
+        const { status } = await notifications.requestPermissionsAsync();
         finalStatus = status;
       }
 
@@ -35,7 +37,7 @@ export const useCreateFCMToken = () => {
         return;
       }
 
-      const { data: expoToken } = await Notifications.getExpoPushTokenAsync({
+      const { data: expoToken } = await notifications.getExpoPushTokenAsync({
         projectId: Constants.expoConfig?.extra?.eas?.projectId,
       });
 
@@ -48,15 +50,18 @@ export const useCreateFCMToken = () => {
     // SDK 55); a missing token must never break the app.
     const safeRegisterToken = () =>
       registerToken().catch((error) =>
-        console.warn("Push notifications unavailable:", error?.message ?? error)
+        console.warn(
+          "Push notifications unavailable:",
+          error?.message ?? error,
+        ),
       );
 
     safeRegisterToken();
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(
+    const subscription = notifications.addNotificationResponseReceivedListener(
       () => {
         safeRegisterToken();
-      }
+      },
     );
 
     return () => subscription.remove();

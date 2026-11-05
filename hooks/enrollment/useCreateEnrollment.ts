@@ -7,7 +7,8 @@ import { removeUnusedReceipt, uploadReceipt } from "../storage/receiptStorage";
 
 type CreateEnrollmentInput = {
   courseIds: string[];
-  receipt: PickedImage;
+  /** Null when there's nothing to pay: Plan Diriá already covers more courses. */
+  receipt: PickedImage | null;
   totalAmount: number;
   annualFeeYear: number | null;
 };
@@ -22,16 +23,17 @@ export const useCreateEnrollment = () => {
       const userId = session.session?.user.id;
       if (!userId) throw new Error("No hay una sesión activa.");
 
-      const receiptPath = await uploadReceipt(userId, input.receipt);
+      const receiptPath = input.receipt ? await uploadReceipt(userId, input.receipt) : null;
       // One request for all the courses, created in a single transaction.
       const { data: enrollmentId, error } = await supabase.rpc("request_enrollment", {
         p_course_ids: input.courseIds,
         p_total_amount: input.totalAmount,
-        p_receipt_path: receiptPath,
+        // The column takes null; the generated types only know the argument as text.
+        p_receipt_path: receiptPath as string,
         p_annual_fee_year: input.annualFeeYear ?? undefined,
       });
       if (error) {
-        await removeUnusedReceipt(receiptPath);
+        if (receiptPath) await removeUnusedReceipt(receiptPath);
         throw error;
       }
       return enrollmentId;
@@ -39,7 +41,6 @@ export const useCreateEnrollment = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["enrollments"] });
       queryClient.invalidateQueries({ queryKey: ["annualFeeDue"] });
-      Alert.alert("Matrícula enviada", "Será revisada pronto.");
     },
     onError: (error) => {
       console.error("Error creating enrollment:", error);

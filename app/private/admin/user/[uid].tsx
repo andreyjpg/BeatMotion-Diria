@@ -1,298 +1,252 @@
 import DataLoader from "@/components/DataLoader";
-import FormScrollView from "@/components/FormScrollView";
-import HeaderTitle from "@/components/headerTitle";
-import { capitalize } from "@/constants/helpers";
-import { ProfileAdminValidationSchema } from "@/constants/validationForms";
+import AppText from "@/components/ui/AppText";
+import Avatar from "@/components/ui/Avatar";
+import Card from "@/components/ui/Card";
+import Chip, { statusTone } from "@/components/ui/Chip";
+import Field from "@/components/ui/Field";
+import FormActions from "@/components/ui/FormActions";
+import IconButton from "@/components/ui/IconButton";
+import InfoRow from "@/components/ui/InfoRow";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import SegmentedControl from "@/components/ui/SegmentedControl";
+import SelectField from "@/components/ui/SelectField";
+import SwitchRow from "@/components/ui/SwitchRow";
+import { capitalize, digitsOnly, roleLabel, standingLabel } from "@/constants/helpers";
+import { adminProfileFormSchema, FormErrors, validationErrors } from "@/constants/validationForms";
+import { useBranches } from "@/hooks/branches/useBranches";
+import { useCourses } from "@/hooks/courses/useCourses";
+import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
+import { useManualEnrollment } from "@/hooks/enrollment/useManualEnrollment";
+import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { useSetUserActive } from "@/hooks/user/useSetUserActive";
 import { useUpdateProfile } from "@/hooks/user/useUpdateProfile";
 import { useUserInfo } from "@/hooks/user/useUserInfo";
-import { Picker } from "@react-native-picker/picker";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import {
-  Image,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import * as Yup from "yup";
+import { useLocalSearchParams } from "expo-router";
+import { useState } from "react";
+import { Alert, RefreshControl, View } from "react-native";
 
-const USER_ROLES_MAPPER = {
-  user: "Usuario",
-  admin: "Administrador",
-  teacher: "Profesor",
-};
+type Role = "user" | "teacher" | "admin";
 
-export default function AdminUserProfile() {
-  const { uid } = useLocalSearchParams();
+const ROLES: { value: Role; label: string }[] = [
+  { value: "user", label: roleLabel.user },
+  { value: "teacher", label: roleLabel.teacher },
+  { value: "admin", label: roleLabel.admin },
+];
+
+/** Admin: one person's details, role, courses and whether their account is active. */
+const AdminUserProfile = () => {
+  const { uid } = useLocalSearchParams<{ uid: string }>();
+  const { user: activeUser } = useActiveUser();
+  const userQuery = useUserInfo(uid);
+  const coursesQuery = useCoursesByUserMember(uid);
+  const allCoursesQuery = useCourses();
+  const branchesQuery = useBranches();
+  const updateProfile = useUpdateProfile();
+  const setUserActive = useSetUserActive();
+  const manualEnrollment = useManualEnrollment();
+
   const [editing, setEditing] = useState(false);
-  const userQuery = useUserInfo(uid as string);
-  const updateProfileMutation = useUpdateProfile();
-  const [form, setForm] = useState({
-    name: "",
-    lastName: "",
-    phone: "",
-    role: "user",
-    photoURL: "",
-    email: "",
-  });
-  const [formErrors, setFormErrors] = useState({
-    name: "",
-    lastName: "",
-    phone: "",
-    role: "",
-    email: "",
-  });
+  const [name, setName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [errors, setErrors] = useState<FormErrors<typeof adminProfileFormSchema>>({});
 
-  useEffect(() => {
-    if (userQuery.data) {
-      const userData = userQuery.data;
-      setForm({
-        name: userData.name || "",
-        lastName: userData.lastName || "",
-        phone: userData.phone || "",
-        role: userData.role || "user",
-        photoURL: userData.photoURL || "",
-        email: userData.email || "",
-      });
-    }
-  }, [userQuery.data]);
+  const profile = userQuery.data;
+  const fullName = profile ? `${profile.name} ${profile.lastName}`.trim() || "Sin nombre" : "Usuario";
+  // Admins can't lock themselves out: no changing their own role or deactivating themselves.
+  const isSelf = activeUser?.uid === uid;
 
-  const validation = () => {
-    try {
-      Yup.object(ProfileAdminValidationSchema).validateSync(form, {
-        abortEarly: false,
-      });
-      setFormErrors({
-        name: "",
-        lastName: "",
-        phone: "",
-        role: "",
-        email: "",
-      });
-    } catch (err: any) {
-      const errors = {
-        name: "",
-        lastName: "",
-        phone: "",
-        role: "",
-        email: "",
-      };
-      err.inner.reduce((acc: any, curr: any) => {
-        acc[curr.path] = curr.message;
-        return acc;
-      }, errors);
-      setFormErrors(errors);
-      return false;
-    }
-    return true;
+  const courses = coursesQuery.data ?? [];
+  const available = (allCoursesQuery.data ?? []).filter((course) => !courses.some((c) => c.courseId === course.id));
+  const standing = courses.some((c) => c.paymentStatus === "late")
+    ? "late"
+    : courses.some((c) => c.paymentStatus === "pending")
+      ? "pending"
+      : courses.length > 0
+        ? "ok"
+        : null;
+
+  const startEditing = () => {
+    if (!profile) return;
+    setName(profile.name);
+    setLastName(profile.lastName);
+    setPhone(profile.phone ?? "");
+    setErrors({});
+    setEditing(true);
   };
 
-  // Save updates
-  const handleSave = async () => {
-    if (validation()) {
-      updateProfileMutation.mutate({
-        uid: uid as string,
-        body: {
-          name: form.name.trim(),
-          lastName: form.lastName.trim(),
-          phone: form.phone.trim(),
-          role: form.role,
-        },
-      });
+  const save = () => {
+    const phoneDigits = digitsOnly(phone);
+    const found = validationErrors(adminProfileFormSchema, { name, lastName, phone: phoneDigits });
+    setErrors(found);
+    if (Object.keys(found).length > 0) return;
+    updateProfile.mutate(
+      { uid, body: { name: name.trim(), lastName: lastName.trim(), phone: phoneDigits } },
+      { onSuccess: () => setEditing(false) },
+    );
+  };
 
-      setEditing(false);
-    }
+  const confirmRole = (role: Role) => {
+    if (!profile || role === profile.role) return;
+    Alert.alert("Cambiar rol", `¿Cambiar el rol de ${fullName} a ${roleLabel[role]}?`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Cambiar",
+        onPress: () =>
+          updateProfile.mutate({
+            uid,
+            body: { name: profile.name, lastName: profile.lastName, phone: profile.phone ?? "", role },
+          }),
+      },
+    ]);
+  };
+
+  const confirmAssign = (courseId: string) => {
+    const course = available.find((c) => c.id === courseId);
+    if (!course) return;
+    Alert.alert("Asignar a un curso", `¿Asignar a ${fullName} a ${course.title}? No se le cobra esta matrícula.`, [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Asignar", onPress: () => manualEnrollment.mutate({ userId: uid, courseId }) },
+    ]);
+  };
+
+  const refresh = () => {
+    userQuery.refetch();
+    coursesQuery.refetch();
   };
 
   return (
-    <FormScrollView className="flex-1 bg-black px-6 py-10">
-      <HeaderTitle title="Perfil de usuario" />
-
-      <DataLoader query={userQuery}>
-        {(data) => {
-          return (
+    <Screen
+      form={editing}
+      refreshControl={editing ? undefined : <RefreshControl refreshing={userQuery.isRefetching} onRefresh={refresh} />}
+      footer={
+        editing ? (
+          <FormActions
+            saveLabel="Guardar cambios"
+            onSave={save}
+            onCancel={() => setEditing(false)}
+            loading={updateProfile.isPending}
+            hasErrors={Object.keys(errors).length > 0}
+          />
+        ) : undefined
+      }
+    >
+      <ScreenHeader
+        eyebrow="Perfil de usuario"
+        title={fullName}
+        leading={profile ? <Avatar name={profile.name} lastName={profile.lastName} photoUrl={profile.photoURL} tone="dark" size={64} /> : undefined}
+        right={
+          profile && !editing ? (
+            <IconButton icon="create-outline" onPress={startEditing} accessibilityLabel="Editar datos" />
+          ) : undefined
+        }
+      />
+      <DataLoader query={userQuery} emptyMessage="No encontramos este usuario.">
+        {(profile) =>
+          editing ? (
+            <Card className="mx-3 mt-4 gap-3.5">
+              <Field label="Nombre *" value={name} onChangeText={setName} error={errors.name} />
+              <Field label="Apellido *" value={lastName} onChangeText={setLastName} error={errors.lastName} />
+              <Field
+                label="Teléfono *"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                error={errors.phone}
+              />
+            </Card>
+          ) : (
             <>
-              {/* Avatar */}
-              <View className="items-center mb-8">
-                {form.photoURL ? (
-                  <Image
-                    source={{ uri: form.photoURL }}
-                    className="w-28 h-28 rounded-full mb-4"
+              <View className="flex-row flex-wrap gap-1.5 px-5 pt-3">
+                <Chip label={roleLabel[profile.role]} />
+                {standing && <Chip label={standingLabel[standing]} tone={statusTone(standing)} />}
+                {!profile.isActive && <Chip label="Inactivo" tone="muted" />}
+              </View>
+
+              <Card padded={false} className="mx-3 mt-4 px-4 py-1">
+                <InfoRow label="Teléfono">{profile.phone || "—"}</InfoRow>
+                <InfoRow label="Correo" divider={false}>
+                  {profile.email}
+                </InfoRow>
+              </Card>
+              {/* TODO(cumpleaños): the design also shows the birth date and age, which
+                  the database doesn't store yet (see TODO.md). */}
+
+              {!isSelf && (
+                <Card className="mx-3 mt-2.5 gap-2.5">
+                  <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
+                    Rol
+                  </AppText>
+                  <SegmentedControl
+                    segments={ROLES}
+                    value={profile.role}
+                    onChange={confirmRole}
+                    tone="dark"
+                    accessibilityLabel="Rol del usuario"
                   />
-                ) : (
-                  <View className="w-28 h-28 rounded-full bg-gray-800 mb-4 items-center justify-center">
-                    <Text className="text-white text-xl">
-                      {capitalize(form.name !== "" ? form.name?.[0] : "?")}{" "}
-                      {capitalize(
-                        form.lastName !== "" ? form.lastName?.[0] : "?"
-                      )}
-                    </Text>
-                  </View>
+                </Card>
+              )}
+
+              <Card className="mx-3 mt-2.5 gap-1">
+                <AppText variant="label-bold" accessibilityRole="header" className="pb-1 text-[12px]">
+                  Cursos
+                </AppText>
+                {courses.length === 0 && !coursesQuery.isLoading && (
+                  <AppText tone="muted" className="py-2 text-[14px]">
+                    Sin cursos activos.
+                  </AppText>
                 )}
-                <Text className="text-white text-xl font-semibold">
-                  {`${form.name} ${form.lastName}`.trim() || "Sin nombre"}
-                </Text>
-                <Text className="text-gray-400">
-                  {form?.email || "Sin correo"}
-                </Text>
-              </View>
-
-              {/* User Info */}
-              <View className="bg-gray-900 rounded-2xl p-4 mb-8">
-                <Text className="text-white font-semibold mb-3">Datos</Text>
-
-                {/* Nombre */}
-                <View className="mb-3">
-                  <Text className="text-gray-400 text-xs mb-1">Nombre</Text>
-                  {editing ? (
-                    <>
-                      <TextInput
-                        value={form.name}
-                        onChangeText={(value) =>
-                          setForm({ ...form, name: value })
-                        }
-                        className="bg-gray-800 text-white rounded-xl px-3 py-3"
-                      />
-                      {formErrors.name ? (
-                        <Text className="text-red-500 text-xs mt-1">
-                          {formErrors.name}
-                        </Text>
-                      ) : null}
-                    </>
-                  ) : (
-                    <Text className="text-white">{form.name || "—"}</Text>
-                  )}
-                </View>
-
-                {/* Apellido */}
-                <View className="mb-3">
-                  <Text className="text-gray-400 text-xs mb-1">Apellido</Text>
-                  {editing ? (
-                    <>
-                      <TextInput
-                        value={form.lastName}
-                        onChangeText={(value) =>
-                          setForm({ ...form, lastName: value })
-                        }
-                        className="bg-gray-800 text-white rounded-xl px-3 py-3"
-                      />
-                      {formErrors.lastName ? (
-                        <Text className="text-red-500 text-xs mt-1">
-                          {formErrors.lastName}
-                        </Text>
-                      ) : null}
-                    </>
-                  ) : (
-                    <Text className="text-white">{form.lastName || "—"}</Text>
-                  )}
-                </View>
-
-                {/* Teléfono */}
-                <View className="mb-3">
-                  <Text className="text-gray-400 text-xs mb-1">Teléfono</Text>
-                  {editing ? (
-                    <>
-                      <TextInput
-                        value={form.phone}
-                        onChangeText={(value) =>
-                          setForm({ ...form, phone: value })
-                        }
-                        keyboardType="phone-pad"
-                        className="bg-gray-800 text-white rounded-xl px-3 py-3"
-                      />
-                      {formErrors.phone ? (
-                        <Text className="text-red-500 text-xs mt-1">
-                          {formErrors.phone}
-                        </Text>
-                      ) : null}
-                    </>
-                  ) : (
-                    <Text className="text-white">{form.phone || "—"}</Text>
-                  )}
-                </View>
-
-                {/* Rol */}
-                <View className="mb-3">
-                  <Text className="text-gray-400 text-xs mb-1">Rol</Text>
-                  {editing ? (
-                    <>
-                      <View className="bg-gray-800 rounded-xl">
-                        <Picker
-                          selectedValue={form.role}
-                          onValueChange={(value: string) =>
-                            setForm({ ...form, role: value })
-                          }
-                          dropdownIconColor="white"
-                          style={{ color: "white" }}
-                        >
-                          <Picker.Item label="Usuario" value="user" />
-                          <Picker.Item label="Administrador" value="admin" />
-                          <Picker.Item label="Profesor" value="teacher" />
-                        </Picker>
+                {courses.map((course) => {
+                  const branch = branchesQuery.data?.find((b) => b.id === course.branchId);
+                  return (
+                    <View key={course.id} className="flex-row items-center gap-2.5 border-b border-line-soft py-2.5">
+                      <View className="flex-1">
+                        <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
+                          {course.title}
+                        </AppText>
+                        <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+                          {[course.day && capitalize(course.day), branch?.name].filter(Boolean).join(" · ")}
+                        </AppText>
                       </View>
-                      {formErrors.role ? (
-                        <Text className="text-red-500 text-xs mt-1">
-                          {formErrors.role}
-                        </Text>
-                      ) : null}
-                    </>
-                  ) : (
-                    <Text className="text-white capitalize">
-                      {USER_ROLES_MAPPER[
-                        form.role as keyof typeof USER_ROLES_MAPPER
-                      ] || "—"}
-                    </Text>
-                  )}
-                </View>
-              </View>
+                      <View>
+                        <Chip
+                          label={standingLabel[course.paymentStatus] ?? course.paymentStatus}
+                          tone={statusTone(course.paymentStatus)}
+                        />
+                      </View>
+                    </View>
+                  );
+                })}
+                <SelectField
+                  label="Asignar a un curso"
+                  value=""
+                  onChange={confirmAssign}
+                  options={available.map((course) => ({ value: course.id, label: course.title }))}
+                  placeholder="Elegir curso"
+                  disabled={available.length === 0 || manualEnrollment.isPending}
+                  hint={allCoursesQuery.isSuccess && available.length === 0 ? "Ya está en todos los cursos." : undefined}
+                  className="pt-2"
+                />
+              </Card>
 
-              {/* Buttons */}
-              <View className="gap-3">
-                {editing ? (
-                  <>
-                    <TouchableOpacity
-                      className="bg-white rounded-2xl px-5 py-4 active:opacity-80"
-                      onPress={handleSave}
-                    >
-                      <Text className="text-center font-semibold">
-                        Guardar cambios
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      className="bg-gray-700 rounded-2xl px-5 py-4 active:opacity-80"
-                      onPress={() => setEditing(false)}
-                    >
-                      <Text className="text-center font-semibold text-white">
-                        Cancelar
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <TouchableOpacity
-                      className="bg-white rounded-2xl px-5 py-4 active:opacity-80"
-                      onPress={() => setEditing(true)}
-                    >
-                      <Text className="text-center font-semibold">
-                        Editar información
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      className="bg-gray-700 rounded-2xl px-5 py-4 active:opacity-80"
-                      onPress={() => router.back()}
-                    >
-                      <Text className="text-center font-semibold text-white">
-                        Volver
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
+              {!isSelf && (
+                <Card className="mx-3 mt-2.5">
+                  <SwitchRow
+                    title="Cuenta activa"
+                    hint={profile.isActive ? "Puede entrar a la app" : "No puede entrar a la app"}
+                    value={profile.isActive}
+                    onChange={(isActive) => setUserActive.mutate({ userId: uid, isActive })}
+                    disabled={setUserActive.isPending}
+                  />
+                </Card>
+              )}
             </>
-          );
-        }}
+          )
+        }
       </DataLoader>
-    </FormScrollView>
+    </Screen>
   );
-}
+};
+
+export default AdminUserProfile;

@@ -8,6 +8,9 @@ import { dateTimeSchema } from "../common/schema";
 export const SURVEY_COLUMNS =
   "id, courseId:course_id, title, description, isActive:is_active, expiresAt:expires_at, createdBy:created_by, isDeleted:is_deleted, createdAt:created_at, updatedAt:updated_at, course:courses(title), questions:survey_questions(id, order:position, questionText:question_text, questionType:question_type, required, options)";
 
+/** Admin list: each survey with how many responses it has. */
+export const SURVEY_LIST_COLUMNS = `${SURVEY_COLUMNS}, responses:survey_responses(count)` as const;
+
 /** A student's response with their name and answers, for the results screen. */
 export const SURVEY_RESPONSE_COLUMNS =
   "id, surveyId:survey_id, userId:user_id, completionTimeSeconds:completion_time_seconds, submittedAt:submitted_at, user:profiles!survey_responses_user_id_fkey(name, lastName:last_name), answers:survey_answers(questionId:question_id, rating, textValue:text_value)";
@@ -65,6 +68,8 @@ export const surveySchema = zod.object({
 export type Survey = zod.infer<typeof surveySchema>;
 
 export const surveyListSchema = zod.array(surveySchema);
+
+export const surveyWithCountListSchema = zod.array(surveySchema.extend({ responseCount: zod.number() }));
 
 export const surveyResponseSchema = zod.object({
   id: zod.string(),

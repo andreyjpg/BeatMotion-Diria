@@ -1,13 +1,17 @@
-import { Stack } from "expo-router";
-import React from "react";
+import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { Redirect, Stack } from "expo-router";
 
-export default function TeacherLayout() {
-  return (
-    <Stack>
-      <Stack.Screen
-        name="/admin/coursesMenu"
-        options={{ title: "Cursos", headerShown: false }}
-      />
-    </Stack>
-  );
-}
+// What a teacher can do with their courses: read them and take attendance.
+// Admins reach the attendance sheet from here too. Creating and editing
+// courses and classes lives in the admin stack (admins only).
+const TeacherLayout = () => {
+  const { user, isLoading } = useActiveUser();
+
+  if (isLoading) return null;
+  if (!user) return <Redirect href="/public/login" />;
+  if (user.role !== "teacher" && user.role !== "admin") return <Redirect href="/private/home" />;
+
+  return <Stack screenOptions={{ headerShown: false }} />;
+};
+
+export default TeacherLayout;

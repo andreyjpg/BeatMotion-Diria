@@ -13,6 +13,7 @@ type CoursePatch = {
   day?: string;
   isDeleted?: boolean;
   branchId?: string | null;
+  startDate?: string | null; // "YYYY-MM-DD"
 };
 
 type UpdateCourseBody = { id: string; patch: CoursePatch };
@@ -27,6 +28,7 @@ const toUpdate = (patch: CoursePatch): CourseUpdate => ({
   ...(patch.day !== undefined && { day: patch.day as CourseUpdate["day"] }),
   ...(patch.isDeleted !== undefined && { is_deleted: patch.isDeleted }),
   ...(patch.branchId !== undefined && { branch_id: patch.branchId }),
+  ...(patch.startDate !== undefined && { start_date: patch.startDate }),
 });
 
 export const useUpdateCourse = () => {
@@ -37,10 +39,11 @@ export const useUpdateCourse = () => {
       const { error } = await supabase.from("courses").update(toUpdate(patch)).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, { patch }) => {
       queryClient.invalidateQueries({ queryKey: ["courses"] });
+      queryClient.invalidateQueries({ queryKey: ["courseDetail"] });
       queryClient.invalidateQueries({ queryKey: ["myCourses"] });
-      Alert.alert("Curso", "Actualizado correctamente.");
+      Alert.alert("Curso", patch.isDeleted ? "Eliminado correctamente." : "Actualizado correctamente.");
     },
     onError: (error) => {
       console.error("Error updating course:", error);

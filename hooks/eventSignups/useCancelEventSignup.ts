@@ -22,6 +22,8 @@ export const useCancelEventSignup = () => {
     },
     onSuccess: (_data, { eventId }) => {
       queryClient.invalidateQueries({ queryKey: eventSignupsKeys.event(eventId) });
+      queryClient.invalidateQueries({ queryKey: eventSignupsKeys.allCounts });
+      queryClient.invalidateQueries({ queryKey: eventSignupsKeys.allMyActive });
       Alert.alert("Registro cancelado", "Tu registro ha sido cancelado.");
     },
     onError: (error) => {

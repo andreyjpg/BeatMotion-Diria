@@ -16,8 +16,9 @@ export const useSetUserActive = () => {
         .eq("id", userId);
       if (error) throw error;
     },
-    onSuccess: (_data, { isActive }) => {
+    onSuccess: (_data, { userId, isActive }) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["user", userId] });
       queryClient.invalidateQueries({ queryKey: ["dashboardCounts"] });
       Alert.alert("Éxito", `Usuario ${isActive ? "activado" : "desactivado"}`);
     },

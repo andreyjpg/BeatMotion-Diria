@@ -1,6 +1,16 @@
+import DataLoader from "@/components/DataLoader";
 import FieldError from "@/components/FieldError";
-import FormScrollView from "@/components/FormScrollView";
 import { pickImage } from "@/components/pickImage";
+import AppText from "@/components/ui/AppText";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import Field from "@/components/ui/Field";
+import FormActions from "@/components/ui/FormActions";
+import IconButton from "@/components/ui/IconButton";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import SwitchRow from "@/components/ui/SwitchRow";
+import palette from "@/constants/palette.json";
 import {
   FormErrors,
   marketplaceFormSchema,
@@ -16,17 +26,7 @@ import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, Image, Pressable, View } from "react-native";
 
 /** A photo in the form: `uri` is what's shown, `image` what gets saved. */
 type MarketplaceImageState = {
@@ -51,12 +51,18 @@ const storedImageState = (path: string, url: string): MarketplaceImageState => (
 });
 
 const PERMISSION_MESSAGE =
-  "Necesitamos acceso a tu galeria para que puedas seleccionar imagenes del marketplace.";
+  "Necesitamos acceso a tu galería para que puedas seleccionar imágenes de la tienda.";
 
 /** Empty optional text is saved as NULL. */
 const optionalText = (value: string) => value.trim() || null;
 
-export default function MarketplaceAdminForm() {
+const SectionTitle = ({ title }: { title: string }) => (
+  <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
+    {title}
+  </AppText>
+);
+
+const MarketplaceAdminForm = () => {
   const { user } = useActiveUser();
   const { itemId: rawItemId } = useLocalSearchParams<{ itemId?: string }>();
   const itemId = useMemo(
@@ -64,14 +70,13 @@ export default function MarketplaceAdminForm() {
     [rawItemId]
   );
   const isEditing = Boolean(itemId);
-  const { data: marketplaceItems, isLoading: isLoadingItems } =
-    useMarketplaceItems();
+  const itemsQuery = useMarketplaceItems();
   const existingItem = useMemo(
     () =>
       itemId
-        ? marketplaceItems?.find((entry) => entry.id === itemId) ?? null
+        ? itemsQuery.data?.find((entry) => entry.id === itemId) ?? null
         : null,
-    [itemId, marketplaceItems]
+    [itemId, itemsQuery.data]
   );
   const hasHydratedFromItem = useRef(false);
 
@@ -150,42 +155,8 @@ export default function MarketplaceAdminForm() {
     hasHydratedFromItem.current = true;
   }, [existingItem]);
 
-  const resetForm = () => {
-    setName("");
-    setPrice("");
-    setShortDescription("");
-    setDescription("");
-    setPrimaryImage(null);
-    setGalleryImages([]);
-    setCategory("");
-    setItemCode("");
-    setActive(true);
-    setErrors({});
-  };
-
   const handleSubmit = async () => {
     if (isSaving) return;
-
-    if (isEditing && !existingItem) {
-      if (isLoadingItems) {
-        Alert.alert(
-          "Marketplace",
-          "Aun estamos cargando el articulo seleccionado. Intenta nuevamente en unos segundos."
-        );
-      } else {
-        Alert.alert(
-          "Marketplace",
-          "No encontramos este articulo. Es posible que haya sido eliminado.",
-          [
-            {
-              text: "Aceptar",
-              onPress: () => router.back(),
-            },
-          ]
-        );
-      }
-      return;
-    }
 
     // "12,000" or "₡12000" are accepted as 12000.
     const priceValue = price.replace(/[\s,₡]/g, "");
@@ -214,37 +185,30 @@ export default function MarketplaceAdminForm() {
           itemId,
           data: payload,
         });
-        Alert.alert("Marketplace", "Articulo actualizado correctamente.", [
-          {
-            text: "Aceptar",
-            onPress: () => router.back(),
-          },
+        Alert.alert("Tienda", "Artículo actualizado correctamente.", [
+          { text: "Aceptar", onPress: () => router.back() },
         ]);
       } else {
         await createMarketplaceItemMutation.mutateAsync(payload);
-        Alert.alert("Marketplace", "Articulo agregado correctamente.", [
-          {
-            text: "Aceptar",
-            onPress: () => router.back(),
-          },
+        Alert.alert("Tienda", "Artículo agregado correctamente.", [
+          { text: "Aceptar", onPress: () => router.back() },
         ]);
-        resetForm();
       }
     } catch (error) {
-      console.error("No se pudo guardar el articulo:", error);
+      console.error("No se pudo guardar el artículo:", error);
       Alert.alert(
         "Error",
-        "No pudimos guardar el articulo. Intenta nuevamente en unos minutos."
+        "No pudimos guardar el artículo. Intenta nuevamente en unos minutos."
       );
     }
   };
 
   const handleDelete = () => {
-    if (!isEditing || !itemId || isDeleting) return;
+    if (!itemId || isDeleting) return;
 
     Alert.alert(
-      "Eliminar articulo",
-      "Esta accion no se puede deshacer. Deseas eliminar este articulo del marketplace?",
+      "Eliminar artículo",
+      "Esta acción no se puede deshacer. ¿Deseas eliminar este artículo de la tienda?",
       [
         { text: "Cancelar", style: "cancel" },
         {
@@ -253,17 +217,18 @@ export default function MarketplaceAdminForm() {
           onPress: async () => {
             try {
               await deleteMarketplaceItemMutation.mutateAsync(itemId);
-              Alert.alert("Marketplace", "Articulo eliminado correctamente.", [
+              Alert.alert("Tienda", "Artículo eliminado correctamente.", [
                 {
                   text: "Aceptar",
-                  onPress: () => router.back(),
+                  // Back to the list: the item's own screen no longer exists.
+                  onPress: () => router.dismissTo("/private/marketplace/MarketplaceList"),
                 },
               ]);
             } catch (error) {
-              console.error("No se pudo eliminar el articulo:", error);
+              console.error("No se pudo eliminar el artículo:", error);
               Alert.alert(
                 "Error",
-                "No pudimos eliminar el articulo. Intenta nuevamente en unos minutos."
+                "No pudimos eliminar el artículo. Intenta nuevamente en unos minutos."
               );
             }
           },
@@ -272,298 +237,206 @@ export default function MarketplaceAdminForm() {
     );
   };
 
+  const heading = isEditing ? "Editar artículo" : "Nuevo artículo";
+
   if (user?.role !== "admin") {
     return (
-      <SafeAreaView className="flex-1 bg-black items-center justify-center px-10">
-        <Text className="text-white text-lg font-semibold mb-4">
-          Permiso denegado
-        </Text>
-        <Text className="text-gray-400 text-center mb-6">
-          Solo los administradores pueden acceder a este formulario de la
-          tienda.
-        </Text>
-        <TouchableOpacity
-          className="bg-yellow-400 px-6 py-3 rounded-full"
-          onPress={() => router.back()}
-        >
-          <Text className="font-semibold">Volver</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <Screen scroll={false}>
+        <ScreenHeader nav="close" eyebrow="Tienda" title="Permiso denegado" />
+        <AppText tone="muted" className="px-5 pt-3 text-[14.5px] leading-[20px]">
+          Solo los administradores pueden acceder a este formulario de la tienda.
+        </AppText>
+      </Screen>
     );
   }
 
-  if (isEditing && isLoadingItems && !existingItem) {
+  // The list holds the item: wait for it, and say so if it's gone.
+  if (isEditing && !existingItem) {
     return (
-      <SafeAreaView className="flex-1 bg-black items-center justify-center">
-        <ActivityIndicator color="#facc15" />
-        <Text className="text-white mt-4">Cargando articulo...</Text>
-      </SafeAreaView>
-    );
-  }
-
-  if (isEditing && !isLoadingItems && !existingItem) {
-    return (
-      <SafeAreaView className="flex-1 bg-black items-center justify-center px-10">
-        <Text className="text-white text-lg font-semibold mb-4">
-          No encontramos este articulo.
-        </Text>
-        <Text className="text-gray-400 text-center mb-6">
-          Puede que haya sido eliminado recientemente. Vuelve a la lista del
-          marketplace.
-        </Text>
-        <TouchableOpacity
-          className="bg-yellow-400 px-6 py-3 rounded-full"
-          onPress={() => router.back()}
-        >
-          <Text className="font-semibold">Volver</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
+      <Screen scroll={false}>
+        <ScreenHeader nav="close" eyebrow="Tienda" title={heading} />
+        <View className="flex-1">
+          <DataLoader query={itemsQuery} emptyMessage="No encontramos este artículo.">
+            {() => (
+              <AppText tone="muted" className="px-5 pt-3 text-[14.5px] leading-[20px]">
+                No encontramos este artículo. Puede que haya sido eliminado recientemente.
+              </AppText>
+            )}
+          </DataLoader>
+        </View>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-black">
-        <FormScrollView
-          contentContainerStyle={{ paddingBottom: 48 }}
-          className="flex-1 px-6"
-        >
-          <View className="flex-row items-center justify-between pt-8 pb-6">
-            <TouchableOpacity
-              onPress={() => router.back()}
-              className="w-10 h-10 rounded-full bg-gray-900 items-center justify-center"
-              accessibilityLabel="Volver"
-            >
-              <Ionicons name="chevron-back" size={22} color="#ffffff" />
-            </TouchableOpacity>
-            <Text className="text-white text-lg font-semibold">
-              {isEditing ? "Editar articulo" : "Nuevo articulo"}
-            </Text>
-            {isEditing ? (
-              <TouchableOpacity
-                onPress={handleDelete}
-                className="w-10 h-10 rounded-full bg-red-600 items-center justify-center"
-                accessibilityLabel="Eliminar articulo"
-                disabled={isDeleting}
+    <Screen
+      form
+      footer={
+        <FormActions
+          saveLabel={isEditing ? "Guardar cambios" : "Guardar artículo"}
+          onSave={handleSubmit}
+          loading={isSaving}
+          hasErrors={Object.keys(errors).length > 0}
+        />
+      }
+    >
+      <ScreenHeader nav="close" eyebrow="Tienda" title={heading} />
+
+      <Card className="mx-3 mt-4 gap-3">
+        <SectionTitle title="Fotos" />
+        <View>
+          {primaryImage ? (
+            <View className="h-[170px] overflow-hidden rounded-[14px]">
+              <Pressable
+                onPress={handleSelectPrimaryImage}
+                disabled={isSaving}
+                accessibilityRole="button"
+                accessibilityLabel="Reemplazar imagen principal"
+                className="h-full w-full"
               >
-                {isDeleting ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Ionicons name="trash" size={20} color="#ffffff" />
-                )}
-              </TouchableOpacity>
-            ) : (
-              <View className="w-10 h-10" />
-            )}
-          </View>
-
-          <View className="gap-4">
-            <View>
-              <Text className="text-white font-semibold mb-2">Nombre</Text>
-              <TextInput
-                className="bg-gray-900 text-white rounded-2xl px-4 py-3"
-                placeholder="Nombre del articulo"
-                placeholderTextColor="#6b7280"
-                value={name}
-                onChangeText={setName}
-              />
-              <FieldError message={errors.name} />
-            </View>
-
-            <View>
-              <Text className="text-white font-semibold mb-2">
-                Codigo interno (opcional)
-              </Text>
-              <TextInput
-                className="bg-gray-900 text-white rounded-2xl px-4 py-3"
-                placeholder="SKU o referencia"
-                placeholderTextColor="#6b7280"
-                value={itemCode}
-                onChangeText={setItemCode}
-                autoCapitalize="characters"
-              />
-            </View>
-
-            <View>
-              <Text className="text-white font-semibold mb-2">Precio</Text>
-              <TextInput
-                className="bg-gray-900 text-white rounded-2xl px-4 py-3"
-                placeholder="00000"
-                placeholderTextColor="#6b7280"
-                value={price}
-                onChangeText={setPrice}
-                keyboardType="numeric"
-              />
-              <FieldError message={errors.price} />
-            </View>
-
-            <View>
-              <Text className="text-white font-semibold mb-2">Moneda</Text>
-              <View className="bg-gray-900 rounded-2xl px-4 py-3">
-                <Text className="text-white font-semibold">CRC</Text>
-                <Text className="text-gray-500 text-xs mt-1">
-                  El marketplace opera únicamente en colones costarricenses.
-                </Text>
+                <Image source={{ uri: primaryImage.uri }} className="h-full w-full" resizeMode="cover" />
+              </Pressable>
+              <View pointerEvents="none" className="absolute bottom-2.5 left-2.5 rounded-md bg-surface px-2 py-1">
+                <AppText variant="label" tone="muted" className="text-[10px]">
+                  Imagen principal
+                </AppText>
+              </View>
+              <View className="absolute right-1.5 top-1.5">
+                <IconButton
+                  icon="close"
+                  size={30}
+                  onPress={handleRemovePrimaryImage}
+                  disabled={isSaving}
+                  accessibilityLabel="Quitar imagen principal"
+                />
               </View>
             </View>
+          ) : (
+            <Pressable
+              onPress={handleSelectPrimaryImage}
+              disabled={isSaving}
+              accessibilityRole="button"
+              className="h-[170px] items-center justify-center gap-1.5 rounded-[14px] border-2 border-dashed border-faint"
+            >
+              <Ionicons name="image-outline" size={26} color={palette.ink} />
+              <AppText variant="bold" className="text-[15px]">
+                Seleccionar imagen principal
+              </AppText>
+              <AppText tone="muted" className="text-[12.5px]">
+                La que se ve primero en la tienda
+              </AppText>
+            </Pressable>
+          )}
+          <FieldError message={errors.hasPrimaryImage} />
+        </View>
 
-            <View>
-              <Text className="text-white font-semibold mb-2">
-                Descripcion corta (opcional)
-              </Text>
-              <TextInput
-                className="bg-gray-900 text-white rounded-2xl px-4 py-3"
-                placeholder="Resumen del articulo"
-                placeholderTextColor="#6b7280"
-                value={shortDescription}
-                onChangeText={setShortDescription}
-              />
-            </View>
-
-            <View>
-              <Text className="text-white font-semibold mb-2">
-                Descripcion completa
-              </Text>
-              <TextInput
-                className="bg-gray-900 text-white rounded-2xl px-4 py-3 min-h-32"
-                placeholder="Detalles adicionales, cuidados, tallas, etc."
-                placeholderTextColor="#6b7280"
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                textAlignVertical="top"
-              />
-            </View>
-
-            <View>
-              <Text className="text-white font-semibold mb-2">
-                Categoria (opcional)
-              </Text>
-              <TextInput
-                className="bg-gray-900 text-white rounded-2xl px-4 py-3"
-                placeholder="Ropa, Accesorios, etc."
-                placeholderTextColor="#6b7280"
-                value={category}
-                onChangeText={setCategory}
-              />
-            </View>
-
-            <View>
-              <Text className="text-white font-semibold mb-2">
-                Imagen principal
-              </Text>
-              {primaryImage ? (
-                <View className="bg-gray-900 rounded-2xl p-4 gap-4">
-                  <View className="rounded-xl overflow-hidden h-40 bg-gray-950">
-                    <Image
-                      source={{ uri: primaryImage.uri }}
-                      className="w-full h-full"
-                      resizeMode="cover"
-                    />
-                  </View>
-                  <View className="flex-row gap-3">
-                    <TouchableOpacity
-                      className="flex-1 bg-yellow-400 rounded-full px-4 py-3 items-center"
-                      onPress={handleSelectPrimaryImage}
-                      disabled={isSaving}
-                    >
-                      <Text className="font-semibold text-black">
-                        Reemplazar imagen
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      className="w-12 h-12 rounded-full bg-red-600 items-center justify-center"
-                      onPress={handleRemovePrimaryImage}
-                      disabled={isSaving}
-                      accessibilityLabel="Quitar imagen principal"
-                    >
-                      <Ionicons
-                        name="trash-outline"
-                        size={20}
-                        color="#ffffff"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  className="bg-gray-900 rounded-2xl px-4 py-5 items-center justify-center"
-                  onPress={handleSelectPrimaryImage}
+        <View className="flex-row flex-wrap gap-2">
+          {galleryImages.map((image) => (
+            <View key={image.id} className="h-16 w-16 overflow-hidden rounded-xl">
+              <Image source={{ uri: image.uri }} className="h-full w-full" resizeMode="cover" />
+              <View className="absolute right-1 top-1">
+                <IconButton
+                  icon="close"
+                  size={22}
+                  onPress={() => handleRemoveGalleryImage(image.id)}
                   disabled={isSaving}
-                >
-                  <Ionicons name="image-outline" size={28} color="#9ca3af" />
-                  <Text className="text-gray-400 mt-2 text-sm text-center">
-                    Selecciona una imagen desde tu galeria
-                  </Text>
-                </TouchableOpacity>
-              )}
-              <FieldError message={errors.hasPrimaryImage} />
+                  accessibilityLabel="Eliminar imagen de la galería"
+                />
+              </View>
             </View>
-
-            <View>
-              <Text className="text-white font-semibold mb-2">Galeria</Text>
-              {galleryImages.length > 0 ? (
-                <View className="flex-row flex-wrap gap-4">
-                  {galleryImages.map((image) => {
-                    return (
-                      <View key={image.id} className="relative">
-                        <Image
-                          source={{ uri: image.uri }}
-                          className="w-28 h-28 rounded-xl"
-                          resizeMode="cover"
-                        />
-                        <TouchableOpacity
-                          onPress={() => handleRemoveGalleryImage(image.id)}
-                          className="absolute -top-2 -right-2 bg-black/80 rounded-full w-7 h-7 items-center justify-center"
-                          disabled={isSaving}
-                          accessibilityLabel="Eliminar imagen de la galeria"
-                        >
-                          <Ionicons name="close" size={16} color="#f87171" />
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
-                </View>
-              ) : (
-                <Text className="text-gray-400">
-                  Aun no has agregado imagenes adicionales.
-                </Text>
-              )}
-              <TouchableOpacity
-                className="mt-3 bg-gray-900 rounded-full px-4 py-3 items-center"
-                onPress={handleAddGalleryImage}
-                disabled={isSaving}
-              >
-                <Text className="text-white font-semibold">
-                  Agregar imagen a la galeria
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View className="flex-row items-center justify-between bg-gray-900 rounded-2xl px-4 py-3">
-              <Text className="text-white font-semibold">Articulo activo</Text>
-              <Switch
-                value={active}
-                onValueChange={setActive}
-                thumbColor={active ? "#facc15" : "#6b7280"}
-                trackColor={{ false: "#374151", true: "#fde68a" }}
-              />
-            </View>
-          </View>
-
-          <TouchableOpacity
-            className="bg-yellow-400 rounded-full px-6 py-4 mt-8 items-center"
-            onPress={handleSubmit}
+          ))}
+          <Pressable
+            onPress={handleAddGalleryImage}
             disabled={isSaving}
+            accessibilityRole="button"
+            accessibilityLabel="Agregar a la galería"
+            className="h-16 w-16 items-center justify-center rounded-xl border-2 border-dashed border-faint"
           >
-            <Text className="font-semibold text-black">
-              {isSaving
-                ? "Guardando..."
-                : isEditing
-                ? "Actualizar articulo"
-                : "Guardar articulo"}
-            </Text>
-          </TouchableOpacity>
-        </FormScrollView>
-    </SafeAreaView>
+            <Ionicons name="add" size={22} color={palette.ink} />
+          </Pressable>
+        </View>
+      </Card>
+
+      <Card className="mx-3 mt-2.5 gap-3.5">
+        <SectionTitle title="Información" />
+        <Field
+          label="Nombre *"
+          value={name}
+          onChangeText={setName}
+          placeholder="Nombre del artículo"
+          error={errors.name}
+        />
+        <Field
+          label="Resumen"
+          value={shortDescription}
+          onChangeText={setShortDescription}
+          placeholder="Resumen del artículo"
+        />
+        <Field
+          label="Descripción"
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Detalles adicionales, cuidados, tallas, etc."
+          multiline
+        />
+      </Card>
+
+      <Card className="mx-3 mt-2.5 gap-3.5">
+        <SectionTitle title="Precio y referencia" />
+        <View className="flex-row gap-2.5">
+          <Field
+            label="Categoría"
+            value={category}
+            onChangeText={setCategory}
+            placeholder="Ropa, Accesorios…"
+            className="flex-1"
+          />
+          <Field
+            label="Referencia"
+            value={itemCode}
+            onChangeText={setItemCode}
+            placeholder="SKU"
+            autoCapitalize="characters"
+            className="flex-1"
+          />
+        </View>
+        <View className="flex-row items-start gap-2.5">
+          <Field
+            label="Precio *"
+            prefix="₡"
+            value={price}
+            onChangeText={setPrice}
+            placeholder="12000"
+            keyboardType="numeric"
+            error={errors.price}
+            className="flex-[2]"
+          />
+          {/* The store only sells in colones. */}
+          <Field label="Moneda" value="CRC" editable={false} className="flex-1" />
+        </View>
+      </Card>
+
+      <Card className="mx-3 mt-2.5">
+        <SwitchRow
+          title="Artículo activo"
+          hint={active ? "Los estudiantes lo ven en la tienda" : "Oculto en la tienda"}
+          value={active}
+          onChange={setActive}
+        />
+      </Card>
+
+      {isEditing && (
+        <Button
+          label="Eliminar artículo"
+          variant="danger"
+          icon="trash-outline"
+          onPress={handleDelete}
+          loading={isDeleting}
+          className="mx-3 mt-4"
+        />
+      )}
+    </Screen>
   );
-}
+};
+
+export default MarketplaceAdminForm;

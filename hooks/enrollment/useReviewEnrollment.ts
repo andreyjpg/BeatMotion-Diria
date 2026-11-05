@@ -34,7 +34,6 @@ export const useReviewEnrollment = () => {
       queryClient.invalidateQueries({ queryKey: ["courseMember"] });
       queryClient.invalidateQueries({ queryKey: ["membersByCourse"] });
       queryClient.invalidateQueries({ queryKey: ["availableStudents"] });
-      Alert.alert("Éxito", "Matrícula actualizada.");
     },
     onError: (error) => {
       console.error("Error reviewing enrollment:", error);

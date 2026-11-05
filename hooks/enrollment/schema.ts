@@ -14,7 +14,7 @@ export const ENROLLMENT_COLUMNS =
 
 /** Same request with each course (and its branch) and the student, for the admin screens. */
 export const ENROLLMENT_DETAIL_COLUMNS =
-  "id, userId:user_id, status, source, totalAmount:total_amount, receiptPath:payment_proof_path, annualFeeYear:annual_fee_year, submittedAt:submitted_at, reviewedBy:reviewed_by, reviewedAt:reviewed_at, enrollmentCourses:enrollment_courses(course:courses(id, title, description, level, day, branch:branches(name))), user:profiles!enrollments_user_id_fkey(id, name, lastName:last_name, email)";
+  "id, userId:user_id, status, source, totalAmount:total_amount, receiptPath:payment_proof_path, annualFeeYear:annual_fee_year, submittedAt:submitted_at, reviewedBy:reviewed_by, reviewedAt:reviewed_at, enrollmentCourses:enrollment_courses(course:courses(id, title, description, level, day, branch:branches(name))), user:profiles!enrollments_user_id_fkey(id, name, lastName:last_name, email, phone)";
 
 /** Database row -> screen shape: the requested course ids as a flat list. */
 export function toEnrollment<T extends { enrollmentCourses: { courseId: string }[] }>(row: T) {
@@ -76,6 +76,7 @@ export const enrollmentDetailSchema = zod.array(
         name: zod.string(),
         lastName: zod.string(),
         email: zod.string(),
+        phone: zod.string().nullable(),
       })
       .nullable(),
   })
