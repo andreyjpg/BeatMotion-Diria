@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { PROFILE_COLUMNS } from "./userSchema";
 
@@ -29,8 +30,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
-      // Drop everything cached for the previous user.
-      if (event === "SIGNED_OUT") queryClient.clear();
+      // Drop everything cached for the previous user, including the profile
+      // pictures expo-image keeps on the device.
+      if (event === "SIGNED_OUT") {
+        queryClient.clear();
+        Image.clearMemoryCache();
+        Image.clearDiskCache();
+      }
     });
     return () => subscription.unsubscribe();
   }, [queryClient]);

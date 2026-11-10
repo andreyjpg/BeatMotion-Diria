@@ -1,5 +1,7 @@
 import { initials } from "@/constants/helpers";
-import { Image, Pressable, View } from "react-native";
+import { Image } from "expo-image";
+import { useState } from "react";
+import { Pressable, View } from "react-native";
 import AppText from "./AppText";
 
 type AvatarProps = {
@@ -29,13 +31,17 @@ const Avatar = ({
   onPress,
   accessibilityLabel,
 }: AvatarProps) => {
+  // A picture that can't load (deleted, or no connection) falls back to the initials.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // Signed links change every hour; keying on the file keeps the picture cached.
+  const cacheKey = photoUrl?.split("?")[0];
   const circle = (
     <View
       className={`items-center justify-center overflow-hidden rounded-full ${TONE[tone].box}`}
       style={{ width: size, height: size }}
     >
-      {photoUrl ? (
-        <Image source={{ uri: photoUrl }} style={{ width: size, height: size }} />
+      {photoUrl && photoUrl !== failedUrl ? (
+        <Image source={{ uri: photoUrl, cacheKey }} style={{ width: size, height: size }} onError={() => setFailedUrl(photoUrl)} />
       ) : (
         <AppText variant="bold" tone={TONE[tone].text} style={{ fontSize: size * 0.34 }}>
           {initials(name, lastName)}

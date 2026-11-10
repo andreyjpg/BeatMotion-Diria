@@ -2,8 +2,8 @@ import { unregisterPushToken } from "@/hooks/notifications/pushToken";
 import { supabase } from "@/lib/supabase";
 import { useMutation } from "@tanstack/react-query";
 
-// Signing out also clears the cached data (see AuthProvider) and the root
-// layout switches back to the login screen.
+// Signing out also clears the cached data and pictures (see AuthProvider), and
+// the root layout switches back to the login screen.
 export const useSignOut = () => {
   return useMutation({
     mutationFn: async () => {

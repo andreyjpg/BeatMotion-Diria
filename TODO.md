@@ -73,6 +73,8 @@ Each one is a new migration in `supabase/migrations/`. Follow the rules in
 - [ ] **Accepting the rules.** Step 1 of the enrollment asks the student to accept
   the academy's rules, but nothing records it. If the academy wants proof, add
   `rules_accepted_at` to `enrollments` and set it in `request_enrollment`.
+- [ ] **Unused `profiles.photo_url`.** Profile pictures use `photo_path` now, in the
+  private `avatars` bucket. Drop the old column.
 - [ ] **Unused class assignment on enrollments.** Drop
   `enrollments.assigned_class_id`, `class_assigned_by` and `class_assigned_at`;
   nothing uses them since the "assign class" screen was removed. First update
@@ -216,6 +218,11 @@ classes run from 7 to 9 p. m., so a student can't take two at once.
 - [ ] Remove the packages nothing imports since the redesign:
   `react-native-bouncy-checkbox`, `react-native-vector-icons` and
   `@react-native-picker/picker`.
+- [ ] **`npm run db:types` removes `courses.teacher_name`.** It's a computed column
+  (`20261018000200_review_fixes.sql`) that was added to `types/database.ts` by
+  hand. The generator doesn't output it, so the type-check fails after
+  regenerating. Until that's solved, add new columns to the file by hand, as
+  `profiles.photo_path` was (the generator produced the same lines for it).
 
 ## Before going live
 
@@ -228,6 +235,28 @@ classes run from 7 to 9 p. m., so a student can't take two at once.
 - [ ] **Revoke the Firebase migration's credentials.** Delete its service account
   key in the Firebase console (Project settings > Service accounts), and change
   the Supabase secret key and database passwords its `.env` files held.
+- [ ] **Privacy policy (Ley 8968).** Everyone must be told, before giving their
+  data, that it's hosted in the United States, and must authorize that. Article 14
+  requires express authorization to transfer data, article 31(f) makes sending it
+  to another country without consent a very serious offense, and article 5 lists
+  what people must be told.
+  - Policy page (beatmotion-politica-privacidad.netlify.app): it still names
+    Firebase. Name Supabase and the United States (both projects are in
+    `us-east-1`, North Virginia), and add profile pictures to the data it lists.
+  - Sign-up (`app/public/signIn.tsx`): the checkbox says "fuera de Costa Rica" but
+    not "Estados Unidos". New students only see this text: accepting it saves
+    their consent, so `components/PrivacyConsentModal.tsx`, which does name the
+    United States, never opens for them.
+  - `PrivacyConsentModal.tsx` cites article 6 for the transfer, but article 6 is
+    about data quality. It should cite article 14.
+  - Check every text against article 5. The modal doesn't give the academy's
+    address (h), who can see the data (c), or what happens if someone won't give
+    it (d, f).
+  - Decide whether people who already accepted must accept the new text.
+    `consent_accepted` has no version, so today they wouldn't be asked again.
+  - Have a lawyer or Prodhab review the final text, and confirm that article 21
+    doesn't apply. It requires registering databases run for distribution,
+    dissemination or sale.
 
 ## Release steps left from the move to Supabase
 
@@ -254,10 +283,6 @@ Carried over from the migration notes of 2026-10-19; some may already be done.
   imported real devices, so preview could send them pushes.
 - [ ] Production password-reset emails: set up custom SMTP with a dedicated
   Gmail account.
-- [ ] Privacy:
-  - update the external policy page (beatmotion-politica-privacidad.netlify.app),
-    which still names Firebase;
-  - check that the production Supabase region matches the "Estados Unidos" text.
 - [ ] After the new store version is adopted, clean up Firebase project
   `beatmotion-b1ec6`:
   - delete the Cloud Functions: `deleteUser` and `sendExpoPushNotification`

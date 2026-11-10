@@ -1,6 +1,7 @@
 import DataLoader from "@/components/DataLoader";
 import AppText from "@/components/ui/AppText";
 import Avatar from "@/components/ui/Avatar";
+import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Chip, { statusTone } from "@/components/ui/Chip";
 import Field from "@/components/ui/Field";
@@ -19,6 +20,7 @@ import { useCourses } from "@/hooks/courses/useCourses";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
 import { useManualEnrollment } from "@/hooks/enrollment/useManualEnrollment";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { useDeleteProfilePhoto } from "@/hooks/user/useDeleteProfilePhoto";
 import { useSetUserActive } from "@/hooks/user/useSetUserActive";
 import { useUpdateProfile } from "@/hooks/user/useUpdateProfile";
 import { useUserInfo } from "@/hooks/user/useUserInfo";
@@ -44,6 +46,7 @@ const AdminUserProfile = () => {
   const branchesQuery = useBranches();
   const updateProfile = useUpdateProfile();
   const setUserActive = useSetUserActive();
+  const deletePhoto = useDeleteProfilePhoto();
   const manualEnrollment = useManualEnrollment();
 
   const [editing, setEditing] = useState(false);
@@ -108,6 +111,20 @@ const AdminUserProfile = () => {
     Alert.alert("Asignar a un curso", `¿Asignar a ${fullName} a ${course.title}? No se le cobra esta matrícula.`, [
       { text: "Cancelar", style: "cancel" },
       { text: "Asignar", onPress: () => manualEnrollment.mutate({ userId: uid, courseId }) },
+    ]);
+  };
+
+  const confirmRemovePhoto = () => {
+    Alert.alert("Quitar foto de perfil", `¿Quitar la foto de ${fullName}? Podrá subir otra.`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Quitar",
+        style: "destructive",
+        onPress: () =>
+          deletePhoto.mutate(uid, {
+            onSuccess: () => Alert.alert("Foto quitada", `Se quitó la foto de perfil de ${fullName}.`),
+          }),
+      },
     ]);
   };
 
@@ -229,6 +246,26 @@ const AdminUserProfile = () => {
                   className="pt-2"
                 />
               </Card>
+
+              {!isSelf && profile.photoPath && (
+                <Card className="mx-3 mt-2.5 flex-row items-center justify-between gap-3">
+                  <View className="flex-1">
+                    <AppText variant="bold" className="text-[15px]">
+                      Foto de perfil
+                    </AppText>
+                    <AppText tone="muted" className="text-[12.5px]">
+                      Quítala si no es apropiada
+                    </AppText>
+                  </View>
+                  <Button
+                    label="Quitar"
+                    variant="danger"
+                    size="sm"
+                    onPress={confirmRemovePhoto}
+                    loading={deletePhoto.isPending}
+                  />
+                </Card>
+              )}
 
               {!isSelf && (
                 <Card className="mx-3 mt-2.5">

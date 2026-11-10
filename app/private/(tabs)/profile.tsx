@@ -1,7 +1,7 @@
 import DataLoader from "@/components/DataLoader";
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
+import ProfilePhoto from "@/components/profile/ProfilePhoto";
 import AppText from "@/components/ui/AppText";
-import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Chip from "@/components/ui/Chip";
@@ -114,7 +114,7 @@ const ProfileScreen = () => {
         {(profile) => (
           <>
             <Card className="mx-3 mt-4 flex-row items-center gap-3.5">
-              <Avatar name={profile.name} lastName={profile.lastName} photoUrl={profile.photoURL} size={68} tone="dark" />
+              <ProfilePhoto uid={profile.id} name={profile.name} lastName={profile.lastName} photoUrl={profile.photoURL} />
               <View className="flex-1 gap-1">
                 <AppText variant="bold" className="text-[19px]">
                   {`${profile.name} ${profile.lastName}`.trim() || "Sin nombre"}

@@ -10,7 +10,7 @@ export const PAYMENT_COLUMNS =
   "id, userId:user_id, status, monthlyFare:monthly_fare, lateFare:late_fare, totalAmount:total_amount, isLate:is_late, daysLate:days_late, annualFeeYear:annual_fee_year, receiptPath:proof_path, createdAt:created_at, reviewedAt:reviewed_at, paymentCourses:payment_courses(course:courses(id, title))";
 
 /** Plus the student's name, for the admin screens. */
-export const PAYMENT_DETAIL_COLUMNS = `${PAYMENT_COLUMNS}, user:profiles!payments_user_id_fkey(name, lastName:last_name)`;
+export const PAYMENT_DETAIL_COLUMNS = `${PAYMENT_COLUMNS}, user:profiles!payments_user_id_fkey(name, lastName:last_name, photoPath:photo_path)`;
 
 type PaymentRow = {
   receiptPath: string | null;
@@ -51,7 +51,7 @@ export type PaymentType = zod.infer<typeof PaymentSchema>[number];
 export const PaymentDetailSchema = zod.array(
   zod.object({
     ...paymentFields,
-    user: zod.object({ name: zod.string(), lastName: zod.string() }).nullable(),
+    user: zod.object({ name: zod.string(), lastName: zod.string(), photoURL: zod.string().nullable() }).nullable(),
   })
 );
 

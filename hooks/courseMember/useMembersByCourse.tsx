@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
+import { signAvatarUrls, withPhotoUrl } from "../storage/avatarStorage";
 import { PROFILE_COLUMNS } from "../user/userSchema";
 import { MEMBER_COLUMNS, membersByCourseSchema, toMember } from "./schema";
 
@@ -15,7 +16,10 @@ export const useMembersByCourse = (courseId: string) => {
       .eq("course_id", courseId)
       .eq("active", true);
     if (error) throw error;
-    return membersByCourseSchema.parse(data.map(toMember));
+    const urls = await signAvatarUrls(data.map((row) => row.userInfo.photoPath));
+    return membersByCourseSchema.parse(
+      data.map((row) => ({ ...toMember(row), userInfo: withPhotoUrl(row.userInfo, urls) })),
+    );
   };
 
   return useQuery({

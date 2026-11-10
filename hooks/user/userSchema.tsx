@@ -7,7 +7,7 @@ import { dateTimeSchema } from "../common/schema";
  * literal so supabase-js can infer the row type from it.)
  */
 export const PROFILE_COLUMNS =
-  "id, email, name, lastName:last_name, phone, role, photoURL:photo_url, isActive:is_active, consentAccepted:consent_accepted, consentAcceptedAt:consent_accepted_at, createdAt:created_at";
+  "id, email, name, lastName:last_name, phone, role, photoPath:photo_path, isActive:is_active, consentAccepted:consent_accepted, consentAcceptedAt:consent_accepted_at, createdAt:created_at";
 
 // Name lengths are enforced by the forms; older profiles may have shorter or
 // empty names.
@@ -19,7 +19,8 @@ export const userSchema = zod
     lastName: zod.string().max(100),
     phone: zod.string().nullish(),
     role: zod.enum(["user", "admin", "teacher"]),
-    photoURL: zod.string().url().nullish(),
+    photoPath: zod.string().nullish(),
+    photoURL: zod.string().url().nullish(), // signed URL from withPhotoUrl
     isActive: zod.boolean(),
     createdAt: dateTimeSchema,
     consentAccepted: zod.boolean().optional(),
@@ -35,7 +36,7 @@ export const userSchema = zod
  * payment stands (course_members).
  */
 export const USER_LIST_COLUMNS =
-  "id, email, name, lastName:last_name, phone, role, isActive:is_active, memberships:course_members!course_members_user_id_fkey(active, paymentStatus:payment_status, nextPaymentDate:next_payment_date, course:courses(title))";
+  "id, email, name, lastName:last_name, phone, role, photoPath:photo_path, isActive:is_active, memberships:course_members!course_members_user_id_fkey(active, paymentStatus:payment_status, nextPaymentDate:next_payment_date, course:courses(title))";
 
 export const paymentStandingSchema = zod.enum(["ok", "pending", "late"]);
 export type PaymentStanding = zod.infer<typeof paymentStandingSchema>;
@@ -86,6 +87,7 @@ export const userListItemSchema = zod.object({
   lastName: zod.string(),
   phone: zod.string().nullable(),
   role: zod.enum(["user", "admin", "teacher"]),
+  photoURL: zod.string().nullable(),
   isActive: zod.boolean(),
   courses: zod.array(zod.string()),
   paymentStatus: paymentStandingSchema.nullable(),
