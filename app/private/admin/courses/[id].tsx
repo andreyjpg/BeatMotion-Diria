@@ -171,7 +171,7 @@ const AdminCourseScreen = () => {
                             i < students.length - 1 ? "border-b border-line-soft" : ""
                           }`}
                         >
-                          <Avatar name={member.userInfo.name} lastName={member.userInfo.lastName} size={36} />
+                          <Avatar name={member.userInfo.name} lastName={member.userInfo.lastName} photoUrl={member.userInfo.photoURL} size={36} />
                           <View className="flex-1">
                             <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
                               {`${member.userInfo.name} ${member.userInfo.lastName}`}

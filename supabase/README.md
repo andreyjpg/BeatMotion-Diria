@@ -11,8 +11,8 @@ except the one-time secrets below.
 | `migrations/…200_storage.sql` | `receipts` (private) and `media` (public) buckets |
 | `migrations/…300_business_logic.sql` | Triggers, push delivery, broadcast RPC, payment check, attendance reminders, receipt retention helpers |
 | `migrations/…400_scheduled_jobs.sql` | Daily pg_cron jobs |
-| `functions/delete-account` | Deletes an account, its data and its receipt files |
-| `functions/purge-receipts` | Deletes receipt photos 6 months after review |
+| `functions/delete-account` | Deletes an account, its data, its receipt files and its profile pictures |
+| `functions/purge-receipts` | Deletes receipt photos 6 months after review, and profile pictures no profile uses |
 | [`../TODO.md`](../TODO.md) | Database changes the app still needs (with the rest of the to-do list) |
 
 There are two projects, **preview** and **production**. Do every step below

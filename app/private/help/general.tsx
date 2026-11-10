@@ -12,6 +12,7 @@ import palette from "@/constants/palette.json";
 import { helpQuestionFormSchema, validationErrors, type FormErrors } from "@/constants/validationForms";
 import type { PickedImage } from "@/hooks/storage/compressImage";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { useAvatarUrl } from "@/hooks/user/useAvatarUrl";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -23,6 +24,7 @@ const TOPICS = ["Clases", "Horarios", "Mi cuenta", "La app", "Otro"];
 const HelpQuestionScreen = () => {
   const router = useRouter();
   const { user } = useActiveUser();
+  const { data: photoUrl } = useAvatarUrl(user?.photoPath);
   const [topic, setTopic] = useState("");
   const [message, setMessage] = useState("");
   const [screenshot, setScreenshot] = useState<PickedImage | null>(null);
@@ -46,7 +48,7 @@ const HelpQuestionScreen = () => {
       <ScreenHeader nav="close" eyebrow="Ayuda y soporte" title="Otra consulta" />
 
       <Card className="mx-3 mt-4 flex-row items-center gap-3">
-        <Avatar name={user?.name} lastName={user?.lastName} tone="dark" size={44} />
+        <Avatar name={user?.name} lastName={user?.lastName} photoUrl={photoUrl} tone="dark" size={44} />
         <View className="flex-1 gap-0.5">
           <AppText variant="bold" className="text-[15px]">
             {[user?.name, user?.lastName].filter(Boolean).join(" ")}

@@ -136,7 +136,7 @@ const AdminUsersScreen = () => {
                   padded={false}
                   className={`flex-row items-center gap-3 px-3.5 py-3 ${item.isActive ? "" : "opacity-60"}`}
                 >
-                  <Avatar name={item.name} lastName={item.lastName} size={42} />
+                  <Avatar name={item.name} lastName={item.lastName} photoUrl={item.photoURL} size={42} />
                   <View className="flex-1 gap-0.5">
                     <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
                       {name || "Sin nombre"}

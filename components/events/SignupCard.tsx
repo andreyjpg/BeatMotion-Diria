@@ -45,7 +45,7 @@ const SignupCard = ({ signup, eventId, onShowReceipt }: SignupCardProps) => {
   return (
     <Card padded={false} className="gap-2.5 px-3.5 py-3">
       <View className="flex-row items-center gap-3">
-        <Avatar name={firstName} lastName={otherNames.join(" ")} size={38} />
+        <Avatar name={firstName} lastName={otherNames.join(" ")} photoUrl={signup.userPhotoUrl} size={38} />
         <View className="flex-1 gap-px">
           <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
             {signup.userName || "Usuario"}

@@ -70,9 +70,9 @@ export const PrivacyConsentModal = ({ visible, onAccept }: Props) => {
             </Section>
 
             <Section title="Datos que recopilamos">
-              Nombre, apellido, número de teléfono, correo electrónico,
-              información de matrícula, asistencia a clases, pagos realizados y
-              progreso académico.
+              Nombre, apellido, número de teléfono, correo electrónico, foto de
+              perfil (opcional), información de matrícula, asistencia a clases,
+              pagos realizados y progreso académico.
             </Section>
 
             <Section title="Finalidad del tratamiento">

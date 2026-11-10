@@ -895,6 +895,7 @@ export type Database = {
           last_name: string
           name: string
           phone: string | null
+          photo_path: string | null
           photo_url: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
@@ -909,6 +910,7 @@ export type Database = {
           last_name?: string
           name?: string
           phone?: string | null
+          photo_path?: string | null
           photo_url?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -923,6 +925,7 @@ export type Database = {
           last_name?: string
           name?: string
           phone?: string | null
+          photo_path?: string | null
           photo_url?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
