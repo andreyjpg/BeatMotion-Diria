@@ -7,7 +7,7 @@ import Field from "@/components/ui/Field";
 import Pill from "@/components/ui/Pill";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { formatDayMonth, parseLocalDate, roleLabel, standingLabel } from "@/constants/helpers";
+import { ageOrDash, formatDayMonth, parseLocalDate, roleLabel, standingLabel } from "@/constants/helpers";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useUsers } from "@/hooks/user/useUsers";
 import type { PaymentStanding, UserListItem } from "@/hooks/user/userSchema";
@@ -31,14 +31,19 @@ const userChip = (user: UserListItem): { label: string; tone: ChipTone } => {
   return { label: "Sin cursos", tone: "muted" };
 };
 
-/** Second line of a user's row: their courses and next payment, or their email. */
-const userDetail = (user: UserListItem) => {
-  if (!user.isActive) return "Cuenta desactivada";
-  if (user.role !== "user") return user.email;
-  if (user.courses.length === 0) return "Sin cursos activos";
+/** What a student's row says after their age: their courses and next payment. */
+const studentActivity = (user: UserListItem) => {
+  if (!user.isActive) return "cuenta desactivada";
+  if (user.courses.length === 0) return "sin cursos activos";
   const courses = user.courses.length === 1 ? "1 curso" : `${user.courses.length} cursos`;
   const nextPayment = parseLocalDate(user.nextPaymentDate);
   return nextPayment ? `${courses} · próximo pago ${formatDayMonth(nextPayment)}` : courses;
+};
+
+/** Second line of a user's row: a student's age and courses, or a teacher's or admin's email. */
+const userDetail = (user: UserListItem) => {
+  if (user.role !== "user") return user.isActive ? user.email : "Cuenta desactivada";
+  return `${ageOrDash(user.birthDate)} · ${studentActivity(user)}`;
 };
 
 /** Ignores upper case and accents: "maria" finds "María". */

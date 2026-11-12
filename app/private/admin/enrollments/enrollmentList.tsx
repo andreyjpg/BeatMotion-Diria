@@ -5,7 +5,7 @@ import Chip, { type ChipTone } from "@/components/ui/Chip";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SegmentedControl from "@/components/ui/SegmentedControl";
-import { formatCurrency, formatDayMonth } from "@/constants/helpers";
+import { ageOrDash, formatCurrency, formatDayMonth } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import type { EnrollmentDetail, ReviewStatus } from "@/hooks/enrollment/schema";
 import { useEnrollmentCount } from "@/hooks/enrollment/useEnrollmentCount";
@@ -34,6 +34,12 @@ const STATUS_CHIP: Record<ReviewStatus, { label: string; tone: ChipTone }> = {
 
 const studentName = (enrollment: EnrollmentDetail) =>
   enrollment.user ? `${enrollment.user.name} ${enrollment.user.lastName}`.trim() : "Estudiante";
+
+/** Card footer: the student's age and when the request was sent (or assigned by an admin). */
+const enrollmentMeta = (enrollment: EnrollmentDetail) => {
+  const sent = `${enrollment.source === "manual" ? "Asignada" : "Enviada"} ${formatDayMonth(enrollment.submittedAt)}`;
+  return `${ageOrDash(enrollment.user?.birthDate)} · ${sent}`;
+};
 
 /** Admin: the students' enrollment requests, by review status. */
 const EnrollmentList = () => {
@@ -123,7 +129,7 @@ const EnrollmentList = () => {
                 </View>
                 <View className="flex-row items-center justify-between">
                   <AppText variant="label" tone="muted" className="text-[10px]">
-                    {`${item.source === "manual" ? "Asignada" : "Enviada"} ${formatDayMonth(item.submittedAt)}`}
+                    {enrollmentMeta(item)}
                   </AppText>
                   <View>
                     <Chip {...STATUS_CHIP[item.status]} />

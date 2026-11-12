@@ -8,7 +8,7 @@ import Chip from "@/components/ui/Chip";
 import IconButton from "@/components/ui/IconButton";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { formatShortDate, shortDayName, to12hLabel } from "@/constants/helpers";
+import { ageOrDash, formatShortDate, shortDayName, to12hLabel } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import type { ReviewStatus } from "@/hooks/enrollment/schema";
 import { useEnrollmentCount } from "@/hooks/enrollment/useEnrollmentCount";
@@ -115,6 +115,7 @@ const EnrollmentReviewScreen = () => {
                     tone={enrollment.status === "approved" ? "ok" : "muted"}
                   />
                 )}
+                <Chip label={ageOrDash(enrollment.user?.birthDate)} />
                 {enrollment.source === "manual" && <Chip label="Asignada por admin" />}
                 {enrollment.user && (
                   <Pressable

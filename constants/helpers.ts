@@ -372,6 +372,13 @@ const ageLabel = (birthDate: string | null | undefined, date = new Date()) => {
   return age === null ? null : plural(age, "año", "años");
 };
 
+/**
+ * A student's age where staff always expect one (Usuarios, Matrículas): "23 años",
+ * or "—" without a valid birth date.
+ */
+const ageOrDash = (birthDate: string | null | undefined, date = new Date()) =>
+  ageLabel(birthDate, date) ?? "—";
+
 /** "2003-03-14" -> "14 mar 2003 · 23 años" on `date` (default today); null without a valid birth date. */
 const formatBirthDate = (birthDate: string | null | undefined, date = new Date()) => {
   const birth = parseLocalDate(birthDate);
@@ -384,6 +391,7 @@ export const PRIVACY_POLICY_URL = "https://beatmotion-politica-privacidad.netlif
 export {
   ageLabel,
   ageOn,
+  ageOrDash,
   attendanceRate,
   birthdayIn,
   capitalize,

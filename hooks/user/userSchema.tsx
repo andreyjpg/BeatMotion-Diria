@@ -37,7 +37,7 @@ export const userSchema = zod
  * payment stands (course_members).
  */
 export const USER_LIST_COLUMNS =
-  "id, email, name, lastName:last_name, phone, role, photoPath:photo_path, isActive:is_active, memberships:course_members!course_members_user_id_fkey(active, paymentStatus:payment_status, nextPaymentDate:next_payment_date, course:courses(title))";
+  "id, email, name, lastName:last_name, phone, birthDate:birth_date, role, photoPath:photo_path, isActive:is_active, memberships:course_members!course_members_user_id_fkey(active, paymentStatus:payment_status, nextPaymentDate:next_payment_date, course:courses(title))";
 
 export const paymentStandingSchema = zod.enum(["ok", "pending", "late"]);
 export type PaymentStanding = zod.infer<typeof paymentStandingSchema>;
@@ -87,6 +87,7 @@ export const userListItemSchema = zod.object({
   name: zod.string(),
   lastName: zod.string(),
   phone: zod.string().nullable(),
+  birthDate: zod.string().nullable(), // "YYYY-MM-DD"; empty for accounts that never added it
   role: zod.enum(["user", "admin", "teacher"]),
   photoURL: zod.string().nullable(),
   isActive: zod.boolean(),
