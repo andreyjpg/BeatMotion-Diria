@@ -1,11 +1,10 @@
-import BirthdaysMock from "@/components/mocks/BirthdaysMock";
+import Birthdays from "@/components/teacher/Birthdays";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import HomeHero from "@/components/ui/HomeHero";
 import Screen from "@/components/ui/Screen";
 import SectionHeader from "@/components/ui/SectionHeader";
-import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
 import {
   capitalize,
   formatShortDate,
@@ -18,18 +17,20 @@ import palette from "@/constants/palette.json";
 import { useAttendanceByClass } from "@/hooks/attendance/useAttendanceByClass";
 import type { ClassesType } from "@/hooks/classes/classesSchema";
 import { useActiveClasses } from "@/hooks/classes/useActiveClasses";
+import { useTeacherBirthdays } from "@/hooks/courseMember/useTeacherBirthdays";
 import { useCourses } from "@/hooks/courses/useCourses";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, RefreshControl, View } from "react-native";
 
-/** Teacher home: the next class with who's coming, today's classes and their courses. */
+/** Teacher home: the next class with who's coming, this week's birthdays, today's classes and their courses. */
 const HomeTeacher = () => {
   const router = useRouter();
   const { user } = useActiveUser();
   const coursesQuery = useCourses();
   const classesQuery = useActiveClasses();
+  const birthdaysQuery = useTeacherBirthdays(user?.uid ?? "");
 
   const today = new Date();
   const todayKey = formatYYYYMMDD(today);
@@ -63,6 +64,7 @@ const HomeTeacher = () => {
     coursesQuery.refetch();
     classesQuery.refetch();
     attendanceQuery.refetch();
+    birthdaysQuery.refetch();
   };
 
   return (
@@ -107,7 +109,8 @@ const HomeTeacher = () => {
         />
       )}
 
-      {SHOW_FEATURE_MOCKS && <BirthdaysMock />}
+      {/* Left out while it loads or if it fails: an optional block shouldn't hold up the home. */}
+      <Birthdays birthdays={birthdaysQuery.data ?? []} />
 
       {todayClasses.length > 0 && (
         <>

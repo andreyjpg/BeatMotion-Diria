@@ -339,6 +339,21 @@ const weekdayShort = (date: Date) => WEEKDAYS_SHORT[date.getDay()];
 /** "oct" for a date. */
 const monthShort = (date: Date) => MONTHS_SHORT[date.getMonth()];
 
+/** Monday and Sunday (local midnight) of the week `date` (default today) is in. */
+const weekOf = (date = new Date()) => {
+  const daysSinceMonday = (date.getDay() + 6) % 7;
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate() - daysSinceMonday);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+  return { start, end };
+};
+
+/** "Lun 19 – dom 25 oct", or "Lun 27 oct – dom 2 nov" when the range spans two months. */
+const formatDayRange = (start: Date, end: Date) => {
+  const isSameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  const startLabel = `${weekdayShort(start)} ${isSameMonth ? start.getDate() : formatDayMonth(start)}`;
+  return `${startLabel} – ${weekdayShort(end).toLowerCase()} ${formatDayMonth(end)}`;
+};
+
 // ---- Birth dates ------------------------------------------------------------
 // Ages count calendar days on the phone, which is Costa Rica time for the
 // academy (like every date helper here).
@@ -351,6 +366,21 @@ const birthdayIn = (birth: Date, year: number) => {
   const isLeapYear = new Date(year, 1, 29).getMonth() === 1;
   const bornOnLeapDay = birth.getMonth() === 1 && birth.getDate() === 29;
   return new Date(year, birth.getMonth(), bornOnLeapDay && !isLeapYear ? 28 : birth.getDate());
+};
+
+/**
+ * The day from `start` to `end` (inclusive, at most a year apart, e.g. a week)
+ * on which someone born on `birthDate` ("YYYY-MM-DD") has a birthday, or null.
+ * Both years are checked, so a week from 29 Dec to 4 Jan finds either side.
+ * The day they were born isn't a birthday.
+ */
+const birthdayBetween = (birthDate: string | null | undefined, start: Date, end: Date) => {
+  const birth = parseLocalDate(birthDate);
+  if (!birth) return null;
+  const birthdays = [start.getFullYear(), end.getFullYear()]
+    .filter((year) => year > birth.getFullYear())
+    .map((year) => birthdayIn(birth, year));
+  return birthdays.find((day) => day >= start && day <= end) ?? null;
 };
 
 /**
@@ -393,6 +423,7 @@ export {
   ageOn,
   ageOrDash,
   attendanceRate,
+  birthdayBetween,
   birthdayIn,
   capitalize,
   classWhen,
@@ -405,6 +436,7 @@ export {
   formatCurrency,
   formatDate,
   formatDayMonth,
+  formatDayRange,
   formatDayMonthYear,
   formatDDMMYYYY,
   formatLongDate,
@@ -436,4 +468,5 @@ export {
   to24h,
   toHHMM,
   weekdayShort,
+  weekOf,
 };
