@@ -70,15 +70,16 @@ export const PrivacyConsentModal = ({ visible, onAccept }: Props) => {
             </Section>
 
             <Section title="Datos que recopilamos">
-              Nombre, apellido, número de teléfono, correo electrónico, foto de
-              perfil (opcional), información de matrícula, asistencia a clases,
-              pagos realizados y progreso académico.
+              Nombre, apellido, fecha de nacimiento, número de teléfono, correo
+              electrónico, foto de perfil (opcional), información de matrícula,
+              asistencia a clases, pagos realizados y progreso académico.
             </Section>
 
             <Section title="Finalidad del tratamiento">
               Sus datos se utilizan exclusivamente para gestionar su matrícula,
-              registrar asistencia, procesar pagos y comunicarle información
-              relevante sobre la academia.
+              registrar asistencia, procesar pagos, organizar los grupos por edad,
+              saludarle en su cumpleaños y comunicarle información relevante
+              sobre la academia.
             </Section>
 
             <Section title="Almacenamiento fuera de Costa Rica">
@@ -144,9 +145,10 @@ export const PrivacyConsentModal = ({ visible, onAccept }: Props) => {
               </View>
               <Text className="flex-1 text-sm leading-5 text-gray-700">
                 He leído y acepto la política de privacidad y el tratamiento de
-                mis datos personales conforme a las Leyes N.° 8.968 y N.° 9.048
-                de Costa Rica, incluida la transferencia internacional a
-                servidores de Supabase (Supabase Inc.) fuera de Costa Rica.
+                mis datos personales, incluida mi fecha de nacimiento, conforme
+                a las Leyes N.° 8.968 y N.° 9.048 de Costa Rica, incluida la
+                transferencia internacional a servidores de Supabase (Supabase
+                Inc.) fuera de Costa Rica.
               </Text>
             </Pressable>
 

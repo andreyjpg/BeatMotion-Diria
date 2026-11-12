@@ -141,6 +141,10 @@ const formatShortDate = (date: Date) =>
 const formatDayMonth = (date: Date) =>
   `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`;
 
+/** Date -> "14 mar 2003" (date fields, birth dates). */
+const formatDayMonthYear = (date: Date) =>
+  `${formatDayMonth(date)} ${date.getFullYear()}`;
+
 const MONTHS_LONG = [
   "enero",
   "febrero",
@@ -335,10 +339,53 @@ const weekdayShort = (date: Date) => WEEKDAYS_SHORT[date.getDay()];
 /** "oct" for a date. */
 const monthShort = (date: Date) => MONTHS_SHORT[date.getMonth()];
 
+// ---- Birth dates ------------------------------------------------------------
+// Ages count calendar days on the phone, which is Costa Rica time for the
+// academy (like every date helper here).
+
+/**
+ * Day of `year` on which someone born on `birth` has their birthday. A 29 Feb
+ * birthday is on 28 Feb when the year isn't a leap year.
+ */
+const birthdayIn = (birth: Date, year: number) => {
+  const isLeapYear = new Date(year, 1, 29).getMonth() === 1;
+  const bornOnLeapDay = birth.getMonth() === 1 && birth.getDate() === 29;
+  return new Date(year, birth.getMonth(), bornOnLeapDay && !isLeapYear ? 28 : birth.getDate());
+};
+
+/**
+ * Whole years someone born on `birthDate` ("YYYY-MM-DD") has on `date`
+ * (default today); null without a valid birth date or before it. They turn a
+ * year older on `birthdayIn` that year.
+ */
+const ageOn = (birthDate: string | null | undefined, date = new Date()) => {
+  const birth = parseLocalDate(birthDate);
+  if (!birth) return null;
+  const hadBirthday = date >= birthdayIn(birth, date.getFullYear());
+  const age = date.getFullYear() - birth.getFullYear() - (hadBirthday ? 0 : 1);
+  return age >= 0 ? age : null;
+};
+
+/** "2003-03-14" -> "23 años" on `date` (default today); null without a valid birth date. */
+const ageLabel = (birthDate: string | null | undefined, date = new Date()) => {
+  const age = ageOn(birthDate, date);
+  return age === null ? null : plural(age, "año", "años");
+};
+
+/** "2003-03-14" -> "14 mar 2003 · 23 años" on `date` (default today); null without a valid birth date. */
+const formatBirthDate = (birthDate: string | null | undefined, date = new Date()) => {
+  const birth = parseLocalDate(birthDate);
+  const age = ageLabel(birthDate, date);
+  return birth && age ? `${formatDayMonthYear(birth)} · ${age}` : null;
+};
+
 export const PRIVACY_POLICY_URL = "https://beatmotion-politica-privacidad.netlify.app";
 
 export {
+  ageLabel,
+  ageOn,
   attendanceRate,
+  birthdayIn,
   capitalize,
   classWhen,
   daysBetween,
@@ -346,9 +393,11 @@ export {
   digitsOnly,
   emptyToNull,
   endOfDay,
+  formatBirthDate,
   formatCurrency,
   formatDate,
   formatDayMonth,
+  formatDayMonthYear,
   formatDDMMYYYY,
   formatLongDate,
   formatMonthLabel,

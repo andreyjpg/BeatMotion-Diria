@@ -1,6 +1,7 @@
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Checkbox from "@/components/ui/Checkbox";
+import DateTimeField from "@/components/ui/DateTimeField";
 import Field from "@/components/ui/Field";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
@@ -9,7 +10,7 @@ import {
   validationErrors,
   type FormErrors,
 } from "@/constants/validationForms";
-import { PRIVACY_POLICY_URL } from "@/constants/helpers";
+import { ageLabel, formatYYYYMMDD, PRIVACY_POLICY_URL } from "@/constants/helpers";
 import { useSignUp } from "@/hooks/auth/useSignUp";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -23,12 +24,14 @@ const SignIn = () => {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [formErrors, setFormErrors] = useState<
     FormErrors<typeof signUpFormSchema>
   >({});
   const signUp = useSignUp();
   const submitting = signUp.isPending;
+  const age = birthDate ? ageLabel(formatYYYYMMDD(birthDate)) : null;
 
   const register = () => {
     if (submitting) return;
@@ -36,11 +39,13 @@ const SignIn = () => {
       name,
       lastName,
       phone,
+      birthDate,
       email,
       password,
     });
     setFormErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    // birthDate is required, so it's only null when there are errors.
+    if (Object.keys(errors).length > 0 || !birthDate) return;
     if (!consentAccepted) {
       Alert.alert(
         "Consentimiento requerido",
@@ -51,7 +56,7 @@ const SignIn = () => {
     }
 
     signUp.mutate(
-      { email, password, name, lastName, phone },
+      { email, password, name, lastName, phone, birthDate: formatYYYYMMDD(birthDate) },
       {
         onSuccess: ({ signedIn }) => {
           handleClearValues();
@@ -86,6 +91,7 @@ const SignIn = () => {
     setName("");
     setLastName("");
     setPhone("");
+    setBirthDate(null);
   };
 
   return (
@@ -129,6 +135,16 @@ const SignIn = () => {
           textContentType="telephoneNumber"
         />
 
+        <DateTimeField
+          label="Fecha de nacimiento"
+          mode="date"
+          value={birthDate}
+          onChange={setBirthDate}
+          badge={age}
+          error={formErrors.birthDate}
+          hint="La academia la usa para organizar los grupos por edad y saludarte en tu cumpleaños."
+        />
+
         <Field
           label="Correo"
           value={email}
@@ -167,9 +183,10 @@ const SignIn = () => {
               >
                 Política de Privacidad
               </AppText>{" "}
-              y el tratamiento de mis datos conforme a las Leyes N.° 8.968 y N.°
-              9.048 de Costa Rica, incluida la transferencia a servidores de
-              Supabase (Supabase Inc.) fuera de Costa Rica.
+              y el tratamiento de mis datos, incluida mi fecha de nacimiento,
+              conforme a las Leyes N.° 8.968 y N.° 9.048 de Costa Rica, incluida
+              la transferencia a servidores de Supabase (Supabase Inc.) fuera de
+              Costa Rica.
             </AppText>
           </Checkbox>
         </View>

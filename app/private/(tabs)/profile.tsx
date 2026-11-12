@@ -1,16 +1,19 @@
 import DataLoader from "@/components/DataLoader";
 import { DeleteAccountModal } from "@/components/DeleteAccountModal";
+import AgeChip from "@/components/profile/AgeChip";
+import BirthDateRow from "@/components/profile/BirthDateRow";
 import ProfilePhoto from "@/components/profile/ProfilePhoto";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Chip from "@/components/ui/Chip";
+import DateTimeField from "@/components/ui/DateTimeField";
 import Field from "@/components/ui/Field";
 import type { IconName } from "@/components/ui/IconButton";
 import InfoRow from "@/components/ui/InfoRow";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { digitsOnly, PRIVACY_POLICY_URL, roleLabel } from "@/constants/helpers";
+import { digitsOnly, formatYYYYMMDD, parseLocalDate, PRIVACY_POLICY_URL, roleLabel } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { FormErrors, profileFormSchema, validationErrors } from "@/constants/validationForms";
 import { useDeleteAccount } from "@/hooks/auth/useDeleteAccount";
@@ -60,6 +63,7 @@ const ProfileScreen = () => {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [errors, setErrors] = useState<FormErrors<typeof profileFormSchema>>({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -67,18 +71,19 @@ const ProfileScreen = () => {
     setName(userInfo.data?.name ?? "");
     setLastName(userInfo.data?.lastName ?? "");
     setPhone(userInfo.data?.phone ?? "");
+    setBirthDate(parseLocalDate(userInfo.data?.birthDate));
     setErrors({});
     setEditing(true);
   };
 
   const handleSave = async () => {
     const phoneDigits = digitsOnly(phone);
-    const found = validationErrors(profileFormSchema, { name, lastName, phone: phoneDigits });
+    const found = validationErrors(profileFormSchema, { name, lastName, phone: phoneDigits, birthDate });
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     await updateProfile.mutateAsync({
       uid: activeUser?.uid || "",
-      body: { name, lastName, phone: phoneDigits },
+      body: { name, lastName, phone: phoneDigits, birthDate: birthDate ? formatYYYYMMDD(birthDate) : null },
     });
     // Back to the saved data, not what it said before saving.
     await userInfo.refetch();
@@ -122,12 +127,13 @@ const ProfileScreen = () => {
                 <AppText tone="muted" className="text-[13.5px]" numberOfLines={1}>
                   {profile.email || "Sin correo"}
                 </AppText>
-                {activeUser && <Chip label={roleLabel[activeUser.role] ?? activeUser.role} tone="ok" />}
+                <View className="flex-row gap-1.5">
+                  {activeUser && <Chip label={roleLabel[activeUser.role] ?? activeUser.role} tone="ok" />}
+                  <AgeChip birthDate={profile.birthDate} />
+                </View>
               </View>
             </Card>
 
-            {/* TODO(cumpleaños): the design also shows the birth date and age, which
-                need birth_date on profiles (see TODO.md). */}
             {editing ? (
               <Card className="mx-3 mt-2.5 gap-3">
                 <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
@@ -144,6 +150,15 @@ const ProfileScreen = () => {
                   keyboardType="phone-pad"
                   placeholder="Tu teléfono"
                   error={errors.phone}
+                />
+                <DateTimeField
+                  label="Fecha de nacimiento"
+                  mode="date"
+                  value={birthDate}
+                  onChange={setBirthDate}
+                  onClear={() => setBirthDate(null)}
+                  error={errors.birthDate}
+                  hint="Opcional. La academia la usa para organizar los grupos por edad."
                 />
                 <View className="flex-row gap-2.5">
                   <Button
@@ -167,6 +182,7 @@ const ProfileScreen = () => {
                 <InfoRow label="Nombre">{profile.name || "—"}</InfoRow>
                 <InfoRow label="Apellido">{profile.lastName || "—"}</InfoRow>
                 <InfoRow label="Teléfono">{profile.phone || "—"}</InfoRow>
+                <BirthDateRow birthDate={profile.birthDate} />
                 <InfoRow label="Correo" divider={false}>
                   {profile.email || "—"}
                 </InfoRow>

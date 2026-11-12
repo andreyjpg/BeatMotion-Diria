@@ -1,9 +1,12 @@
 import DataLoader from "@/components/DataLoader";
+import AgeChip from "@/components/profile/AgeChip";
+import BirthDateRow from "@/components/profile/BirthDateRow";
 import AppText from "@/components/ui/AppText";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Chip, { statusTone } from "@/components/ui/Chip";
+import DateTimeField from "@/components/ui/DateTimeField";
 import Field from "@/components/ui/Field";
 import FormActions from "@/components/ui/FormActions";
 import IconButton from "@/components/ui/IconButton";
@@ -13,7 +16,7 @@ import ScreenHeader from "@/components/ui/ScreenHeader";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import SelectField from "@/components/ui/SelectField";
 import SwitchRow from "@/components/ui/SwitchRow";
-import { capitalize, digitsOnly, roleLabel, standingLabel } from "@/constants/helpers";
+import { capitalize, digitsOnly, formatYYYYMMDD, parseLocalDate, roleLabel, standingLabel } from "@/constants/helpers";
 import { adminProfileFormSchema, FormErrors, validationErrors } from "@/constants/validationForms";
 import { useBranches } from "@/hooks/branches/useBranches";
 import { useCourses } from "@/hooks/courses/useCourses";
@@ -53,6 +56,7 @@ const AdminUserProfile = () => {
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [errors, setErrors] = useState<FormErrors<typeof adminProfileFormSchema>>({});
 
   const profile = userQuery.data;
@@ -75,17 +79,26 @@ const AdminUserProfile = () => {
     setName(profile.name);
     setLastName(profile.lastName);
     setPhone(profile.phone ?? "");
+    setBirthDate(parseLocalDate(profile.birthDate));
     setErrors({});
     setEditing(true);
   };
 
   const save = () => {
     const phoneDigits = digitsOnly(phone);
-    const found = validationErrors(adminProfileFormSchema, { name, lastName, phone: phoneDigits });
+    const found = validationErrors(adminProfileFormSchema, { name, lastName, phone: phoneDigits, birthDate });
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     updateProfile.mutate(
-      { uid, body: { name: name.trim(), lastName: lastName.trim(), phone: phoneDigits } },
+      {
+        uid,
+        body: {
+          name: name.trim(),
+          lastName: lastName.trim(),
+          phone: phoneDigits,
+          birthDate: birthDate ? formatYYYYMMDD(birthDate) : null,
+        },
+      },
       { onSuccess: () => setEditing(false) },
     );
   };
@@ -172,10 +185,19 @@ const AdminUserProfile = () => {
                 keyboardType="phone-pad"
                 error={errors.phone}
               />
+              <DateTimeField
+                label="Fecha de nacimiento"
+                mode="date"
+                value={birthDate}
+                onChange={setBirthDate}
+                onClear={() => setBirthDate(null)}
+                error={errors.birthDate}
+              />
             </Card>
           ) : (
             <>
               <View className="flex-row flex-wrap gap-1.5 px-5 pt-3">
+                <AgeChip birthDate={profile.birthDate} />
                 <Chip label={roleLabel[profile.role]} />
                 {standing && <Chip label={standingLabel[standing]} tone={statusTone(standing)} />}
                 {!profile.isActive && <Chip label="Inactivo" tone="muted" />}
@@ -183,12 +205,9 @@ const AdminUserProfile = () => {
 
               <Card padded={false} className="mx-3 mt-4 px-4 py-1">
                 <InfoRow label="Teléfono">{profile.phone || "—"}</InfoRow>
-                <InfoRow label="Correo" divider={false}>
-                  {profile.email}
-                </InfoRow>
+                <InfoRow label="Correo">{profile.email}</InfoRow>
+                <BirthDateRow birthDate={profile.birthDate} divider={false} />
               </Card>
-              {/* TODO(cumpleaños): the design also shows the birth date and age, which
-                  the database doesn't store yet (see TODO.md). */}
 
               {!isSelf && (
                 <Card className="mx-3 mt-2.5 gap-2.5">

@@ -1,5 +1,5 @@
 import FieldError from "@/components/FieldError";
-import { formatDayMonth, to12hLabel } from "@/constants/helpers";
+import { formatDayMonthYear, to12hLabel } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -8,6 +8,7 @@ import { Modal, Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "./AppText";
 import Button from "./Button";
+import Chip from "./Chip";
 
 type DateTimeFieldProps = {
   label: string;
@@ -20,6 +21,8 @@ type DateTimeFieldProps = {
   error?: string;
   /** Help text under the field, hidden while there's an error. */
   hint?: string;
+  /** Short tag at the end of the field, e.g. the age next to a birth date. */
+  badge?: string | null;
   /** Layout of the whole field (margins, flex-1 in a row). */
   className?: string;
 };
@@ -33,6 +36,7 @@ const DateTimeField = ({
   onClear,
   error,
   hint,
+  badge,
   className = "",
 }: DateTimeFieldProps) => {
   const insets = useSafeAreaInsets();
@@ -43,7 +47,7 @@ const DateTimeField = ({
       ? "Selecciona fecha"
       : "Selecciona hora"
     : isDate
-      ? `${formatDayMonth(value)} ${value.getFullYear()}`
+      ? formatDayMonthYear(value)
       : to12hLabel(value);
 
   return (
@@ -54,7 +58,7 @@ const DateTimeField = ({
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={`${label}: ${shown}`}
+        accessibilityLabel={[`${label}: ${shown}`, badge].filter(Boolean).join(", ")}
         className={`h-[52px] flex-row items-center gap-2 rounded-[14px] border-[1.5px] bg-surface px-3 ${
           error ? "border-danger" : "border-field-line"
         }`}
@@ -63,6 +67,12 @@ const DateTimeField = ({
         <AppText tone={value ? "ink" : "faint"} className="flex-1 text-[14.5px]" numberOfLines={1}>
           {shown}
         </AppText>
+        {/* The wrapper centers it: Chip aligns itself to the start. */}
+        {badge && (
+          <View>
+            <Chip label={badge} />
+          </View>
+        )}
         {value && onClear && (
           <Pressable onPress={onClear} accessibilityRole="button" accessibilityLabel={`Quitar ${label}`} hitSlop={8}>
             <Ionicons name="close-circle" size={18} color={palette.faint} />

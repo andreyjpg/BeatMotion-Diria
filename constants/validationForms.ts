@@ -1,13 +1,46 @@
 import { string } from "yup";
 
-import { detectVideoPlatform } from "@/constants/helpers";
+import { ageOn, detectVideoPlatform, formatYYYYMMDD } from "@/constants/helpers";
 import type { SurveyQuestionInput } from "@/hooks/surveys/surveySchema";
 import * as yup from "yup";
+
+/** The academy's youngest students. */
+const MIN_AGE_YEARS = 15;
+
+/** Birth dates further back than this many years are taken as a typo. */
+const MAX_AGE_YEARS = 100;
+
+/**
+ * Birth date picked in a form (a Date, or null while empty). Compared by
+ * calendar day at the time of saving: not after today, at least MIN_AGE_YEARS
+ * old and not more than MAX_AGE_YEARS ago. Optional here; sign-up adds
+ * `required`.
+ */
+const birthDateSchema = yup
+  .date()
+  .nullable()
+  .test(
+    "not-future",
+    "La fecha no puede ser en el futuro.",
+    (value) => !value || formatYYYYMMDD(value) <= formatYYYYMMDD(new Date()),
+  )
+  .test(
+    "min-age",
+    `La edad mínima es ${MIN_AGE_YEARS} años.`,
+    (value) => !value || (ageOn(formatYYYYMMDD(value)) ?? 0) >= MIN_AGE_YEARS,
+  )
+  .test("max-age", "Revisa el año de nacimiento.", (value) => {
+    if (!value) return true;
+    const today = new Date();
+    const oldest = new Date(today.getFullYear() - MAX_AGE_YEARS, today.getMonth(), today.getDate());
+    return formatYYYYMMDD(value) >= formatYYYYMMDD(oldest);
+  });
 
 export const signInValidationSchema = {
   name: string().required("El nombre es obligatorio"),
   lastName: string().required("El apellido es obligatorio"),
   phone: string().required("El teléfono es obligatorio"),
+  birthDate: birthDateSchema.required("Ingresa tu fecha de nacimiento."),
   email: string()
     .email("El email no es válido")
     .required("El email es obligatorio"),
@@ -41,6 +74,7 @@ export const adminProfileFormSchema = yup.object({
   name: ProfileAdminValidationSchema.name,
   lastName: ProfileAdminValidationSchema.lastName,
   phone: ProfileAdminValidationSchema.phone,
+  birthDate: birthDateSchema,
 });
 
 /** Notification draft (admin notifications/[draftId]). */
@@ -64,6 +98,7 @@ export const UserProfileValidationSchema = {
     .required("El teléfono es obligatorio")
     .min(8, "Debe de ingresar un número válido")
     .max(8, "Debe de ingresar un número válido"),
+  birthDate: birthDateSchema,
 };
 
 /** The user's own profile (tabs/profile). */
