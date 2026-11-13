@@ -159,9 +159,6 @@ classes run from 7 to 9 p. m., so a student can't take two at once.
 
 ## Cleanup
 
-- [ ] Remove the packages nothing imports since the redesign:
-  `react-native-bouncy-checkbox`, `react-native-vector-icons` and
-  `@react-native-picker/picker`.
 - [ ] **`npm run db:types` removes `courses.teacher_name`.** It's a computed column
   (`20261018000200_review_fixes.sql`) that was added to `types/database.ts` by
   hand. The generator doesn't output it, so the type-check fails after
@@ -195,7 +192,6 @@ classes run from 7 to 9 p. m., so a student can't take two at once.
 
 - [ ] **Check the packages for known vulnerabilities.** A safety check to do
   before the app goes live; no rush until then.
-  - Do it after removing the unused packages above, so there's less to review.
   - Run `npm audit`, and `npm audit --omit=dev` to see what ships in the app.
   - Update Expo's packages with `npx expo install --check`. Avoid
     `npm audit fix --force`: it can install versions the Expo SDK doesn't support.
