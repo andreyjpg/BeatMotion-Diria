@@ -6,8 +6,8 @@ import VimeoVideoPlayer from "@/components/VimeoVideoPlayer";
 import YouTubeVideoPlayer from "@/components/YoutubeVideoPlayer";
 import {
   formatShortDate,
+  formatTimeRange,
   formatYYYYMMDD,
-  hhmmTo12h,
   parseLocalDate,
   sanitizeVimeoUrl,
   sanitizeYouTubeUrl,
@@ -21,7 +21,7 @@ import { View } from "react-native";
 const ClassContent = ({ cls }: { cls: ClassesType }) => {
   const date = parseLocalDate(cls.date);
   const isToday = cls.date === formatYYYYMMDD(new Date());
-  const time = [hhmmTo12h(cls.startTime), hhmmTo12h(cls.endTime)].filter(Boolean).join("–");
+  const time = formatTimeRange(cls.startTime, cls.endTime);
   const objectives = (cls.objectives ?? "")
     .split("\n")
     .map((line) => line.replace(/^[-•*]\s*/, "").trim())
@@ -36,7 +36,7 @@ const ClassContent = ({ cls }: { cls: ClassesType }) => {
           label={date ? `${isToday ? "Hoy · " : ""}${formatShortDate(date).toLowerCase()}` : "Sin fecha"}
           tone={isToday ? "ok" : "line"}
         />
-        {time ? <Chip label={time} /> : null}
+        {time ? <Chip label={time} keepCase /> : null}
       </View>
 
       {cls.description ? <AppText className="px-5 pt-4 text-[15px] leading-[22px]">{cls.description}</AppText> : null}

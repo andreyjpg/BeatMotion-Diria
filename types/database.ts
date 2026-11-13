@@ -249,11 +249,14 @@ export type Database = {
           created_by: string | null
           day: Database["public"]["Enums"]["weekday"] | null
           description: string
+          end_date: string | null
+          end_time: string | null
           id: string
           is_deleted: boolean
           legacy_id: string | null
           level: number
           start_date: string | null
+          start_time: string | null
           teacher_id: string | null
           teacher_name: string | null
           title: string
@@ -265,11 +268,14 @@ export type Database = {
           created_by?: string | null
           day?: Database["public"]["Enums"]["weekday"] | null
           description?: string
+          end_date?: string | null
+          end_time?: string | null
           id?: string
           is_deleted?: boolean
           legacy_id?: string | null
           level?: number
           start_date?: string | null
+          start_time?: string | null
           teacher_id?: string | null
           title: string
           updated_at?: string
@@ -280,11 +286,14 @@ export type Database = {
           created_by?: string | null
           day?: Database["public"]["Enums"]["weekday"] | null
           description?: string
+          end_date?: string | null
+          end_time?: string | null
           id?: string
           is_deleted?: boolean
           legacy_id?: string | null
           level?: number
           start_date?: string | null
+          start_time?: string | null
           teacher_id?: string | null
           title?: string
           updated_at?: string

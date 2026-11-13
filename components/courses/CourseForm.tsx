@@ -9,6 +9,7 @@ import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import SelectField from "@/components/ui/SelectField";
+import { formatYYYYMMDD, to24h } from "@/constants/helpers";
 import { courseFormSchema, FormErrors, validationErrors } from "@/constants/validationForms";
 import { useBranches } from "@/hooks/branches/useBranches";
 import { useTeachers } from "@/hooks/user/useTeachers";
@@ -39,10 +40,24 @@ export type CourseFormValues = {
   description: string;
   level: string;
   day: string;
+  /** Null on courses saved before the schedule existed: the form asks for them. */
+  startTime: Date | null;
+  endTime: Date | null;
   teacherId: string;
   branchId: string;
   startDate: Date | null;
+  endDate: Date | null;
 };
+
+/** What the hooks save: the times and dates as Postgres takes them. */
+export type CourseFormOutput = Omit<CourseFormValues, "startTime" | "endTime" | "startDate" | "endDate"> & {
+  startTime: string; // "HH:MM"
+  endTime: string; // "HH:MM"
+  startDate: string | null; // "YYYY-MM-DD"
+  endDate: string | null; // "YYYY-MM-DD"
+};
+
+type CourseFormErrors = FormErrors<typeof courseFormSchema>;
 
 type CourseFormProps = {
   heading: string;
@@ -50,7 +65,7 @@ type CourseFormProps = {
   initial?: CourseFormValues;
   saveLabel: string;
   saving: boolean;
-  onSave: (values: CourseFormValues) => void;
+  onSave: (values: CourseFormOutput) => void;
   /** Editing only: asks for confirmation first, on the screen. */
   onDelete?: () => void;
 };
@@ -67,17 +82,52 @@ const CourseForm = ({ heading, initial, saveLabel, saving, onSave, onDelete }: C
   const [day, setDay] = useState(initial?.day ?? "lunes");
   const [chosenTeacherId, setTeacherId] = useState(initial?.teacherId ?? "");
   const [branchId, setBranchId] = useState(initial?.branchId ?? "");
+  const [startTime, setStartTime] = useState<Date | null>(initial?.startTime ?? null);
+  const [endTime, setEndTime] = useState<Date | null>(initial?.endTime ?? null);
   const [startDate, setStartDate] = useState<Date | null>(initial?.startDate ?? null);
-  const [errors, setErrors] = useState<FormErrors<typeof courseFormSchema>>({});
+  const [endDate, setEndDate] = useState<Date | null>(initial?.endDate ?? null);
+  const [errors, setErrors] = useState<CourseFormErrors>({});
 
   // A new course starts with the first teacher; an edited one keeps its own (or none).
   const teacherId = chosenTeacherId || (initial ? "" : (teachers[0]?.id ?? ""));
 
+  // A picker's message goes as soon as its value changes; the others stay until the next save.
+  const clearError = (field: keyof CourseFormErrors) =>
+    setErrors(({ [field]: _cleared, ...otherErrors }) => otherErrors);
+
+  const handleStartTimeChange = (time: Date) => {
+    setStartTime(time);
+    clearError("startTime");
+  };
+
+  const handleEndTimeChange = (time: Date) => {
+    setEndTime(time);
+    clearError("endTime");
+  };
+
+  const handleEndDateChange = (date: Date | null) => {
+    setEndDate(date);
+    clearError("endDate");
+  };
+
   const save = () => {
-    const found = validationErrors(courseFormSchema, { title, teacherId, level, description });
+    const values = {
+      title: title.trim(),
+      description: description.trim(),
+      level,
+      day,
+      startTime: startTime ? to24h(startTime) : "",
+      endTime: endTime ? to24h(endTime) : "",
+      teacherId,
+      branchId,
+      startDate: startDate ? formatYYYYMMDD(startDate) : null,
+      endDate: endDate ? formatYYYYMMDD(endDate) : null,
+    };
+    // The schema compares the picked dates, not their "YYYY-MM-DD" text.
+    const found = validationErrors(courseFormSchema, { ...values, startDate, endDate });
     setErrors(found);
     if (Object.keys(found).length > 0) return;
-    onSave({ title: title.trim(), description: description.trim(), level, day, teacherId, branchId, startDate });
+    onSave(values);
   };
 
   const teacherHint = teachersQuery.isError
@@ -164,13 +214,62 @@ const CourseForm = ({ heading, initial, saveLabel, saving, onSave, onDelete }: C
             })}
           </View>
         </View>
-        <DateTimeField
-          label="Inicia"
-          mode="date"
-          value={startDate}
-          onChange={setStartDate}
-          onClear={() => setStartDate(null)}
-        />
+        <View className="flex-row gap-2.5">
+          <DateTimeField
+            label="Hora de inicio *"
+            mode="time"
+            value={startTime}
+            onChange={handleStartTimeChange}
+            error={errors.startTime}
+            className="flex-1"
+          />
+          <DateTimeField
+            label="Hora de fin *"
+            mode="time"
+            value={endTime}
+            onChange={handleEndTimeChange}
+            error={errors.endTime}
+            className="flex-1"
+          />
+        </View>
+      </Card>
+
+      <Card className="mx-3 mt-2.5 gap-3.5">
+        <View className="flex-row items-baseline justify-between">
+          <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
+            Fechas
+          </AppText>
+          <AppText tone="muted" className="text-[11px]">
+            Opcional
+          </AppText>
+        </View>
+        <View>
+          <View className="flex-row gap-2.5">
+            <DateTimeField
+              label="Inicia"
+              mode="date"
+              value={startDate}
+              onChange={setStartDate}
+              onClear={() => setStartDate(null)}
+              className="flex-1"
+            />
+            <DateTimeField
+              label="Termina"
+              mode="date"
+              value={endDate}
+              onChange={handleEndDateChange}
+              onClear={() => handleEndDateChange(null)}
+              initialDate={startDate ?? undefined}
+              error={errors.endDate}
+              className="flex-1"
+            />
+          </View>
+          {!errors.endDate && (
+            <AppText tone="muted" className="mt-1.5 text-[12.5px] leading-[17px]">
+              Déjalas vacías si el curso es continuo y no tiene cierre.
+            </AppText>
+          )}
+        </View>
       </Card>
 
       <Card className="mx-3 mt-2.5 gap-3.5">

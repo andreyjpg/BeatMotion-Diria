@@ -10,9 +10,9 @@ import ScreenHeader from "@/components/ui/ScreenHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
 import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
 import {
-  capitalize,
   classWhen,
   formatDayMonth,
+  formatCourseSchedule,
   formatShortDate,
   formatYYYYMMDD,
   standingLabel,
@@ -84,8 +84,8 @@ const CourseDetail = () => {
             <Card padded={false} className="mx-3 mt-[18px] p-1">
               <View className="flex-row border-b border-line-soft">
                 <Fact
-                  label="Día"
-                  value={course.day ? capitalize(course.day) : "Por definir"}
+                  label="Horario"
+                  value={formatCourseSchedule(course.day, course.startTime, course.endTime) || "Por definir"}
                   className="border-r border-line-soft"
                 />
                 <Fact label="Inicio" value={course.startDate ? formatDayMonth(course.startDate) : "Sin fecha"} />

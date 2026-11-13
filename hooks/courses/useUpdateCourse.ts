@@ -11,9 +11,12 @@ type CoursePatch = {
   description?: string;
   level?: string;
   day?: string;
+  startTime?: string; // "HH:MM"
+  endTime?: string; // "HH:MM"
   isDeleted?: boolean;
   branchId?: string | null;
   startDate?: string | null; // "YYYY-MM-DD"
+  endDate?: string | null; // "YYYY-MM-DD"
 };
 
 type UpdateCourseBody = { id: string; patch: CoursePatch };
@@ -26,9 +29,12 @@ const toUpdate = (patch: CoursePatch): CourseUpdate => ({
   ...(patch.description !== undefined && { description: patch.description }),
   ...(patch.level !== undefined && { level: Number(patch.level) }),
   ...(patch.day !== undefined && { day: patch.day as CourseUpdate["day"] }),
+  ...(patch.startTime !== undefined && { start_time: patch.startTime }),
+  ...(patch.endTime !== undefined && { end_time: patch.endTime }),
   ...(patch.isDeleted !== undefined && { is_deleted: patch.isDeleted }),
   ...(patch.branchId !== undefined && { branch_id: patch.branchId }),
   ...(patch.startDate !== undefined && { start_date: patch.startDate }),
+  ...(patch.endDate !== undefined && { end_date: patch.endDate }),
 });
 
 export const useUpdateCourse = () => {

@@ -8,7 +8,7 @@ import IconButton from "@/components/ui/IconButton";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SelectField from "@/components/ui/SelectField";
-import { detectVideoPlatform, formatYYYYMMDD, to24h } from "@/constants/helpers";
+import { detectVideoPlatform, formatYYYYMMDD, timeToDate, to24h } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { classFormSchema, FormErrors, validationErrors, videoLinkFormSchema } from "@/constants/validationForms";
 import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
@@ -19,6 +19,9 @@ import { useState } from "react";
 import { View } from "react-native";
 
 type Video = { url: string; platform: "youtube" | "vimeo"; title: string | null };
+
+/** A course's "HH:MM" time for a time picker; null when the course has none. */
+const courseTime = (value: string | null | undefined) => (value ? timeToDate(value) : null);
 
 export type ClassFormValues = {
   courseId: string;
@@ -73,8 +76,9 @@ const ClassForm = ({
   const [objectives, setObjectives] = useState(initial?.objectives ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
   const [date, setDate] = useState<Date | null>(initial?.date ?? null);
-  const [startTime, setStartTime] = useState<Date | null>(initial?.startTime ?? null);
-  const [endTime, setEndTime] = useState<Date | null>(initial?.endTime ?? null);
+  // Undefined until picked or cleared: a new class takes its course's hours.
+  const [pickedStartTime, setStartTime] = useState<Date | null | undefined>(initial ? initial.startTime : undefined);
+  const [pickedEndTime, setEndTime] = useState<Date | null | undefined>(initial ? initial.endTime : undefined);
   const [videos, setVideos] = useState<Video[]>(initial?.videos ?? []);
   const [videoTitle, setVideoTitle] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
@@ -85,6 +89,12 @@ const ClassForm = ({
   const classesQuery = useClassesByCourseId(initial ? "" : courseId);
   const suggestedTitle = classesQuery.data ? `Clase ${classesQuery.data.length + 1}` : "";
   const title = typedTitle ?? suggestedTitle;
+
+  const course = courses.find((c) => c.id === courseId);
+  const startTime = pickedStartTime === undefined ? courseTime(course?.startTime) : pickedStartTime;
+  const endTime = pickedEndTime === undefined ? courseTime(course?.endTime) : pickedEndTime;
+  const showsCourseTimes =
+    pickedStartTime === undefined && pickedEndTime === undefined && (startTime !== null || endTime !== null);
 
   const addVideo = () => {
     const found = validationErrors(videoLinkFormSchema, { url: videoUrl });
@@ -165,24 +175,31 @@ const ClassForm = ({
         )}
         <Field label="Título *" value={title} onChangeText={setTitle} placeholder="Clase 1" error={errors.title} />
         <DateTimeField label="Fecha" mode="date" value={date} onChange={setDate} onClear={() => setDate(null)} />
-        <View className="flex-row gap-2.5">
-          <DateTimeField
-            label="Hora de inicio"
-            mode="time"
-            value={startTime}
-            onChange={setStartTime}
-            onClear={() => setStartTime(null)}
-            className="flex-1"
-          />
-          <DateTimeField
-            label="Hora de fin"
-            mode="time"
-            value={endTime}
-            onChange={setEndTime}
-            onClear={() => setEndTime(null)}
-            error={errors.endTime}
-            className="flex-1"
-          />
+        <View>
+          <View className="flex-row gap-2.5">
+            <DateTimeField
+              label="Hora de inicio"
+              mode="time"
+              value={startTime}
+              onChange={setStartTime}
+              onClear={() => setStartTime(null)}
+              className="flex-1"
+            />
+            <DateTimeField
+              label="Hora de fin"
+              mode="time"
+              value={endTime}
+              onChange={setEndTime}
+              onClear={() => setEndTime(null)}
+              error={errors.endTime}
+              className="flex-1"
+            />
+          </View>
+          {showsCourseTimes && !errors.endTime && (
+            <AppText tone="muted" className="mt-1.5 text-[12.5px] leading-[17px]">
+              Tomadas del horario del curso. Puedes cambiarlas.
+            </AppText>
+          )}
         </View>
       </Card>
 

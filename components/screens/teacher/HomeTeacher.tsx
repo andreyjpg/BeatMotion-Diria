@@ -8,8 +8,10 @@ import SectionHeader from "@/components/ui/SectionHeader";
 import {
   capitalize,
   formatShortDate,
+  formatTimeRange,
   formatYYYYMMDD,
   hhmmTo12h,
+  hhmmTo12hParts,
   parseLocalDate,
   to24h,
 } from "@/constants/helpers";
@@ -23,6 +25,25 @@ import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, RefreshControl, View } from "react-native";
+
+type StartTimeTileProps = { startTime: string | null; isHero: boolean };
+
+/** A class's start time stacked as in the design ("P. M." over "7:00"), or "—" without one. Dark for the hero's class. */
+const StartTimeTile = ({ startTime, isHero }: StartTimeTileProps) => {
+  const start = hhmmTo12hParts(startTime);
+  return (
+    <View className={`h-[52px] w-[60px] items-center justify-center rounded-xl ${isHero ? "bg-ink" : "bg-ground"}`}>
+      {start && (
+        <AppText variant="label" tone={isHero ? "hero-soft" : "ink"} className="text-[9px]">
+          {start.period}
+        </AppText>
+      )}
+      <AppText variant="heavy" tone={isHero ? "inverse" : "ink"} className="text-[15px]">
+        {start?.time ?? "—"}
+      </AppText>
+    </View>
+  );
+};
 
 /** Teacher home: the next class with who's coming, this week's birthdays, today's classes and their courses. */
 const HomeTeacher = () => {
@@ -128,13 +149,7 @@ const HomeTeacher = () => {
                   accessibilityLabel={`${courseTitle(cls.courseId)}, tomar asistencia`}
                   className="flex-row items-center gap-3.5 px-3.5 py-3.5"
                 >
-                  <View
-                    className={`h-[52px] w-[60px] items-center justify-center rounded-xl ${isHero ? "bg-ink" : "bg-ground"}`}
-                  >
-                    <AppText variant="heavy" tone={isHero ? "inverse" : "ink"} className="text-[13.5px]">
-                      {hhmmTo12h(cls.startTime) || "—"}
-                    </AppText>
-                  </View>
+                  <StartTimeTile startTime={cls.startTime} isHero={isHero} />
                   <View className="flex-1">
                     <AppText variant="bold" className="text-[15.5px]" numberOfLines={1}>
                       {courseTitle(cls.courseId)}
@@ -160,26 +175,38 @@ const HomeTeacher = () => {
             Todavía no tienes cursos asignados.
           </AppText>
         )}
-        {myCourses.map((course) => (
-          <Pressable
-            key={course.id}
-            onPress={() => openCourse(course.id)}
-            accessibilityRole="button"
-            accessibilityLabel={course.title}
-            className="gap-1 rounded-[18px] bg-surface p-4 active:opacity-80"
-            style={{ width: "49%" }}
-          >
-            <AppText variant="bold" className="text-[15px]" numberOfLines={2}>
-              {course.title}
-            </AppText>
-            <View className="flex-row items-center gap-1">
-              <Ionicons name="calendar-outline" size={13} color={palette.muted} />
-              <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
-                {[course.day && capitalize(course.day), `Nivel ${course.level}`].filter(Boolean).join(" · ")}
+        {myCourses.map((course) => {
+          const hours = formatTimeRange(course.startTime, course.endTime);
+          return (
+            <Pressable
+              key={course.id}
+              onPress={() => openCourse(course.id)}
+              accessibilityRole="button"
+              accessibilityLabel={course.title}
+              className="gap-1 rounded-[18px] bg-surface p-4 active:opacity-80"
+              style={{ width: "49%" }}
+            >
+              <AppText variant="bold" className="text-[15px]" numberOfLines={2}>
+                {course.title}
               </AppText>
-            </View>
-          </Pressable>
-        ))}
+              <View className="flex-row items-center gap-1">
+                <Ionicons name="calendar-outline" size={13} color={palette.muted} />
+                <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+                  {[course.day && capitalize(course.day), `Nivel ${course.level}`].filter(Boolean).join(" · ")}
+                </AppText>
+              </View>
+              {/* Own line: the tile is half the screen wide. */}
+              {hours !== "" && (
+                <View className="flex-row items-center gap-1">
+                  <Ionicons name="time-outline" size={13} color={palette.muted} />
+                  <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+                    {hours}
+                  </AppText>
+                </View>
+              )}
+            </Pressable>
+          );
+        })}
       </View>
     </Screen>
   );

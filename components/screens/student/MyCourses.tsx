@@ -7,7 +7,7 @@ import Chip, { statusTone } from "@/components/ui/Chip";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
-import { capitalize, formatShortDate, standingLabel } from "@/constants/helpers";
+import { formatCourseSchedule, formatShortDate, standingLabel } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { useBranches } from "@/hooks/branches/useBranches";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
@@ -67,6 +67,7 @@ const MyCourses = () => {
               const meta = [`Nivel ${course.level}`, course.startDate && `Inicia ${formatShortDate(course.startDate).toLowerCase()}`]
                 .filter(Boolean)
                 .join(" · ");
+              const schedule = formatCourseSchedule(course.day, course.startTime, course.endTime);
               return (
                 <Card
                   onPress={() => handleClickCourse(course.courseId)}
@@ -83,10 +84,12 @@ const MyCourses = () => {
                     />
                   </View>
                   <View className="gap-1.5">
-                    {course.day && (
+                    {!!schedule && (
                       <View className="flex-row items-center gap-2">
-                        <Ionicons name="calendar-outline" size={16} color={palette.muted} />
-                        <AppText className="text-[14px]">{capitalize(course.day)}</AppText>
+                        <Ionicons name="time-outline" size={16} color={palette.muted} />
+                        <AppText className="flex-1 text-[14px]" numberOfLines={1}>
+                          {schedule}
+                        </AppText>
                       </View>
                     )}
                     <View className="flex-row items-center gap-2">

@@ -14,8 +14,8 @@ import SegmentedControl from "@/components/ui/SegmentedControl";
 import {
   ageOrNoAge,
   attendanceRate,
-  capitalize,
   classWhen,
+  formatCourseSchedule,
   formatDayMonth,
   formatYYYYMMDD,
   standingLabel,
@@ -68,7 +68,9 @@ const AdminCourseScreen = () => {
         title={found?.title ?? "Curso"}
         subtitle={
           found
-            ? [found.day && capitalize(found.day), branchQuery.data?.name, found.teacher].filter(Boolean).join(" · ")
+            ? [formatCourseSchedule(found.day, found.startTime, found.endTime), branchQuery.data?.name, found.teacher]
+                .filter(Boolean)
+                .join(" · ")
             : undefined
         }
         right={

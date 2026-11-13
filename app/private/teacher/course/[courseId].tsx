@@ -10,8 +10,8 @@ import ScreenHeader from "@/components/ui/ScreenHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
 import {
   attendanceRate,
-  capitalize,
   classWhen,
+  formatCourseSchedule,
   formatShortDate,
   formatYYYYMMDD,
   presentByClass,
@@ -54,7 +54,7 @@ const TeacherCourseScreen = () => {
 
   const subtitle = course
     ? [
-        course.day && capitalize(course.day),
+        formatCourseSchedule(course.day, course.startTime, course.endTime),
         branchQuery.data?.name,
         `Nivel ${course.level}`,
         course.startDate && `Inicia ${formatShortDate(course.startDate).toLowerCase()}`,

@@ -339,7 +339,25 @@ export const branchFormSchema = yup.object({
     .max(200, "La ubicación no puede superar 200 caracteres."),
 });
 
-// Limits match the database constraints on public.courses.
+/**
+ * "HH:MM" end time of a form that also has a `startTime`: it must be after the
+ * start ("HH:MM" strings compare correctly as text). Passes while either is
+ * empty; forms that need it add `required`.
+ */
+const endTimeSchema = yup
+  .string()
+  .test(
+    "after-start",
+    "La hora de fin debe ser después de la de inicio.",
+    (endTime, context) => {
+      const startTime: string | undefined = context.parent.startTime;
+      return !endTime || !startTime || endTime > startTime;
+    },
+  );
+
+// Limits match the database constraints on public.courses (title, description,
+// courses_end_time_after_start and courses_end_date_not_before_start). The
+// database still accepts courses without hours, but the form asks for them.
 export const courseFormSchema = yup.object({
   title: yup
     .string()
@@ -352,6 +370,25 @@ export const courseFormSchema = yup.object({
   description: yup
     .string()
     .max(1000, "La descripción no puede superar 1000 caracteres."),
+  startTime: yup.string().required("Elige la hora de inicio."),
+  endTime: endTimeSchema.required("Elige la hora de fin."),
+  // Both dates are optional; compared by calendar day, so both can be the same day.
+  startDate: yup.date().nullable(),
+  endDate: yup
+    .date()
+    .nullable()
+    .test(
+      "not-before-start",
+      "La fecha de fin debe ser después de la de inicio.",
+      (endDate, context) => {
+        const startDate: unknown = context.parent.startDate;
+        return (
+          !endDate ||
+          !(startDate instanceof Date) ||
+          formatYYYYMMDD(endDate) >= formatYYYYMMDD(startDate)
+        );
+      },
+    ),
 });
 
 // One video being added to a class (components/courses/ClassForm.tsx).
@@ -372,15 +409,5 @@ export const classFormSchema = yup.object({
   title: yup.string().trim().required("El título es obligatorio."),
   content: yup.string().trim().required("El contenido es obligatorio."),
   startTime: yup.string(),
-  // "HH:MM" strings compare correctly as text.
-  endTime: yup
-    .string()
-    .test(
-      "after-start",
-      "La hora de fin debe ser posterior a la de inicio.",
-      (endTime, context) => {
-        const startTime: string | undefined = context.parent.startTime;
-        return !endTime || !startTime || endTime > startTime;
-      },
-    ),
+  endTime: endTimeSchema,
 });
