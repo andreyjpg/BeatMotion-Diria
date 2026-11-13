@@ -1,3 +1,4 @@
+import HiddenClassChip from "@/components/courses/HiddenClassChip";
 import AppText from "@/components/ui/AppText";
 import Card from "@/components/ui/Card";
 import Chip from "@/components/ui/Chip";
@@ -17,7 +18,7 @@ import type { ClassesType } from "@/hooks/classes/classesSchema";
 import { Ionicons } from "@expo/vector-icons";
 import { View } from "react-native";
 
-/** What a class is about, read only: date, description, objectives, content and videos. */
+/** What a class is about, read only: date, visibility, description, objectives, content and videos. */
 const ClassContent = ({ cls }: { cls: ClassesType }) => {
   const date = parseLocalDate(cls.date);
   const isToday = cls.date === formatYYYYMMDD(new Date());
@@ -37,7 +38,17 @@ const ClassContent = ({ cls }: { cls: ClassesType }) => {
           tone={isToday ? "ok" : "line"}
         />
         {time ? <Chip label={time} keepCase /> : null}
+        {cls.isHidden && <HiddenClassChip />}
       </View>
+      {/* Only staff get hidden classes; teachers read this screen and can't show it. */}
+      {cls.isHidden && (
+        <View className="mx-5 mt-3 flex-row items-start gap-2.5 rounded-[14px] bg-neutral px-3.5 py-3">
+          <Ionicons name="information-circle-outline" size={20} color={palette.neutral.ink} />
+          <AppText tone="neutral" className="flex-1 text-[13.5px] leading-[19px]">
+            Los estudiantes todavía no ven esta clase. Solo un admin puede mostrarla.
+          </AppText>
+        </View>
+      )}
 
       {cls.description ? <AppText className="px-5 pt-4 text-[15px] leading-[22px]">{cls.description}</AppText> : null}
 

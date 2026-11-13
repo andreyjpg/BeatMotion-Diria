@@ -23,6 +23,7 @@ import {
 import { useAttendanceByCourse } from "@/hooks/attendance/useAttendanceByCourse";
 import { useBranchById } from "@/hooks/branches/useBranchById";
 import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
+import { useSetClassHidden } from "@/hooks/classes/useSetClassHidden";
 import { toCourseAges } from "@/hooks/courseMember/schema";
 import { useMembersByCourse } from "@/hooks/courseMember/useMembersByCourse";
 import { useCourseById } from "@/hooks/courses/useCourseById";
@@ -37,7 +38,7 @@ const SEGMENTS: { value: CourseView; label: string }[] = [
   { value: "students", label: "Estudiantes" },
 ];
 
-/** Admin: one course with its numbers, classes and students. */
+/** Admin: one course with its numbers, classes (each one can be hidden from students) and students. */
 const AdminCourseScreen = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -46,6 +47,7 @@ const AdminCourseScreen = () => {
   const membersQuery = useMembersByCourse(id);
   const attendanceQuery = useAttendanceByCourse(id);
   const branchQuery = useBranchById(courseQuery.data?.branchId ?? "");
+  const setClassHidden = useSetClassHidden();
   const [view, setView] = useState<CourseView>("classes");
   const [assigning, setAssigning] = useState(false);
 
@@ -123,31 +125,48 @@ const AdminCourseScreen = () => {
                 <DataLoader query={classesQuery} emptyMessage="Este curso todavía no tiene clases.">
                   {(classes) => (
                     <Card padded={false} className="mx-3 mt-2.5 py-1">
-                      {classes.map((cls, i) => (
-                        <ClassRow
-                          key={cls.id}
-                          number={i + 1}
-                          title={cls.title || `Clase ${i + 1}`}
-                          detail={classWhen(cls.date, cls.startTime)}
-                          highlighted={cls.date === today}
-                          divider={i < classes.length - 1}
-                          onPress={() => router.push({ pathname: "/private/admin/classes/[id]", params: { id: cls.id } })}
-                          right={
-                            <IconButton
-                              icon="clipboard-outline"
-                              tone="outline"
-                              size={40}
-                              onPress={() =>
-                                router.push({
-                                  pathname: "/private/teacher/attendance/[courseId]/[classId]",
-                                  params: { courseId: id, classId: cls.id },
-                                })
-                              }
-                              accessibilityLabel={`Tomar asistencia de ${cls.title || `la clase ${i + 1}`}`}
-                            />
-                          }
-                        />
-                      ))}
+                      {classes.map((cls, i) => {
+                        const name = cls.title || `la clase ${i + 1}`;
+                        const isSavingVisibility = setClassHidden.isPending && setClassHidden.variables.id === cls.id;
+                        return (
+                          <ClassRow
+                            key={cls.id}
+                            number={i + 1}
+                            title={cls.title || `Clase ${i + 1}`}
+                            detail={classWhen(cls.date, cls.startTime)}
+                            highlighted={cls.date === today}
+                            isHidden={cls.isHidden}
+                            divider={i < classes.length - 1}
+                            onPress={() => router.push({ pathname: "/private/admin/classes/[id]", params: { id: cls.id } })}
+                            right={
+                              <View className="flex-row items-center gap-2">
+                                <IconButton
+                                  icon={cls.isHidden ? "eye-off-outline" : "eye-outline"}
+                                  tone={cls.isHidden ? "selected" : "outline"}
+                                  size={40}
+                                  disabled={isSavingVisibility}
+                                  onPress={() => setClassHidden.mutate({ id: cls.id, isHidden: !cls.isHidden })}
+                                  accessibilityLabel={
+                                    cls.isHidden ? `Mostrar ${name} a los estudiantes` : `Ocultar ${name} a los estudiantes`
+                                  }
+                                />
+                                <IconButton
+                                  icon="clipboard-outline"
+                                  tone="outline"
+                                  size={40}
+                                  onPress={() =>
+                                    router.push({
+                                      pathname: "/private/teacher/attendance/[courseId]/[classId]",
+                                      params: { courseId: id, classId: cls.id },
+                                    })
+                                  }
+                                  accessibilityLabel={`Tomar asistencia de ${name}`}
+                                />
+                              </View>
+                            }
+                          />
+                        );
+                      })}
                     </Card>
                   )}
                 </DataLoader>

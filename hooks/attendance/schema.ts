@@ -16,6 +16,12 @@ export const ATTENDANCE_WITH_CLASS_COLUMNS =
 export const rsvpStatusSchema = zod.enum(["leaders", "followers", "no_asistira"]);
 export type RsvpStatus = zod.infer<typeof rsvpStatusSchema>;
 
+/** RSVP errors raised by the database (trigger guard_attendance_write), as shown to the student. */
+export const RSVP_ERROR_MESSAGES: Record<string, string> = {
+  // An admin hid the class after the reminder or the screen loaded.
+  CLASS_HIDDEN: "Esta clase ya no está disponible.",
+};
+
 const AttendanceSchema = zod.object({
   classId: zod.string(),
   userId: zod.string(),

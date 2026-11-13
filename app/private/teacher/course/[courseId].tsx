@@ -71,6 +71,15 @@ const TeacherCourseScreen = () => {
       params: { courseId: cls.courseId, classId: cls.id },
     });
 
+  /** A row's right side: attendance today, "Hecha" once past, an arrow for the ones ahead. */
+  const rowRight = (cls: ClassesType, isToday: boolean, isPast: boolean) => {
+    if (isToday) return <Button label="Asistencia" size="sm" onPress={() => openAttendance(cls)} />;
+    if (isPast) return <Chip label="Hecha" tone="muted" />;
+    // The row's "Oculta" chip takes the arrow's place.
+    if (cls.isHidden) return undefined;
+    return <Ionicons name="chevron-forward" size={18} color={palette.faint} />;
+  };
+
   const refresh = () => {
     courseQuery.refetch();
     classesQuery.refetch();
@@ -126,17 +135,10 @@ const TeacherCourseScreen = () => {
                           title={cls.title || `Clase ${i + 1}`}
                           detail={isPast && attended ? `${when} · ${attended} asistieron` : when}
                           highlighted={isToday}
+                          isHidden={cls.isHidden}
                           divider={i < classes.length - 1}
                           onPress={() => openClass(cls)}
-                          right={
-                            isToday ? (
-                              <Button label="Asistencia" size="sm" onPress={() => openAttendance(cls)} />
-                            ) : isPast ? (
-                              <Chip label="Hecha" tone="muted" />
-                            ) : (
-                              <Ionicons name="chevron-forward" size={18} color={palette.faint} />
-                            )
-                          }
+                          right={rowRight(cls, isToday, isPast)}
                         />
                       );
                     })}

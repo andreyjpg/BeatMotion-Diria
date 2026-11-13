@@ -1,3 +1,4 @@
+import HiddenClassChip from "@/components/courses/HiddenClassChip";
 import Birthdays from "@/components/teacher/Birthdays";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
@@ -146,7 +147,7 @@ const HomeTeacher = () => {
                 <Card
                   key={cls.id}
                   onPress={() => openAttendance(cls)}
-                  accessibilityLabel={`${courseTitle(cls.courseId)}, tomar asistencia`}
+                  accessibilityLabel={`${courseTitle(cls.courseId)}${cls.isHidden ? ", oculta" : ""}, tomar asistencia`}
                   className="flex-row items-center gap-3.5 px-3.5 py-3.5"
                 >
                   <StartTimeTile startTime={cls.startTime} isHero={isHero} />
@@ -158,6 +159,12 @@ const HomeTeacher = () => {
                       {cls.title ?? "Clase"}
                     </AppText>
                   </View>
+                  {/* Own box: the chip aligns itself to the top of a row. */}
+                  {cls.isHidden && (
+                    <View>
+                      <HiddenClassChip />
+                    </View>
+                  )}
                   <AppText variant="semibold" className="text-[13px] underline">
                     Asistencia
                   </AppText>

@@ -108,6 +108,7 @@ export type Database = {
           end_time: string | null
           id: string
           is_deleted: boolean
+          is_hidden: boolean
           legacy_id: string | null
           objectives: string | null
           start_time: string | null
@@ -125,6 +126,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_deleted?: boolean
+          is_hidden?: boolean
           legacy_id?: string | null
           objectives?: string | null
           start_time?: string | null
@@ -142,6 +144,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_deleted?: boolean
+          is_hidden?: boolean
           legacy_id?: string | null
           objectives?: string | null
           start_time?: string | null

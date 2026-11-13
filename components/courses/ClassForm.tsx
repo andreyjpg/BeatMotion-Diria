@@ -1,3 +1,4 @@
+import HiddenSwitchCard from "@/components/courses/HiddenSwitchCard";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -33,6 +34,8 @@ export type ClassFormValues = {
   startTime: Date | null;
   endTime: Date | null;
   videos: Video[];
+  /** Hidden from students. */
+  isHidden: boolean;
 };
 
 /** What the hooks save: the date and times as Postgres takes them. */
@@ -49,6 +52,8 @@ type ClassFormProps = {
   /** New classes: the course they were opened from. */
   preselectedCourseId?: string;
   saveLabel: string;
+  /** Save button while the class is set to hidden; saveLabel without it. */
+  hiddenSaveLabel?: string;
   saving: boolean;
   onSave: (values: ClassFormOutput) => void;
   /** Editing only: asks for confirmation first, on the screen. */
@@ -61,6 +66,7 @@ const ClassForm = ({
   initial,
   preselectedCourseId,
   saveLabel,
+  hiddenSaveLabel,
   saving,
   onSave,
   onDelete,
@@ -80,6 +86,8 @@ const ClassForm = ({
   const [pickedStartTime, setStartTime] = useState<Date | null | undefined>(initial ? initial.startTime : undefined);
   const [pickedEndTime, setEndTime] = useState<Date | null | undefined>(initial ? initial.endTime : undefined);
   const [videos, setVideos] = useState<Video[]>(initial?.videos ?? []);
+  // New classes start visible, as the database defaults them.
+  const [isHidden, setIsHidden] = useState(initial?.isHidden ?? false);
   const [videoTitle, setVideoTitle] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [errors, setErrors] = useState<FormErrors<typeof classFormSchema>>({});
@@ -118,6 +126,7 @@ const ClassForm = ({
       startTime: startTime ? to24h(startTime) : "",
       endTime: endTime ? to24h(endTime) : "",
       videos,
+      isHidden,
     };
     const found = validationErrors(classFormSchema, values);
     setErrors(found);
@@ -146,7 +155,7 @@ const ClassForm = ({
       form
       footer={
         <FormActions
-          saveLabel={saveLabel}
+          saveLabel={isHidden && hiddenSaveLabel ? hiddenSaveLabel : saveLabel}
           onSave={save}
           loading={saving}
           hasErrors={Object.keys(errors).length > 0}
@@ -155,7 +164,9 @@ const ClassForm = ({
     >
       <ScreenHeader nav="close" eyebrow="Clases" title={heading} subtitle="Los campos con * son obligatorios." />
 
-      <Card className="mx-3 mt-4 gap-3.5">
+      <HiddenSwitchCard isHidden={isHidden} onChange={setIsHidden} />
+
+      <Card className="mx-3 mt-2.5 gap-3.5">
         <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
           Clase
         </AppText>

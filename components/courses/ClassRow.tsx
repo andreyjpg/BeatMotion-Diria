@@ -1,3 +1,4 @@
+import HiddenClassChip from "@/components/courses/HiddenClassChip";
 import AppText from "@/components/ui/AppText";
 import type { ReactNode } from "react";
 import { Pressable, View } from "react-native";
@@ -10,6 +11,8 @@ type ClassRowProps = {
   detail: string;
   /** Today's class: its number goes on black. */
   highlighted?: boolean;
+  /** Hidden from students: shows the "Oculta" chip before `right`. */
+  isHidden?: boolean;
   onPress: () => void;
   /** What's on the right of the row (chip, button, arrow). */
   right?: ReactNode;
@@ -18,7 +21,16 @@ type ClassRowProps = {
 };
 
 /** One class in a course's list: number, title and date. */
-const ClassRow = ({ number, title, detail, highlighted = false, onPress, right, divider = true }: ClassRowProps) => {
+const ClassRow = ({
+  number,
+  title,
+  detail,
+  highlighted = false,
+  isHidden = false,
+  onPress,
+  right,
+  divider = true,
+}: ClassRowProps) => {
   return (
     <View className={`flex-row items-center gap-3 py-2.5 pl-3.5 pr-3 ${divider ? "border-b border-line-soft" : ""}`}>
       <Pressable
@@ -41,7 +53,15 @@ const ClassRow = ({ number, title, detail, highlighted = false, onPress, right, 
           </AppText>
         </View>
       </Pressable>
-      <View>{right}</View>
+      {/* Each in its own box: chips align themselves to the start of their parent. */}
+      <View className="flex-row items-center gap-2">
+        {isHidden && (
+          <View>
+            <HiddenClassChip />
+          </View>
+        )}
+        {right ? <View>{right}</View> : null}
+      </View>
     </View>
   );
 };
