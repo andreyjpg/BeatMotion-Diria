@@ -15,11 +15,12 @@ type BlockLook = {
 };
 
 const NO_CLASS_LIGHT: BlockLook = { backgroundColor: palette.ground, stripeColor: palette.line.strong };
+// muted, not hero.line: hero.line was almost invisible on the black card.
 const NO_CLASS_DARK: BlockLook = {
   backgroundColor: palette.ink,
-  borderColor: palette.hero.line,
+  borderColor: palette.muted,
   borderWidth: 1,
-  stripeColor: palette.hero.line,
+  stripeColor: palette.muted,
 };
 
 const LOOKS: Record<BlocksTheme, Record<ProgressBlockState, BlockLook>> = {

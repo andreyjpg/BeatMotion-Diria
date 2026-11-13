@@ -101,6 +101,25 @@ const CoursesMenuScreen = () => {
           className="flex-1"
         />
       </View>
+      <Card
+        onPress={() => router.push("/private/admin/classes")}
+        accessibilityLabel="Clases. Todas las clases, visibles y ocultas"
+        padded={false}
+        className="mx-3 mt-2.5 flex-row items-center gap-3 px-3.5 py-3"
+      >
+        <View className="h-10 w-10 items-center justify-center rounded-xl bg-sand">
+          <Ionicons name="list-outline" size={20} color={palette.ink} />
+        </View>
+        <View className="flex-1">
+          <AppText variant="bold" className="text-[15px]">
+            Clases
+          </AppText>
+          <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+            Todas las clases, visibles y ocultas
+          </AppText>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={palette.ink} />
+      </Card>
 
       <DataLoader query={coursesQuery} emptyMessage="No hay cursos creados aún.">
         {() =>

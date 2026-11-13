@@ -36,7 +36,7 @@ const ClassRow = ({
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={`${title}, ${detail}`}
+        accessibilityLabel={`${title}, ${detail}${isHidden ? ", oculta a los estudiantes" : ""}`}
         className="flex-1 flex-row items-center gap-3 active:opacity-70"
       >
         <View className={`h-9 w-9 items-center justify-center rounded-[10px] ${highlighted ? "bg-ink" : "bg-ground"}`}>
