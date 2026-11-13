@@ -22,19 +22,6 @@ Each one is a new migration in `supabase/migrations/`. Follow the rules in
 
 ### Access rules
 
-- [ ] **Teachers can't create or edit classes.** From the app, teachers only see
-  their courses and classes and take attendance; creating and editing are
-  admin-only. The database still lets a course's teacher insert and update its
-  classes: the policies "course managers create" and "course managers update" on
-  `public.classes` use `private.can_manage_course`.
-  - Make both of them admin-only (`private.is_admin()`).
-  - Keep `private.can_manage_course` / `private.can_manage_class` unchanged:
-    the attendance policies use them, so teachers can still take attendance.
-  - Store builds older than the redesign still show teachers the class editor,
-    which will then fail with a permission error. Ship this after the redesign
-    build is out.
-  - It also stops teachers from hiding or showing classes (`classes.is_hidden`,
-    BM-015) through the API. The app only gives that switch to admins.
 - [ ] **Teachers read every hidden class.** The read policy on `classes` ("read
   visible, staff read all", `20261113000000_hidden_classes.sql`) lets
   `private.is_staff()` read every hidden class, not only those of the teacher's
