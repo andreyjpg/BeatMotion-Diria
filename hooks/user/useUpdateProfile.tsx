@@ -12,6 +12,7 @@ const updateProfile = async ({ uid, body }: ProfilePayload) => {
         name: body.name,
         last_name: body.lastName,
         phone: body.phone,
+        ...(body.birthDate !== undefined ? { birth_date: body.birthDate } : {}),
         ...(body.role ? { role: body.role as "user" | "admin" | "teacher" } : {}),
       })
       .eq("id", uid);
@@ -32,6 +33,7 @@ export const useUpdateProfile = () => {
       queryClient.invalidateQueries({ queryKey: ["user", uid] });
       queryClient.invalidateQueries({ queryKey: ["activeUser"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["reports", "ages"] });
     },
   });
 };

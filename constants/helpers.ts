@@ -141,6 +141,10 @@ const formatShortDate = (date: Date) =>
 const formatDayMonth = (date: Date) =>
   `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`;
 
+/** Date -> "14 mar 2003" (date fields, birth dates). */
+const formatDayMonthYear = (date: Date) =>
+  `${formatDayMonth(date)} ${date.getFullYear()}`;
+
 const MONTHS_LONG = [
   "enero",
   "febrero",
@@ -335,10 +339,216 @@ const weekdayShort = (date: Date) => WEEKDAYS_SHORT[date.getDay()];
 /** "oct" for a date. */
 const monthShort = (date: Date) => MONTHS_SHORT[date.getMonth()];
 
+/** Monday and Sunday (local midnight) of the week `date` (default today) is in. */
+const weekOf = (date = new Date()) => {
+  const daysSinceMonday = (date.getDay() + 6) % 7;
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate() - daysSinceMonday);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+  return { start, end };
+};
+
+/** "Lun 19 – dom 25 oct", or "Lun 27 oct – dom 2 nov" when the range spans two months. */
+const formatDayRange = (start: Date, end: Date) => {
+  const isSameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  const startLabel = `${weekdayShort(start)} ${isSameMonth ? start.getDate() : formatDayMonth(start)}`;
+  return `${startLabel} – ${weekdayShort(end).toLowerCase()} ${formatDayMonth(end)}`;
+};
+
+// ---- Birth dates ------------------------------------------------------------
+// Ages count calendar days on the phone, which is Costa Rica time for the
+// academy (like every date helper here).
+
+/**
+ * Day of `year` on which someone born on `birth` has their birthday. A 29 Feb
+ * birthday is on 28 Feb when the year isn't a leap year.
+ */
+const birthdayIn = (birth: Date, year: number) => {
+  const isLeapYear = new Date(year, 1, 29).getMonth() === 1;
+  const bornOnLeapDay = birth.getMonth() === 1 && birth.getDate() === 29;
+  return new Date(year, birth.getMonth(), bornOnLeapDay && !isLeapYear ? 28 : birth.getDate());
+};
+
+/**
+ * The day from `start` to `end` (inclusive, at most a year apart, e.g. a week)
+ * on which someone born on `birthDate` ("YYYY-MM-DD") has a birthday, or null.
+ * Both years are checked, so a week from 29 Dec to 4 Jan finds either side.
+ * The day they were born isn't a birthday.
+ */
+const birthdayBetween = (birthDate: string | null | undefined, start: Date, end: Date) => {
+  const birth = parseLocalDate(birthDate);
+  if (!birth) return null;
+  const birthdays = [start.getFullYear(), end.getFullYear()]
+    .filter((year) => year > birth.getFullYear())
+    .map((year) => birthdayIn(birth, year));
+  return birthdays.find((day) => day >= start && day <= end) ?? null;
+};
+
+/**
+ * Whole years someone born on `birthDate` ("YYYY-MM-DD") has on `date`
+ * (default today); null without a valid birth date or before it. They turn a
+ * year older on `birthdayIn` that year.
+ */
+const ageOn = (birthDate: string | null | undefined, date = new Date()) => {
+  const birth = parseLocalDate(birthDate);
+  if (!birth) return null;
+  const hadBirthday = date >= birthdayIn(birth, date.getFullYear());
+  const age = date.getFullYear() - birth.getFullYear() - (hadBirthday ? 0 : 1);
+  return age >= 0 ? age : null;
+};
+
+/** "2003-03-14" -> "23 años" on `date` (default today); null without a valid birth date. */
+const ageLabel = (birthDate: string | null | undefined, date = new Date()) => {
+  const age = ageOn(birthDate, date);
+  return age === null ? null : plural(age, "año", "años");
+};
+
+/**
+ * A student's age where staff always expect one (Usuarios, Matrículas): "23 años",
+ * or "Sin edad" without a valid birth date.
+ */
+const ageOrNoAge = (birthDate: string | null | undefined, date = new Date()) =>
+  ageLabel(birthDate, date) ?? "Sin edad";
+
+/** The academy's youngest students. */
+const MIN_AGE_YEARS = 15;
+
+/** Birth dates further back than this many years are taken as a typo. */
+const MAX_AGE_YEARS = 100;
+
+/** How old someone born on the day an empty birth date picker opens on is. */
+const BIRTH_DATE_PICKER_OPENING_AGE_YEARS = 20;
+
+/** The day `years` before `date`, at midnight; 29 Feb falls on 28 Feb in a non-leap year. */
+const yearsBefore = (date: Date, years: number) => birthdayIn(date, date.getFullYear() - years);
+
+/**
+ * Dates a birth date picker offers on `today` (default now), with the limits of
+ * birthDateSchema: from MAX_AGE_YEARS ago to the last birth date that is
+ * MIN_AGE_YEARS old (ageOn), opening BIRTH_DATE_PICKER_OPENING_AGE_YEARS back
+ * while the field is empty.
+ */
+const birthDatePickerDates = (today = new Date()) => {
+  const sameDay = yearsBefore(today, MIN_AGE_YEARS);
+  const dayAfter = new Date(sameDay.getFullYear(), sameDay.getMonth(), sameDay.getDate() + 1);
+  // Only a 29 Feb birth date is a day later and still old enough: on 28 Feb of
+  // a non-leap year it has its birthday too (birthdayIn).
+  const isDayAfterOldEnough = (ageOn(formatYYYYMMDD(dayAfter), today) ?? 0) >= MIN_AGE_YEARS;
+  return {
+    minimumDate: yearsBefore(today, MAX_AGE_YEARS),
+    maximumDate: isDayAfterOldEnough ? dayAfter : sameDay,
+    initialDate: yearsBefore(today, BIRTH_DATE_PICKER_OPENING_AGE_YEARS),
+  };
+};
+
+/** "2003-03-14" -> "14 mar 2003 · 23 años" on `date` (default today); null without a valid birth date. */
+const formatBirthDate = (birthDate: string | null | undefined, date = new Date()) => {
+  const birth = parseLocalDate(birthDate);
+  const age = ageLabel(birthDate, date);
+  return birth && age ? `${formatDayMonthYear(birth)} · ${age}` : null;
+};
+
+/**
+ * Age groups of the age charts (the course screens and Estadísticas), youngest
+ * first. Each group goes up to `maxAge`, inclusive.
+ */
+const AGE_GROUPS = [
+  { key: "under18", label: "<18", spokenLabel: "menores de 18", maxAge: 17 },
+  { key: "18to25", label: "18–25", spokenLabel: "de 18 a 25", maxAge: 25 },
+  { key: "26to35", label: "26–35", spokenLabel: "de 26 a 35", maxAge: 35 },
+  { key: "36to45", label: "36–45", spokenLabel: "de 36 a 45", maxAge: 45 },
+  { key: "46plus", label: "46+", spokenLabel: "de 46 o más", maxAge: Number.POSITIVE_INFINITY },
+] as const;
+
+type AgeGroup = (typeof AGE_GROUPS)[number];
+
+/** How the ages of a group of people spread over AGE_GROUPS. */
+type AgeSummary = {
+  /** Every group of AGE_GROUPS, in order, with how many people fall in it. */
+  groups: (AgeGroup & { count: number })[];
+  /** People without a valid birth date: left out of the groups and the average. */
+  withoutBirthDate: number;
+  /** Rounded mean age of the people counted; null when nobody has a birth date. */
+  averageAge: number | null;
+  youngestAge: number | null;
+  oldestAge: number | null;
+};
+
+/** The group of AGE_GROUPS that `age` falls in. */
+const ageGroupOf = (age: number): AgeGroup =>
+  AGE_GROUPS.find((group) => age <= group.maxAge) ?? AGE_GROUPS[AGE_GROUPS.length - 1];
+
+/**
+ * Ages on `date` (default today) of the people born on `birthDates`
+ * ("YYYY-MM-DD"), counted per AGE_GROUPS. A missing or invalid birth date only
+ * adds to `withoutBirthDate`.
+ */
+const summarizeAges = (birthDates: (string | null | undefined)[], date = new Date()): AgeSummary => {
+  const ages = birthDates
+    .map((birthDate) => ageOn(birthDate, date))
+    .filter((age): age is number => age !== null);
+  const hasAges = ages.length > 0;
+  return {
+    groups: AGE_GROUPS.map((group) => ({
+      ...group,
+      count: ages.filter((age) => ageGroupOf(age) === group).length,
+    })),
+    withoutBirthDate: birthDates.length - ages.length,
+    averageAge: hasAges ? Math.round(ages.reduce((sum, age) => sum + age, 0) / ages.length) : null,
+    youngestAge: hasAges ? Math.min(...ages) : null,
+    oldestAge: hasAges ? Math.max(...ages) : null,
+  };
+};
+
+/** Ages the database already counted (age_report): how many people have each age. */
+type AgeCounts = {
+  ages: { age: number; count: number }[];
+  withoutBirthDate: number;
+  /** Exact mean age; null when nobody has a birth date. */
+  averageAge: number | null;
+};
+
+/**
+ * The AgeSummary of ages counted by the database, grouped by AGE_GROUPS and
+ * with the average rounded, the same as summarizeAges does with birth dates.
+ */
+const summarizeAgeCounts = ({ ages, withoutBirthDate, averageAge }: AgeCounts): AgeSummary => {
+  const countedAges = ages.filter((row) => row.count > 0).map((row) => row.age);
+  const hasAges = countedAges.length > 0;
+  return {
+    groups: AGE_GROUPS.map((group) => ({
+      ...group,
+      count: ages
+        .filter((row) => ageGroupOf(row.age) === group)
+        .reduce((sum, row) => sum + row.count, 0),
+    })),
+    withoutBirthDate,
+    averageAge: hasAges && averageAge !== null ? Math.round(averageAge) : null,
+    youngestAge: hasAges ? Math.min(...countedAges) : null,
+    oldestAge: hasAges ? Math.max(...countedAges) : null,
+  };
+};
+
+/** Line under an age chart: "2 estudiantes sin fecha de nacimiento no aparecen en el gráfico."; null with none. */
+const withoutBirthDateNote = (count: number) => {
+  if (count === 0) return null;
+  if (count === 1) return "1 estudiante sin fecha de nacimiento no aparece en el gráfico.";
+  return `${count} estudiantes sin fecha de nacimiento no aparecen en el gráfico.`;
+};
+
 export const PRIVACY_POLICY_URL = "https://beatmotion-politica-privacidad.netlify.app";
 
+export type { AgeGroup, AgeSummary };
+
 export {
+  AGE_GROUPS,
+  ageGroupOf,
+  ageLabel,
+  ageOn,
+  ageOrNoAge,
   attendanceRate,
+  birthDatePickerDates,
+  birthdayBetween,
+  birthdayIn,
   capitalize,
   classWhen,
   daysBetween,
@@ -346,9 +556,12 @@ export {
   digitsOnly,
   emptyToNull,
   endOfDay,
+  formatBirthDate,
   formatCurrency,
   formatDate,
   formatDayMonth,
+  formatDayRange,
+  formatDayMonthYear,
   formatDDMMYYYY,
   formatLongDate,
   formatMonthLabel,
@@ -362,6 +575,7 @@ export {
   lastDayWithoutLateFee,
   lateFeeFor,
   lateFeePerDay,
+  MIN_AGE_YEARS,
   monthlyFareFor,
   monthName,
   monthShort,
@@ -374,9 +588,13 @@ export {
   shortDayName,
   standingLabel,
   statusTranslations,
+  summarizeAgeCounts,
+  summarizeAges,
   timeToDate,
   to12hLabel,
   to24h,
   toHHMM,
   weekdayShort,
+  weekOf,
+  withoutBirthDateNote,
 };

@@ -1,4 +1,5 @@
 import DataLoader from "@/components/DataLoader";
+import AgeChip from "@/components/profile/AgeChip";
 import ReceiptPreview from "@/components/ReceiptPreview";
 import AmountRow from "@/components/ui/AmountRow";
 import AppText from "@/components/ui/AppText";
@@ -115,6 +116,7 @@ const EnrollmentReviewScreen = () => {
                     tone={enrollment.status === "approved" ? "ok" : "muted"}
                   />
                 )}
+                <AgeChip birthDate={enrollment.user?.birthDate} />
                 {enrollment.source === "manual" && <Chip label="Asignada por admin" />}
                 {enrollment.user && (
                   <Pressable

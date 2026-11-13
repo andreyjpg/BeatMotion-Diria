@@ -7,7 +7,7 @@ import { dateTimeSchema } from "../common/schema";
  * literal so supabase-js can infer the row type from it.)
  */
 export const PROFILE_COLUMNS =
-  "id, email, name, lastName:last_name, phone, role, photoPath:photo_path, isActive:is_active, consentAccepted:consent_accepted, consentAcceptedAt:consent_accepted_at, createdAt:created_at";
+  "id, email, name, lastName:last_name, phone, birthDate:birth_date, role, photoPath:photo_path, isActive:is_active, consentAccepted:consent_accepted, consentAcceptedAt:consent_accepted_at, createdAt:created_at";
 
 // Name lengths are enforced by the forms; older profiles may have shorter or
 // empty names.
@@ -18,6 +18,7 @@ export const userSchema = zod
     name: zod.string().max(100),
     lastName: zod.string().max(100),
     phone: zod.string().nullish(),
+    birthDate: zod.string().nullish(), // "YYYY-MM-DD"; empty for accounts that never added it
     role: zod.enum(["user", "admin", "teacher"]),
     photoPath: zod.string().nullish(),
     photoURL: zod.string().url().nullish(), // signed URL from withPhotoUrl
@@ -36,7 +37,7 @@ export const userSchema = zod
  * payment stands (course_members).
  */
 export const USER_LIST_COLUMNS =
-  "id, email, name, lastName:last_name, phone, role, photoPath:photo_path, isActive:is_active, memberships:course_members!course_members_user_id_fkey(active, paymentStatus:payment_status, nextPaymentDate:next_payment_date, course:courses(title))";
+  "id, email, name, lastName:last_name, phone, birthDate:birth_date, role, photoPath:photo_path, isActive:is_active, memberships:course_members!course_members_user_id_fkey(active, paymentStatus:payment_status, nextPaymentDate:next_payment_date, course:courses(title))";
 
 export const paymentStandingSchema = zod.enum(["ok", "pending", "late"]);
 export type PaymentStanding = zod.infer<typeof paymentStandingSchema>;
@@ -86,6 +87,7 @@ export const userListItemSchema = zod.object({
   name: zod.string(),
   lastName: zod.string(),
   phone: zod.string().nullable(),
+  birthDate: zod.string().nullable(), // "YYYY-MM-DD"; empty for accounts that never added it
   role: zod.enum(["user", "admin", "teacher"]),
   photoURL: zod.string().nullable(),
   isActive: zod.boolean(),
@@ -104,6 +106,8 @@ export type ProfilePayload = {
     phone: string;
     name: string;
     lastName: string;
+    /** "YYYY-MM-DD", or null to clear it; left out, it stays as it is. */
+    birthDate?: string | null;
     role?: string;
   };
 };

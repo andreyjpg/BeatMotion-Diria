@@ -36,16 +36,6 @@ Each one is a new migration in `supabase/migrations/`. Follow the rules in
 
 ### New data the redesign needs
 
-- [ ] **Birth date on profiles.** Add a nullable `birth_date date` to
-  `profiles`, ask for it in the sign-up and profile forms, and add it to the
-  profile `*_COLUMNS`. Staff already read profiles.
-  - Designed in the canvas: "Registro · fecha de nacimiento". Ages are also
-    shown to admins and teachers: the user's profile (birth date and age), the
-    Usuarios list, Matrículas and the enrollment review.
-  - Unlocks the birthdays alert and the group ages bar (see the mocks below).
-  - It's new personal data, so the privacy texts must mention it: in the app
-    (`app/public/signIn.tsx`, `components/PrivacyConsentModal.tsx`) and on the
-    external policy page.
 - [ ] **Course schedule.** `courses` has `day` and `start_date` only (the course
   form sets both).
   - Add `start_time time`, `end_time time` (with `end_time > start_time`) and
@@ -127,18 +117,6 @@ page "Funciones nuevas (mock)".
       (`course_members.joined_at`) as missed.
     - What to do with a past class where nobody was marked present: attendance
       probably wasn't taken, so it shouldn't count as missed.
-- [ ] **Birthdays** (`TODO(cumpleaños)`). Shown in the teacher's home by
-  `components/mocks/BirthdaysMock.tsx`.
-  - Needs the birth date (above).
-  - List the teacher's students whose birthday falls between Monday and Sunday
-    of the class week, with the day and the age they turn.
-- [ ] **Group ages** (`TODO(edades)` in
-  `app/private/teacher/course/[courseId].tsx` and
-  `app/private/admin/courses/[id].tsx`). Needs the birth date. Also show each
-  student's age in the admin's list of the course's students.
-- [ ] **Academy ages** (`TODO(edades)`). Shown in the admin's Estadísticas by
-  `components/mocks/AcademyAgesMock.tsx`, with sample numbers. Needs the birth
-  date: count active students per age group and show the average.
 - [ ] **Conoce Diriá** (`TODO(conoce)`). For students with no courses: a card on
   the home (`components/mocks/ConoceDiriaCardMock.tsx`) that opens
   `app/private/user/conoce.tsx` (`components/mocks/ConoceDiriaMock.tsx`).
@@ -242,7 +220,8 @@ classes run from 7 to 9 p. m., so a student can't take two at once.
   what people must be told.
   - Policy page (beatmotion-politica-privacidad.netlify.app): it still names
     Firebase. Name Supabase and the United States (both projects are in
-    `us-east-1`, North Virginia), and add profile pictures to the data it lists.
+    `us-east-1`, North Virginia), and add profile pictures and the birth date
+    to the data it lists. The app's texts already mention the birth date.
   - Sign-up (`app/public/signIn.tsx`): the checkbox says "fuera de Costa Rica" but
     not "Estados Unidos". New students only see this text: accepting it saves
     their consent, so `components/PrivacyConsentModal.tsx`, which does name the

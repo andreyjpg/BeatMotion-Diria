@@ -8,6 +8,8 @@ type SignUpInput = {
   name: string;
   lastName: string;
   phone: string;
+  /** "YYYY-MM-DD" (formatYYYYMMDD of the picked day). */
+  birthDate: string;
 };
 
 /**
@@ -27,6 +29,7 @@ export const useSignUp = () => {
             name: input.name.trim(),
             last_name: input.lastName.trim(),
             phone: input.phone.trim(),
+            birth_date: input.birthDate,
             consent_accepted: true,
           },
         },

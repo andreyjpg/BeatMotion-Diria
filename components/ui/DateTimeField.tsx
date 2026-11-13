@@ -1,5 +1,5 @@
 import FieldError from "@/components/FieldError";
-import { formatDayMonth, to12hLabel } from "@/constants/helpers";
+import { formatDayMonthYear, to12hLabel } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -8,6 +8,7 @@ import { Modal, Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "./AppText";
 import Button from "./Button";
+import Chip from "./Chip";
 
 type DateTimeFieldProps = {
   label: string;
@@ -20,6 +21,14 @@ type DateTimeFieldProps = {
   error?: string;
   /** Help text under the field, hidden while there's an error. */
   hint?: string;
+  /** Short tag at the end of the field, e.g. the age next to a birth date. */
+  badge?: string | null;
+  /** Earliest date the picker lets you choose. */
+  minimumDate?: Date;
+  /** Latest date the picker lets you choose. */
+  maximumDate?: Date;
+  /** Date the picker opens on while the field is empty (default now). */
+  initialDate?: Date;
   /** Layout of the whole field (margins, flex-1 in a row). */
   className?: string;
 };
@@ -33,17 +42,22 @@ const DateTimeField = ({
   onClear,
   error,
   hint,
+  badge,
+  minimumDate,
+  maximumDate,
+  initialDate,
   className = "",
 }: DateTimeFieldProps) => {
   const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const isDate = mode === "date";
+  const pickerValue = value ?? initialDate ?? new Date();
   const shown = !value
     ? isDate
       ? "Selecciona fecha"
       : "Selecciona hora"
     : isDate
-      ? `${formatDayMonth(value)} ${value.getFullYear()}`
+      ? formatDayMonthYear(value)
       : to12hLabel(value);
 
   return (
@@ -54,15 +68,21 @@ const DateTimeField = ({
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={`${label}: ${shown}`}
+        accessibilityLabel={[`${label}: ${shown}`, badge].filter(Boolean).join(", ")}
         className={`h-[52px] flex-row items-center gap-2 rounded-[14px] border-[1.5px] bg-surface px-3 ${
           error ? "border-danger" : "border-field-line"
         }`}
       >
         <Ionicons name={isDate ? "calendar-outline" : "time-outline"} size={18} color={palette.muted} />
-        <AppText tone={value ? "ink" : "faint"} className="flex-1 text-[14.5px]" numberOfLines={1}>
+        <AppText tone={value ? "ink" : "faint"} className="flex-1 text-[16px]" numberOfLines={1}>
           {shown}
         </AppText>
+        {/* The wrapper centers it: Chip aligns itself to the start. */}
+        {badge && (
+          <View>
+            <Chip label={badge} />
+          </View>
+        )}
         {value && onClear && (
           <Pressable onPress={onClear} accessibilityRole="button" accessibilityLabel={`Quitar ${label}`} hitSlop={8}>
             <Ionicons name="close-circle" size={18} color={palette.faint} />
@@ -79,8 +99,10 @@ const DateTimeField = ({
       {/* Android opens its own dialog; iOS needs a sheet around the spinner. */}
       {open && Platform.OS !== "ios" && (
         <DateTimePicker
-          value={value ?? new Date()}
+          value={pickerValue}
           mode={mode}
+          minimumDate={minimumDate}
+          maximumDate={maximumDate}
           is24Hour={false}
           display="default"
           onChange={(_, selected) => {
@@ -99,15 +121,25 @@ const DateTimeField = ({
             />
             <View className="rounded-t-[26px] bg-surface px-4 pt-3" style={{ paddingBottom: insets.bottom + 12 }}>
               <DateTimePicker
-                value={value ?? new Date()}
+                value={pickerValue}
                 mode={mode}
+                minimumDate={minimumDate}
+                maximumDate={maximumDate}
                 display="spinner"
                 themeVariant="light"
                 onChange={(_, selected) => {
                   if (selected) onChange(selected);
                 }}
               />
-              <Button label="Listo" onPress={() => setOpen(false)} />
+              {/* The spinner only reports a change when it moves: "Listo" keeps the
+                  date it shows, so an empty field takes the one it opened on. */}
+              <Button
+                label="Listo"
+                onPress={() => {
+                  if (!value) onChange(pickerValue);
+                  setOpen(false);
+                }}
+              />
             </View>
           </View>
         </Modal>

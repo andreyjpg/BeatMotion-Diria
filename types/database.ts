@@ -886,6 +886,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          birth_date: string | null
           consent_accepted: boolean
           consent_accepted_at: string | null
           created_at: string
@@ -901,6 +902,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          birth_date?: string | null
           consent_accepted?: boolean
           consent_accepted_at?: string | null
           created_at?: string
@@ -916,6 +918,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          birth_date?: string | null
           consent_accepted?: boolean
           consent_accepted_at?: string | null
           created_at?: string
@@ -1139,6 +1142,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      age_report: { Args: never; Returns: Json }
       assign_student_to_course: {
         Args: { p_course_id: string; p_user_id: string }
         Returns: string

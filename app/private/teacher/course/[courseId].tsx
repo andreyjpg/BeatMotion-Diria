@@ -1,4 +1,5 @@
 import ClassRow from "@/components/courses/ClassRow";
+import CourseAges from "@/components/courses/CourseAges";
 import DataLoader from "@/components/DataLoader";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
@@ -20,6 +21,7 @@ import { useAttendanceByCourse } from "@/hooks/attendance/useAttendanceByCourse"
 import { useBranchById } from "@/hooks/branches/useBranchById";
 import type { ClassesType } from "@/hooks/classes/classesSchema";
 import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
+import { toCourseAges } from "@/hooks/courseMember/schema";
 import { useMembersByCourse } from "@/hooks/courseMember/useMembersByCourse";
 import { useCourseById } from "@/hooks/courses/useCourseById";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
@@ -103,8 +105,7 @@ const TeacherCourseScreen = () => {
                   </Card>
                 ))}
               </View>
-              {/* TODO(edades): the design's "Edades del grupo" bar needs the students'
-                  birthdate, which the database doesn't store yet (this branch is UI only). */}
+              <CourseAges title="Edades del grupo" ages={members && toCourseAges(members)} chart="stacked" />
 
               <SectionHeader
                 title="Clases"
