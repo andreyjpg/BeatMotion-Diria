@@ -1,4 +1,4 @@
-import { ageOn, birthdayBetween, parseLocalDate } from "@/constants/helpers";
+import { ageOn, birthdayBetween, parseLocalDate, summarizeAges } from "@/constants/helpers";
 import zod from "zod";
 import { dateTimeSchema } from "../common/schema";
 import { userSchema } from "../user/userSchema";
@@ -33,6 +33,26 @@ const membersByCourseSchema = zod.array(
 
 export type CourseMember = zod.infer<typeof courseMemberSchema>;
 export { courseMemberSchema, membersByCourseSchema };
+
+/** What toCourseAges reads from each member of useMembersByCourse. */
+type MemberAgeFields = {
+  active: boolean;
+  userInfo: { birthDate?: string | null; isActive: boolean };
+};
+
+/**
+ * Ages of a course's current students on `date` (default today), for the age
+ * charts on the course screens. Ended memberships and deactivated accounts
+ * aren't counted, not even as missing a birth date (like the birthdays on the
+ * teacher's home).
+ */
+export const toCourseAges = (members: MemberAgeFields[], date = new Date()) =>
+  summarizeAges(
+    members
+      .filter((member) => member.active && member.userInfo.isActive)
+      .map((member) => member.userInfo.birthDate),
+    date,
+  );
 
 /**
  * A membership with its course title and the student's birth date, for the

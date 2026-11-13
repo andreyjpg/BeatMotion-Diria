@@ -1,5 +1,6 @@
 import AssignStudentModal from "@/components/AssignStudentModal";
 import ClassRow from "@/components/courses/ClassRow";
+import CourseAges from "@/components/courses/CourseAges";
 import DataLoader from "@/components/DataLoader";
 import AppText from "@/components/ui/AppText";
 import Avatar from "@/components/ui/Avatar";
@@ -11,6 +12,7 @@ import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import {
+  ageOrDash,
   attendanceRate,
   capitalize,
   classWhen,
@@ -21,6 +23,7 @@ import {
 import { useAttendanceByCourse } from "@/hooks/attendance/useAttendanceByCourse";
 import { useBranchById } from "@/hooks/branches/useBranchById";
 import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
+import { toCourseAges } from "@/hooks/courseMember/schema";
 import { useMembersByCourse } from "@/hooks/courseMember/useMembersByCourse";
 import { useCourseById } from "@/hooks/courses/useCourseById";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -103,8 +106,7 @@ const AdminCourseScreen = () => {
                 </Card>
               ))}
             </View>
-            {/* TODO(edades): the design's "Edades en el curso" card needs the students'
-                birthdate, which the database doesn't store yet (see TODO.md). */}
+            {members && <CourseAges title="Edades en el curso" ages={toCourseAges(members)} chart="rows" />}
 
             <SegmentedControl
               segments={SEGMENTS}
@@ -177,7 +179,7 @@ const AdminCourseScreen = () => {
                               {`${member.userInfo.name} ${member.userInfo.lastName}`}
                             </AppText>
                             <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
-                              {member.userInfo.email}
+                              {ageOrDash(member.userInfo.birthDate)}
                             </AppText>
                           </View>
                           <View>

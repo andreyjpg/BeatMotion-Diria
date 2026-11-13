@@ -416,9 +416,72 @@ const formatBirthDate = (birthDate: string | null | undefined, date = new Date()
   return birth && age ? `${formatDayMonthYear(birth)} · ${age}` : null;
 };
 
+/**
+ * Age groups of the age charts (the course screens and Estadísticas), youngest
+ * first. Each group goes up to `maxAge`, inclusive.
+ */
+const AGE_GROUPS = [
+  { key: "under18", label: "<18", spokenLabel: "menores de 18", maxAge: 17 },
+  { key: "18to25", label: "18–25", spokenLabel: "de 18 a 25", maxAge: 25 },
+  { key: "26to35", label: "26–35", spokenLabel: "de 26 a 35", maxAge: 35 },
+  { key: "36to45", label: "36–45", spokenLabel: "de 36 a 45", maxAge: 45 },
+  { key: "46plus", label: "46+", spokenLabel: "de 46 o más", maxAge: Number.POSITIVE_INFINITY },
+] as const;
+
+type AgeGroup = (typeof AGE_GROUPS)[number];
+
+/** How the ages of a group of people spread over AGE_GROUPS. */
+type AgeSummary = {
+  /** Every group of AGE_GROUPS, in order, with how many people fall in it. */
+  groups: (AgeGroup & { count: number })[];
+  /** People without a valid birth date: left out of the groups and the average. */
+  withoutBirthDate: number;
+  /** Rounded mean age of the people counted; null when nobody has a birth date. */
+  averageAge: number | null;
+  youngestAge: number | null;
+  oldestAge: number | null;
+};
+
+/** The group of AGE_GROUPS that `age` falls in. */
+const ageGroupOf = (age: number): AgeGroup =>
+  AGE_GROUPS.find((group) => age <= group.maxAge) ?? AGE_GROUPS[AGE_GROUPS.length - 1];
+
+/**
+ * Ages on `date` (default today) of the people born on `birthDates`
+ * ("YYYY-MM-DD"), counted per AGE_GROUPS. A missing or invalid birth date only
+ * adds to `withoutBirthDate`.
+ */
+const summarizeAges = (birthDates: (string | null | undefined)[], date = new Date()): AgeSummary => {
+  const ages = birthDates
+    .map((birthDate) => ageOn(birthDate, date))
+    .filter((age): age is number => age !== null);
+  const hasAges = ages.length > 0;
+  return {
+    groups: AGE_GROUPS.map((group) => ({
+      ...group,
+      count: ages.filter((age) => ageGroupOf(age) === group).length,
+    })),
+    withoutBirthDate: birthDates.length - ages.length,
+    averageAge: hasAges ? Math.round(ages.reduce((sum, age) => sum + age, 0) / ages.length) : null,
+    youngestAge: hasAges ? Math.min(...ages) : null,
+    oldestAge: hasAges ? Math.max(...ages) : null,
+  };
+};
+
+/** Line under an age chart: "2 estudiantes sin fecha de nacimiento no aparecen en el gráfico."; null with none. */
+const withoutBirthDateNote = (count: number) => {
+  if (count === 0) return null;
+  if (count === 1) return "1 estudiante sin fecha de nacimiento no aparece en el gráfico.";
+  return `${count} estudiantes sin fecha de nacimiento no aparecen en el gráfico.`;
+};
+
 export const PRIVACY_POLICY_URL = "https://beatmotion-politica-privacidad.netlify.app";
 
+export type { AgeGroup, AgeSummary };
+
 export {
+  AGE_GROUPS,
+  ageGroupOf,
   ageLabel,
   ageOn,
   ageOrDash,
@@ -463,10 +526,12 @@ export {
   shortDayName,
   standingLabel,
   statusTranslations,
+  summarizeAges,
   timeToDate,
   to12hLabel,
   to24h,
   toHHMM,
   weekdayShort,
   weekOf,
+  withoutBirthDateNote,
 };
