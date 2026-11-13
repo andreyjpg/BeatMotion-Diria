@@ -5,7 +5,7 @@ import Checkbox from "@/components/ui/Checkbox";
 import Pill from "@/components/ui/Pill";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { capitalize, formatCurrency, monthlyFareFor, planName } from "@/constants/helpers";
+import { formatCourseSchedule, formatCurrency, monthlyFareFor, planName } from "@/constants/helpers";
 import { useBranches } from "@/hooks/branches/useBranches";
 import { useCoursesAvailable } from "@/hooks/courses/useCoursesAvailable";
 import { useFares } from "@/hooks/fares/useFares";
@@ -195,10 +195,10 @@ const CoursesStep = ({
                           {branches.find((branch) => branch.id === course.branchId)?.name}
                         </AppText>
                       </View>
-                      {/* TODO(horario): the design also shows the course's hours, which need
-                          start and end times on courses (see TODO.md). */}
                       <AppText className="text-[13.5px]">
-                        {[capitalize(course.day ?? ""), `Nivel ${course.level}`].filter(Boolean).join(" · ")}
+                        {[formatCourseSchedule(course.day, course.startTime, course.endTime), `Nivel ${course.level}`]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </AppText>
                       <AppText tone="muted" className="text-[12.5px]">
                         {course.teacher}

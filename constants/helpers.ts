@@ -86,11 +86,25 @@ const endOfDay = (date: Date) =>
 const to24h = (date: Date) =>
   `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
-/** Date -> "6:30 PM", how times are shown to users. */
-const to12hLabel = (date: Date) => {
+/** Non-breaking space: a time label like "6:30 p. m." never wraps onto two lines. */
+const NBSP = "\u00A0";
+
+/**
+ * Date -> { time: "6:30", period: "p. m." }: a time as shown to users, in two
+ * parts for layouts that stack them (the period keeps its non-breaking space).
+ */
+const to12hParts = (date: Date) => {
   const hours24 = date.getHours();
-  const hours = hours24 % 12 || 12;
-  return `${hours}:${pad(date.getMinutes())} ${hours24 >= 12 ? "PM" : "AM"}`;
+  return {
+    time: `${hours24 % 12 || 12}:${pad(date.getMinutes())}`,
+    period: hours24 >= 12 ? `p.${NBSP}m.` : `a.${NBSP}m.`,
+  };
+};
+
+/** Date -> "6:30 p. m." / "9:30 a. m.", how times are shown to users. */
+const to12hLabel = (date: Date) => {
+  const { time, period } = to12hParts(date);
+  return `${time}${NBSP}${period}`;
 };
 
 /** "HH:MM" -> a Date today at that time (for time pickers). */
@@ -107,6 +121,10 @@ const daysBetween = (from: Date, to: Date) => {
   const end = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
   return Math.round((end - start) / 86_400_000);
 };
+
+/** `date` moved by whole calendar days, at local midnight. */
+const addDays = (date: Date, days: number) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 
 const MONTHS_SHORT = [
   "ene",
@@ -181,11 +199,45 @@ const formatLongDate = (date: Date) =>
 const shortDayName = (day: string | null | undefined) =>
   day ? capitalize(day.trim().slice(0, 3)) : "";
 
-/** "HH:MM" -> "7:00 PM". */
+/** Course day as stored ("miércoles") -> 3, numbered like Date.getDay(); null if it isn't a day. */
+const weekdayIndex = (day: string | null | undefined) => {
+  const index = day ? WEEKDAYS_LONG.indexOf(day.trim().toLowerCase()) : -1;
+  return index >= 0 ? index : null;
+};
+
+/** "HH:MM" -> "7:00 p. m.". */
 const hhmmTo12h = (value: string | null | undefined) =>
   value ? to12hLabel(timeToDate(value)) : "";
 
-/** When a class is: "Hoy · 7:00 PM", "Lun 27 oct · 7:00 PM" or "Sin fecha". */
+/** "HH:MM" -> { time: "7:00", period: "p. m." } (to12hParts); null without a time. */
+const hhmmTo12hParts = (value: string | null | undefined) =>
+  value ? to12hParts(timeToDate(value)) : null;
+
+/**
+ * A course's hours: "7:00–8:30 p. m." when both are in the same half of the
+ * day, "11:30 a. m. – 12:30 p. m." when they aren't. Only the time there is
+ * when the other is missing, and "" with neither.
+ */
+const formatTimeRange = (startTime: string | null | undefined, endTime: string | null | undefined) => {
+  const start = hhmmTo12hParts(startTime);
+  const end = hhmmTo12hParts(endTime);
+  if (start && end && start.period === end.period) {
+    return `${start.time}–${end.time}${NBSP}${end.period}`;
+  }
+  return [hhmmTo12h(startTime), hhmmTo12h(endTime)].filter(Boolean).join(" – ");
+};
+
+/**
+ * When a course meets: "Lunes · 7:00–8:30 p. m.". Only the day or only the
+ * hours when the other is missing, and "" with neither.
+ */
+const formatCourseSchedule = (
+  day: string | null | undefined,
+  startTime: string | null | undefined,
+  endTime: string | null | undefined,
+) => [day ? capitalize(day) : "", formatTimeRange(startTime, endTime)].filter(Boolean).join(" · ");
+
+/** When a class is: "Hoy · 7:00 p. m.", "Lun 27 oct · 7:00 p. m." or "Sin fecha". */
 const classWhen = (date: string | null, startTime: string | null) => {
   const day = parseLocalDate(date);
   const label =
@@ -228,6 +280,9 @@ const attendanceRate = (marks: AttendanceMark[] = [], memberIds: Set<string>) =>
     ? `${Math.min(100, Math.round((present / possible) * 100))}%`
     : "—";
 };
+
+/** 86 -> "86 %", with a space that never wraps. */
+const formatPercent = (value: number) => `${value}${NBSP}%`;
 
 /** A payment's review status, as shown on chips. */
 const paymentStatusLabel: Record<string, string> = {
@@ -540,6 +595,7 @@ export const PRIVACY_POLICY_URL = "https://beatmotion-politica-privacidad.netlif
 export type { AgeGroup, AgeSummary };
 
 export {
+  addDays,
   AGE_GROUPS,
   ageGroupOf,
   ageLabel,
@@ -557,6 +613,7 @@ export {
   emptyToNull,
   endOfDay,
   formatBirthDate,
+  formatCourseSchedule,
   formatCurrency,
   formatDate,
   formatDayMonth,
@@ -565,10 +622,13 @@ export {
   formatDDMMYYYY,
   formatLongDate,
   formatMonthLabel,
+  formatPercent,
   formatShortDate,
+  formatTimeRange,
   formatYYYYMMDD,
   getEnrollmentColor,
   hhmmTo12h,
+  hhmmTo12hParts,
   initials,
   isAnnualFeeExemptMonth,
   isUniqueViolation,
@@ -592,8 +652,10 @@ export {
   summarizeAges,
   timeToDate,
   to12hLabel,
+  to12hParts,
   to24h,
   toHHMM,
+  weekdayIndex,
   weekdayShort,
   weekOf,
   withoutBirthDateNote,

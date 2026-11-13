@@ -108,6 +108,7 @@ export type Database = {
           end_time: string | null
           id: string
           is_deleted: boolean
+          is_hidden: boolean
           legacy_id: string | null
           objectives: string | null
           start_time: string | null
@@ -125,6 +126,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_deleted?: boolean
+          is_hidden?: boolean
           legacy_id?: string | null
           objectives?: string | null
           start_time?: string | null
@@ -142,6 +144,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_deleted?: boolean
+          is_hidden?: boolean
           legacy_id?: string | null
           objectives?: string | null
           start_time?: string | null
@@ -249,11 +252,14 @@ export type Database = {
           created_by: string | null
           day: Database["public"]["Enums"]["weekday"] | null
           description: string
+          end_date: string | null
+          end_time: string | null
           id: string
           is_deleted: boolean
           legacy_id: string | null
           level: number
           start_date: string | null
+          start_time: string | null
           teacher_id: string | null
           teacher_name: string | null
           title: string
@@ -265,11 +271,14 @@ export type Database = {
           created_by?: string | null
           day?: Database["public"]["Enums"]["weekday"] | null
           description?: string
+          end_date?: string | null
+          end_time?: string | null
           id?: string
           is_deleted?: boolean
           legacy_id?: string | null
           level?: number
           start_date?: string | null
+          start_time?: string | null
           teacher_id?: string | null
           title: string
           updated_at?: string
@@ -280,11 +289,14 @@ export type Database = {
           created_by?: string | null
           day?: Database["public"]["Enums"]["weekday"] | null
           description?: string
+          end_date?: string | null
+          end_time?: string | null
           id?: string
           is_deleted?: boolean
           legacy_id?: string | null
           level?: number
           start_date?: string | null
+          start_time?: string | null
           teacher_id?: string | null
           title?: string
           updated_at?: string
@@ -1148,6 +1160,13 @@ export type Database = {
         Returns: string
       }
       attendance_report: { Args: never; Returns: Json }
+      course_classes_with_attendance: {
+        Args: { p_course_id: string }
+        Returns: {
+          class_id: string
+          date: string
+        }[]
+      }
       enrollment_report: { Args: { p_months?: number }; Returns: Json }
       event_spots_taken: { Args: { p_event_id: string }; Returns: number }
       mark_receipts_purged: { Args: { p_paths: string[] }; Returns: undefined }

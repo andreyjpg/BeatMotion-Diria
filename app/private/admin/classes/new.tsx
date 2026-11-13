@@ -12,6 +12,7 @@ const NewClassScreen = () => {
       heading="Nueva clase"
       preselectedCourseId={courseId}
       saveLabel="Guardar clase"
+      hiddenSaveLabel="Guardar oculta"
       saving={createClass.isPending}
       onSave={({ videos, description, objectives, ...values }) =>
         createClass.mutate(

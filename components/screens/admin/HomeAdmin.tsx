@@ -62,7 +62,7 @@ const HomeAdmin = () => {
     { n: pendingPayments, label: "Pagos", route: "/private/payments" },
     { n: pendingEnrollments, label: "Matrículas", route: "/private/admin/enrollments/enrollmentList" },
     { n: lateStudents, label: "Atrasados", alert: lateStudents > 0, route: "/private/users" },
-    { n: classesToday, label: "Clases hoy", route: "/private/courses" },
+    { n: classesToday, label: "Clases hoy", route: "/private/admin/classes" },
   ];
 
   const refreshing = paymentCount.isRefetching || enrollmentCount.isRefetching;

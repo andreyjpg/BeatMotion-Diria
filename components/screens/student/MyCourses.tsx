@@ -1,27 +1,52 @@
+import CourseProgressSummary from "@/components/courses/CourseProgressSummary";
+import { ProgressSwatch } from "@/components/courses/ProgressBlocks";
 import DataLoader from "@/components/DataLoader";
-import CourseProgressMock from "@/components/mocks/CourseProgressMock";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Chip, { statusTone } from "@/components/ui/Chip";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
-import { capitalize, formatShortDate, standingLabel } from "@/constants/helpers";
-import palette from "@/constants/palette.json";
+import { formatCourseSchedule, formatShortDate, standingLabel } from "@/constants/helpers";
+import { useRefreshAttendance } from "@/hooks/attendance/useRefreshAttendance";
 import { useBranches } from "@/hooks/branches/useBranches";
+import { hasClassDates, type ProgressBlockState } from "@/hooks/courses/courseProgress";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { FlatList, RefreshControl, View } from "react-native";
 
-/** Student "Cursos" tab: the courses they're enrolled in. */
+const LEGEND: { state: ProgressBlockState; label: string }[] = [
+  { state: "attended", label: "Asistió" },
+  { state: "missed", label: "Faltó" },
+  { state: "noClass", label: "Sin clase" },
+  { state: "upcoming", label: "Por venir" },
+];
+
+const LEGEND_SWATCH_SIZE = 10;
+
+/** What the blocks of the course cards mean (the bars describe themselves to screen readers). */
+const ProgressLegend = () => (
+  <View className="flex-row flex-wrap gap-3 px-2" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    {LEGEND.map((item) => (
+      <View key={item.state} className="flex-row items-center gap-1.5">
+        <ProgressSwatch state={item.state} size={LEGEND_SWATCH_SIZE} />
+        <AppText variant="label" tone="muted" className="text-[9.5px]">
+          {item.label}
+        </AppText>
+      </View>
+    ))}
+  </View>
+);
+
+/** Student "Cursos" tab: the courses they're enrolled in, with their progress. */
 const MyCourses = () => {
   const router = useRouter();
   const { user: activeUser } = useActiveUser();
-  const myCoursesQuery = useCoursesByUserMember(activeUser?.uid || "");
+  const userId = activeUser?.uid ?? "";
+  const myCoursesQuery = useCoursesByUserMember(userId);
   const branchesQuery = useBranches();
+  const refreshAttendance = useRefreshAttendance();
 
   const courses = myCoursesQuery.data ?? [];
   const nextPayment = courses
@@ -61,10 +86,20 @@ const MyCourses = () => {
             keyExtractor={(item) => item.id}
             contentContainerClassName="gap-2.5 px-3 pb-8 pt-5"
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefetching}
+                onRefresh={() => {
+                  refetch();
+                  // Each card's progress loads its own attendance.
+                  refreshAttendance();
+                }}
+              />
+            }
+            ListHeaderComponent={data.some(hasClassDates) ? <ProgressLegend /> : undefined}
             renderItem={({ item: course }) => {
               const branch = branchesQuery.data?.find((b) => b.id === course.branchId);
-              const meta = [`Nivel ${course.level}`, course.startDate && `Inicia ${formatShortDate(course.startDate).toLowerCase()}`]
+              const when = [formatCourseSchedule(course.day, course.startTime, course.endTime), branch?.name]
                 .filter(Boolean)
                 .join(" · ");
               return (
@@ -82,27 +117,12 @@ const MyCourses = () => {
                       tone={statusTone(course.paymentStatus)}
                     />
                   </View>
-                  <View className="gap-1.5">
-                    {course.day && (
-                      <View className="flex-row items-center gap-2">
-                        <Ionicons name="calendar-outline" size={16} color={palette.muted} />
-                        <AppText className="text-[14px]">{capitalize(course.day)}</AppText>
-                      </View>
-                    )}
-                    <View className="flex-row items-center gap-2">
-                      <Ionicons name="location-outline" size={16} color={palette.muted} />
-                      <AppText tone="muted" className="flex-1 text-[14px]" numberOfLines={1}>
-                        {[branch?.name, course.teacher].filter(Boolean).join(" · ")}
-                      </AppText>
-                    </View>
-                  </View>
-                  {SHOW_FEATURE_MOCKS && <CourseProgressMock />}
-                  <View className="flex-row items-center justify-between border-t border-line-soft pt-2.5">
-                    <AppText variant="label" tone="muted" className="text-[10.5px]">
-                      {meta}
+                  {!!when && (
+                    <AppText tone="muted" className="text-[14px]" numberOfLines={1}>
+                      {when}
                     </AppText>
-                    <Ionicons name="chevron-forward" size={18} color={palette.ink} />
-                  </View>
+                  )}
+                  <CourseProgressSummary userId={userId} course={course} />
                 </Card>
               );
             }}

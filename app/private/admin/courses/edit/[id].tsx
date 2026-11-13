@@ -2,7 +2,7 @@ import CourseForm from "@/components/courses/CourseForm";
 import DataLoader from "@/components/DataLoader";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { formatYYYYMMDD } from "@/constants/helpers";
+import { timeToDate } from "@/constants/helpers";
 import { useCourseById } from "@/hooks/courses/useCourseById";
 import { useUpdateCourse } from "@/hooks/courses/useUpdateCourse";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -51,22 +51,18 @@ const EditCourseScreen = () => {
         description: course.description,
         level: course.level,
         day: course.day ?? "lunes",
+        startTime: course.startTime ? timeToDate(course.startTime) : null,
+        endTime: course.endTime ? timeToDate(course.endTime) : null,
         teacherId: course.teacherId ?? "",
         branchId: course.branchId ?? "",
         startDate: course.startDate,
+        endDate: course.endDate,
       }}
       saveLabel="Guardar cambios"
       saving={updateCourse.isPending}
-      onSave={({ startDate, branchId, ...values }) =>
+      onSave={({ branchId, ...values }) =>
         updateCourse.mutate(
-          {
-            id,
-            patch: {
-              ...values,
-              branchId: branchId || null,
-              startDate: startDate ? formatYYYYMMDD(startDate) : null,
-            },
-          },
+          { id, patch: { ...values, branchId: branchId || null } },
           { onSuccess: () => router.back() },
         )
       }

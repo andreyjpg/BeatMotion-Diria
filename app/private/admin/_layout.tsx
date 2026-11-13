@@ -64,6 +64,10 @@ const AdminLayout = () => {
 
       {/* Clases */}
       <Stack.Screen
+        name="classes/index"
+        options={{ title: "Clases", headerShown: false }}
+      />
+      <Stack.Screen
         name="classes/new"
         options={{ title: "Nueva clase", headerShown: false }}
       />

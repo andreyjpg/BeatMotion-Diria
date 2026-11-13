@@ -1,4 +1,6 @@
+import HiddenClassChip from "@/components/courses/HiddenClassChip";
 import Birthdays from "@/components/teacher/Birthdays";
+import CourseTile from "@/components/teacher/CourseTile";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -6,23 +8,40 @@ import HomeHero from "@/components/ui/HomeHero";
 import Screen from "@/components/ui/Screen";
 import SectionHeader from "@/components/ui/SectionHeader";
 import {
-  capitalize,
   formatShortDate,
   formatYYYYMMDD,
   hhmmTo12h,
+  hhmmTo12hParts,
   parseLocalDate,
   to24h,
 } from "@/constants/helpers";
-import palette from "@/constants/palette.json";
 import { useAttendanceByClass } from "@/hooks/attendance/useAttendanceByClass";
 import type { ClassesType } from "@/hooks/classes/classesSchema";
 import { useActiveClasses } from "@/hooks/classes/useActiveClasses";
 import { useTeacherBirthdays } from "@/hooks/courseMember/useTeacherBirthdays";
 import { useCourses } from "@/hooks/courses/useCourses";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, RefreshControl, View } from "react-native";
+import { RefreshControl, View } from "react-native";
+
+type StartTimeTileProps = { startTime: string | null; isHero: boolean };
+
+/** A class's start time stacked as in the design ("P. M." over "7:00"), or "—" without one. Dark for the hero's class. */
+const StartTimeTile = ({ startTime, isHero }: StartTimeTileProps) => {
+  const start = hhmmTo12hParts(startTime);
+  return (
+    <View className={`h-[52px] w-[60px] items-center justify-center rounded-xl ${isHero ? "bg-ink" : "bg-ground"}`}>
+      {start && (
+        <AppText variant="label" tone={isHero ? "hero-soft" : "ink"} className="text-[9px]">
+          {start.period}
+        </AppText>
+      )}
+      <AppText variant="heavy" tone={isHero ? "inverse" : "ink"} className="text-[15px]">
+        {start?.time ?? "—"}
+      </AppText>
+    </View>
+  );
+};
 
 /** Teacher home: the next class with who's coming, this week's birthdays, today's classes and their courses. */
 const HomeTeacher = () => {
@@ -125,16 +144,10 @@ const HomeTeacher = () => {
                 <Card
                   key={cls.id}
                   onPress={() => openAttendance(cls)}
-                  accessibilityLabel={`${courseTitle(cls.courseId)}, tomar asistencia`}
+                  accessibilityLabel={`${courseTitle(cls.courseId)}${cls.isHidden ? ", oculta" : ""}, tomar asistencia`}
                   className="flex-row items-center gap-3.5 px-3.5 py-3.5"
                 >
-                  <View
-                    className={`h-[52px] w-[60px] items-center justify-center rounded-xl ${isHero ? "bg-ink" : "bg-ground"}`}
-                  >
-                    <AppText variant="heavy" tone={isHero ? "inverse" : "ink"} className="text-[13.5px]">
-                      {hhmmTo12h(cls.startTime) || "—"}
-                    </AppText>
-                  </View>
+                  <StartTimeTile startTime={cls.startTime} isHero={isHero} />
                   <View className="flex-1">
                     <AppText variant="bold" className="text-[15.5px]" numberOfLines={1}>
                       {courseTitle(cls.courseId)}
@@ -143,6 +156,12 @@ const HomeTeacher = () => {
                       {cls.title ?? "Clase"}
                     </AppText>
                   </View>
+                  {/* Own box: the chip aligns itself to the top of a row. */}
+                  {cls.isHidden && (
+                    <View>
+                      <HiddenClassChip />
+                    </View>
+                  )}
                   <AppText variant="semibold" className="text-[13px] underline">
                     Asistencia
                   </AppText>
@@ -161,24 +180,7 @@ const HomeTeacher = () => {
           </AppText>
         )}
         {myCourses.map((course) => (
-          <Pressable
-            key={course.id}
-            onPress={() => openCourse(course.id)}
-            accessibilityRole="button"
-            accessibilityLabel={course.title}
-            className="gap-1 rounded-[18px] bg-surface p-4 active:opacity-80"
-            style={{ width: "49%" }}
-          >
-            <AppText variant="bold" className="text-[15px]" numberOfLines={2}>
-              {course.title}
-            </AppText>
-            <View className="flex-row items-center gap-1">
-              <Ionicons name="calendar-outline" size={13} color={palette.muted} />
-              <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
-                {[course.day && capitalize(course.day), `Nivel ${course.level}`].filter(Boolean).join(" · ")}
-              </AppText>
-            </View>
-          </Pressable>
+          <CourseTile key={course.id} course={course} onPress={() => openCourse(course.id)} />
         ))}
       </View>
     </Screen>
