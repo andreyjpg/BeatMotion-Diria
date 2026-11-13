@@ -33,30 +33,23 @@ Each one is a new migration in `supabase/migrations/`. Follow the rules in
   - Store builds older than the redesign still show teachers the class editor,
     which will then fail with a permission error. Ship this after the redesign
     build is out.
+  - It also stops teachers from hiding or showing classes (`classes.is_hidden`,
+    BM-015) through the API. The app only gives that switch to admins.
+- [ ] **Teachers read every hidden class.** The read policy on `classes` ("read
+  visible, staff read all", `20261113000000_hidden_classes.sql`) lets
+  `private.is_staff()` read every hidden class, not only those of the teacher's
+  own courses. Restrict teachers to `private.can_manage_course(course_id)`;
+  admins keep reading all.
+- [ ] **RSVP to a deleted class.** `private.guard_attendance_write` blocks a
+  student's RSVP on a hidden class, but not on a deleted one (`is_deleted`), for
+  example from a reminder sent before the class was deleted. Reject it the same
+  way, with its own error code and message in `RSVP_ERROR_MESSAGES`.
 
 ### New data the redesign needs
 
-- [ ] **Course schedule.** `courses` has `day` and `start_date` only (the course
-  form sets both).
-  - Add `start_time time`, `end_time time` (with `end_time > start_time`) and
-    `end_date date`, and their fields in `components/courses/CourseForm.tsx`.
-  - Show the times where the design does: the course lists and summaries, and
-    as the default times of a new class.
-  - Designed in the canvas: "Nuevo curso · horario y fechas". The times are
-    required and the dates optional. Add the times as nullable, require them in
-    `courseFormSchema`, and only add `not null` once every course has them.
-  - Unlocks the course progress bar (see the mocks below), which only applies to
-    courses with both dates.
-- [ ] **Hidden classes.**
-  - Add `is_hidden boolean not null default false` to `classes`, and a toggle
-    on the admin class editor.
-  - Designed in the canvas: "Clases · visibles y ocultas" and "Nueva clase ·
-    ocultar", with a dashed "Oculta" chip, plus an eye button on each class in
-    "Curso · clases y edades". The "Clases" list screen wasn't built, because
-    its filters only make sense with this flag; today each course's screen
-    lists its classes.
-  - Students must not see hidden classes: the "signed-in users read" policy on
-    `classes` lets everyone read every row, so restrict hidden classes to staff.
+- [ ] **Course times `not null`.** BM-013 added `courses.start_time` and
+  `end_time` as nullable; the course form requires them. Add `not null` once
+  every course has its times.
 
 ### Cleanup (only once no store build uses them)
 
@@ -99,24 +92,6 @@ page "Funciones nuevas (mock)".
   - Optionally, a `support_requests` table to keep a record.
   - Confirm the FAQ answers with the academy (`app/private/help/index.tsx`).
   - Remove the "Muestra · no se envió" chip on the confirmation screen.
-- [ ] **Course progress** (`TODO(progreso del curso)`). Shown in Mis cursos by
-  `components/mocks/CourseProgressMock.tsx` and on the student's course screen
-  by `components/mocks/CourseProgressCardMock.tsx`.
-  - Needs the course schedule (above).
-  - Total classes = the course's weekday between its start and end dates; given
-    = those before today; progress = given / total; attendance = attended /
-    given.
-  - Without an end date, show attendance only, without the bar.
-  - Attendance data already exists (`useAttendanceByUser`). Only `end_date` is
-    missing from the database, plus an end date on each course.
-  - Decide before building:
-    - Count classes from the calendar, as designed, or from the `classes` rows
-      the admin created? The calendar also counts holidays and days with no
-      class created.
-    - Don't count classes from before the student joined
-      (`course_members.joined_at`) as missed.
-    - What to do with a past class where nobody was marked present: attendance
-      probably wasn't taken, so it shouldn't count as missed.
 - [ ] **Conoce Diriá** (`TODO(conoce)`). For students with no courses: a card on
   the home (`components/mocks/ConoceDiriaCardMock.tsx`) that opens
   `app/private/user/conoce.tsx` (`components/mocks/ConoceDiriaMock.tsx`).
@@ -186,6 +161,10 @@ classes run from 7 to 9 p. m., so a student can't take two at once.
   who answered the RSVP, until attendance is first saved.
 - [ ] **Sent drafts.** Sending a saved notification draft leaves it in Borradores
   (`useSendBroadcast` doesn't touch the draft). Should sending remove it?
+- [ ] **Holidays in the course progress.** The progress (BM-014 for students,
+  BM-036 for staff) counts every course weekday between its start and end
+  dates, so a holiday is one of the N classes and shows as "Sin clase". A
+  holidays calendar would leave those dates out. Is it worth having one?
 - [ ] **Confirm with the academy:**
   - **Adding courses mid-month.** It charges the difference between the plans,
     so a course added on Plan Diriá costs ₡0, with no receipt, and only needs
@@ -201,6 +180,29 @@ classes run from 7 to 9 p. m., so a student can't take two at once.
   hand. The generator doesn't output it, so the type-check fails after
   regenerating. Until that's solved, add new columns to the file by hand, as
   `profiles.photo_path` was (the generator produced the same lines for it).
+- [ ] **The homes load every class.** `useActiveClasses` (the homes and
+  Cursos) asks for every class with no date range. The API returns at most
+  1000 rows, oldest first, so past 1000 classes it drops the newest:
+  "Clases hoy" and the coming classes would vanish. Ask only for the dates
+  these screens show (for example, from today on).
+- [ ] **"Clases hoy" counts deleted courses' classes.** The number on the admin
+  home includes classes of deleted courses; the "Clases" list (BM-016) leaves
+  them out, so the two can differ.
+- [ ] **The admin "Clases" list loads up to 1000 classes** (`useClasses`,
+  newest first). Past that the oldest drop off, with a note at the end of the
+  list, and the numbering of those courses starts late. Add pagination or a
+  date range when the academy gets there.
+- [ ] **Small duplicates in the course progress.** `dayLabel` is in
+  `components/courses/CourseProgressSummary.tsx` and `ProgressHeroCard.tsx`, and
+  `DAYS_PER_WEEK` in `hooks/courses/courseProgress.ts`,
+  `components/courses/CourseProgressTiles.tsx` and
+  `StaffCourseProgressCard.tsx`. Move them to `constants/helpers.ts`.
+- [ ] **Texts to fix:**
+  - `useCourses` shows the alert "Error fetching courses" in English.
+  - The course form's end-date error says "La fecha de fin debe ser después de
+    la de inicio.", but the same day is valid. Say "no puede ser antes".
+  - The date picker shows in English (CANCEL / OK), and logs that its
+    `onChange` is deprecated.
 
 ## Before going live
 
