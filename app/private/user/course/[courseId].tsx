@@ -1,29 +1,48 @@
 import ClassRow from "@/components/courses/ClassRow";
+import CourseProgressCard from "@/components/courses/CourseProgressCard";
+import CourseProgressTiles from "@/components/courses/CourseProgressTiles";
 import DataLoader from "@/components/DataLoader";
-import CourseProgressCardMock from "@/components/mocks/CourseProgressCardMock";
 import AppText from "@/components/ui/AppText";
 import Card from "@/components/ui/Card";
 import Chip, { statusTone, type ChipTone } from "@/components/ui/Chip";
-import ProgressBar from "@/components/ui/ProgressBar";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
-import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
 import {
   classWhen,
-  formatDayMonth,
   formatCourseSchedule,
+  formatDayMonth,
   formatShortDate,
   formatYYYYMMDD,
   standingLabel,
 } from "@/constants/helpers";
-import { useAttendanceByUser } from "@/hooks/attendance/useAttendanceByUser";
+import palette from "@/constants/palette.json";
 import { useBranchById } from "@/hooks/branches/useBranchById";
 import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
+import { type ClassMark, toClassMarks } from "@/hooks/courses/courseProgress";
 import { useCourseDetail } from "@/hooks/courses/useCourseDetail";
+import { useCourseProgress } from "@/hooks/courses/useCourseProgress";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, RefreshControl, View } from "react-native";
+
+type ClassChip = { label: string; tone: ChipTone };
+
+/** A past class's chip, with the same rules as the progress blocks. */
+const CLASS_MARK_CHIPS: Record<ClassMark, ClassChip> = {
+  attended: { label: "Asististe", tone: "muted" },
+  missed: { label: "Faltaste", tone: "line" },
+  noClass: { label: "Sin clase", tone: "line" },
+  beforeJoining: { label: "Antes de tu ingreso", tone: "line" },
+};
+
+/** "31 ago – 16 nov", "Desde el 23 sep" or "Sin fecha". */
+const courseDatesLabel = (startDate: Date | null, endDate: Date | null) => {
+  if (startDate && endDate) return `${formatDayMonth(startDate)} – ${formatDayMonth(endDate)}`;
+  if (startDate) return `Desde el ${formatDayMonth(startDate)}`;
+  return endDate ? `Hasta el ${formatDayMonth(endDate)}` : "Sin fecha";
+};
 
 /** One fact of the course's summary (schedule, branch…). */
 const Fact = ({ label, value, className = "" }: { label: string; value: string; className?: string }) => (
@@ -37,30 +56,29 @@ const Fact = ({ label, value, className = "" }: { label: string; value: string; 
   </View>
 );
 
-/** A course the student is enrolled in: its details, their standing and its classes. */
+/** A course the student is enrolled in: its details, their progress, their payment and its classes. */
 const CourseDetail = () => {
   const router = useRouter();
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
   const { user: activeUser } = useActiveUser();
+  const userId = activeUser?.uid ?? "";
   const classesQuery = useClassesByCourseId(courseId);
-  const attendanceQuery = useAttendanceByUser(activeUser?.uid ?? "", courseId);
-  const courseDetailQuery = useCourseDetail(activeUser?.uid || "", courseId);
+  const courseDetailQuery = useCourseDetail(userId, courseId);
   const branchQuery = useBranchById(courseDetailQuery.data?.branchId || "");
+  const progressQuery = useCourseProgress(userId, courseDetailQuery.data);
 
   const course = courseDetailQuery.data;
   const classes = classesQuery.data ?? [];
   const today = formatYYYYMMDD(new Date());
-  const attendedIds = new Set((attendanceQuery.data ?? []).filter((row) => row.attended).map((row) => row.classId));
-  const attendedCount = classes.filter((cls) => attendedIds.has(cls.id)).length;
-  const attendedPercent = classes.length > 0 ? (attendedCount / classes.length) * 100 : 0;
   const nextClassId = classes.find((cls) => (cls.date ?? "") > today)?.id;
+  const classMarks = progressQuery.facts ? toClassMarks(classes, progressQuery.facts) : new Map<string, ClassMark>();
 
-  // Only present marks are stored reliably: a past class without one may also
-  // be a class where attendance wasn't taken, so it doesn't say "absent".
-  const classChip = (cls: (typeof classes)[number]): { label: string; tone: ChipTone } | null => {
+  const classChip = (cls: (typeof classes)[number]): ClassChip | null => {
     if (cls.date === today) return { label: "Hoy", tone: "ok" };
-    if (attendedIds.has(cls.id)) return { label: "Asististe", tone: "muted" };
-    if (cls.date && cls.date < today) return { label: "Sin registro", tone: "line" };
+    const mark = classMarks.get(cls.id);
+    if (mark) return CLASS_MARK_CHIPS[mark];
+    // A past class before its marks load gets no chip.
+    if (cls.date && cls.date < today) return null;
     if (cls.id === nextClassId) return { label: "Próxima", tone: "line" };
     return cls.date ? { label: "Pendiente", tone: "line" } : null;
   };
@@ -68,7 +86,7 @@ const CourseDetail = () => {
   const refresh = () => {
     courseDetailQuery.refetch();
     classesQuery.refetch();
-    attendanceQuery.refetch();
+    progressQuery.refetch();
   };
 
   return (
@@ -88,7 +106,7 @@ const CourseDetail = () => {
                   value={formatCourseSchedule(course.day, course.startTime, course.endTime) || "Por definir"}
                   className="border-r border-line-soft"
                 />
-                <Fact label="Inicio" value={course.startDate ? formatDayMonth(course.startDate) : "Sin fecha"} />
+                <Fact label="Fechas" value={courseDatesLabel(course.startDate, course.endDate)} />
               </View>
               <View className="flex-row">
                 <Fact label="Sede" value={branchQuery.data?.name ?? "Sin sede"} className="border-r border-line-soft" />
@@ -96,41 +114,31 @@ const CourseDetail = () => {
               </View>
             </Card>
 
-            {SHOW_FEATURE_MOCKS && <CourseProgressCardMock />}
+            <CourseProgressCard
+              progress={progressQuery.progress}
+              isError={progressQuery.isError}
+              hasEndDate={!!course.endDate}
+              startTime={course.startTime}
+            />
+            {progressQuery.progress && <CourseProgressTiles progress={progressQuery.progress} endDate={course.endDate} />}
 
-            <View className="flex-row gap-2.5 px-3 pt-2.5">
-              <Pressable
-                onPress={() => router.push("/private/payments")}
-                accessibilityRole="button"
-                accessibilityLabel={`Pago: ${standingLabel[course.paymentStatus] ?? course.paymentStatus}`}
-                className="flex-1 gap-2 rounded-[18px] bg-surface p-4 active:opacity-80"
-              >
-                <AppText variant="label" tone="muted" className="text-[10px]">
-                  Pago
-                </AppText>
-                <Chip
-                  label={standingLabel[course.paymentStatus] ?? course.paymentStatus}
-                  tone={statusTone(course.paymentStatus)}
-                />
-                {course.nextPaymentDate && (
-                  <AppText tone="muted" className="text-[13px]">
-                    Vence {formatShortDate(course.nextPaymentDate).toLowerCase()}
-                  </AppText>
-                )}
-              </Pressable>
-              <Card className="flex-1 gap-2">
-                <AppText variant="label" tone="muted" className="text-[10px]">
-                  Asistencia
-                </AppText>
-                <AppText variant="heavy" className="text-[24px] leading-[28px]">
-                  {attendedCount}
-                  <AppText variant="semibold" tone="muted" className="text-[15px]">
-                    {` / ${classes.length}`}
-                  </AppText>
-                </AppText>
-                <ProgressBar percent={attendedPercent} height={6} />
-              </Card>
-            </View>
+            <Pressable
+              onPress={() => router.push("/private/payments")}
+              accessibilityRole="button"
+              accessibilityLabel={`Pago: ${standingLabel[course.paymentStatus] ?? course.paymentStatus}`}
+              className="mx-3 mt-2.5 flex-row items-center gap-2.5 rounded-[18px] bg-surface px-4 py-3.5 active:opacity-80"
+            >
+              <Chip
+                label={standingLabel[course.paymentStatus] ?? course.paymentStatus}
+                tone={statusTone(course.paymentStatus)}
+              />
+              <AppText className="flex-1 text-[14px]" numberOfLines={1}>
+                {course.nextPaymentDate
+                  ? `Mensualidad · vence ${formatShortDate(course.nextPaymentDate).toLowerCase()}`
+                  : "Mensualidad"}
+              </AppText>
+              <Ionicons name="chevron-forward" size={18} color={palette.ink} />
+            </Pressable>
 
             <SectionHeader title="Clases" note={classes.length === 1 ? "1 clase" : `${classes.length} clases`} />
             <DataLoader query={classesQuery} emptyMessage="Este curso todavía no tiene clases.">

@@ -1160,6 +1160,13 @@ export type Database = {
         Returns: string
       }
       attendance_report: { Args: never; Returns: Json }
+      course_classes_with_attendance: {
+        Args: { p_course_id: string }
+        Returns: {
+          class_id: string
+          date: string
+        }[]
+      }
       enrollment_report: { Args: { p_months?: number }; Returns: Json }
       event_spots_taken: { Args: { p_event_id: string }; Returns: number }
       mark_receipts_purged: { Args: { p_paths: string[] }; Returns: undefined }

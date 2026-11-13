@@ -122,6 +122,10 @@ const daysBetween = (from: Date, to: Date) => {
   return Math.round((end - start) / 86_400_000);
 };
 
+/** `date` moved by whole calendar days, at local midnight. */
+const addDays = (date: Date, days: number) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+
 const MONTHS_SHORT = [
   "ene",
   "feb",
@@ -194,6 +198,12 @@ const formatLongDate = (date: Date) =>
 /** Course day as stored ("miércoles") -> "Mié". */
 const shortDayName = (day: string | null | undefined) =>
   day ? capitalize(day.trim().slice(0, 3)) : "";
+
+/** Course day as stored ("miércoles") -> 3, numbered like Date.getDay(); null if it isn't a day. */
+const weekdayIndex = (day: string | null | undefined) => {
+  const index = day ? WEEKDAYS_LONG.indexOf(day.trim().toLowerCase()) : -1;
+  return index >= 0 ? index : null;
+};
 
 /** "HH:MM" -> "7:00 p. m.". */
 const hhmmTo12h = (value: string | null | undefined) =>
@@ -270,6 +280,9 @@ const attendanceRate = (marks: AttendanceMark[] = [], memberIds: Set<string>) =>
     ? `${Math.min(100, Math.round((present / possible) * 100))}%`
     : "—";
 };
+
+/** 86 -> "86 %", with a space that never wraps. */
+const formatPercent = (value: number) => `${value}${NBSP}%`;
 
 /** A payment's review status, as shown on chips. */
 const paymentStatusLabel: Record<string, string> = {
@@ -582,6 +595,7 @@ export const PRIVACY_POLICY_URL = "https://beatmotion-politica-privacidad.netlif
 export type { AgeGroup, AgeSummary };
 
 export {
+  addDays,
   AGE_GROUPS,
   ageGroupOf,
   ageLabel,
@@ -608,6 +622,7 @@ export {
   formatDDMMYYYY,
   formatLongDate,
   formatMonthLabel,
+  formatPercent,
   formatShortDate,
   formatTimeRange,
   formatYYYYMMDD,
@@ -640,6 +655,7 @@ export {
   to12hParts,
   to24h,
   toHHMM,
+  weekdayIndex,
   weekdayShort,
   weekOf,
   withoutBirthDateNote,
