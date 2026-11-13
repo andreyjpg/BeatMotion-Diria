@@ -1,25 +1,15 @@
-import ProgressBlocks, { ProgressSwatch } from "@/components/courses/ProgressBlocks";
-import AppText from "@/components/ui/AppText";
-import { formatLongDate, formatPercent, formatShortDate, hhmmTo12h, plural } from "@/constants/helpers";
-import type { CourseProgress, ProgressBlockState } from "@/hooks/courses/courseProgress";
-import { View } from "react-native";
+import ProgressHeroCard, {
+  dayLabel,
+  nextClassLabel,
+  type ProgressHeroBar,
+  ProgressHeroMessage,
+  type ProgressHeroTexts,
+  type ProgressLegendItem,
+} from "@/components/courses/ProgressHeroCard";
+import { formatLongDate, formatPercent, hhmmTo12h, plural } from "@/constants/helpers";
+import type { CourseProgress } from "@/hooks/courses/courseProgress";
 
-const SWATCH_SIZE = 12;
-
-type HeroTexts = {
-  label: string;
-  /** The big number. */
-  value: string;
-  /** Two lines on the right of the number. */
-  top: string;
-  bottom: string;
-  note: string;
-};
-
-type LegendItem = { state: ProgressBlockState; label: string };
-
-/** "lun 2 nov" ("" without a date). */
-const dayLabel = (date: Date | null) => (date ? formatShortDate(date).toLowerCase() : "");
+const CARD_MARGINS = "mx-3 mt-2.5";
 
 /** "a la clase que queda", "a las 4 clases que quedan". */
 const toClassesLeft = (count: number) =>
@@ -34,12 +24,8 @@ const projectionNote = ({ projectedPercent, isClassToday, remainingClasses }: Co
   return `Si vienes hoy y ${toClassesLeft(remainingClasses)}, ${ending}`;
 };
 
-/** "Próxima · lun 26 oct · 7:00 p. m." */
-const nextClassLabel = (date: Date | null, startTime: string | null) =>
-  ["Próxima", dayLabel(date), hhmmTo12h(startTime)].filter(Boolean).join(" · ");
-
 /** A course with class dates: its progress through the calendar. */
-const calendarTexts = (progress: CourseProgress, startTime: string | null): HeroTexts => {
+const calendarTexts = (progress: CourseProgress, startTime: string | null): ProgressHeroTexts => {
   const { phase, attendancePercent, attended, missed } = progress;
   if (phase === "notStarted") {
     const time = hhmmTo12h(startTime);
@@ -74,7 +60,7 @@ const calendarTexts = (progress: CourseProgress, startTime: string | null): Hero
 };
 
 /** A course without class dates: the attendance is all there is. */
-const attendanceOnlyTexts = (progress: CourseProgress, hasEndDate: boolean): HeroTexts => {
+const attendanceOnlyTexts = (progress: CourseProgress, hasEndDate: boolean): ProgressHeroTexts => {
   const { attendancePercent, attended, missed } = progress;
   const given = attended + missed;
   return {
@@ -89,11 +75,11 @@ const attendanceOnlyTexts = (progress: CourseProgress, hasEndDate: boolean): Her
 };
 
 /** Legend under the bar: what the student attended, missed and has left. */
-const legendItems = (progress: CourseProgress): LegendItem[] => {
+const legendItems = (progress: CourseProgress): ProgressLegendItem[] => {
   if (progress.phase === "notStarted") {
     return [{ state: "upcoming", label: plural(progress.totalClasses, "clase", "clases") }];
   }
-  const items: LegendItem[] = [
+  const items: ProgressLegendItem[] = [
     { state: "attended", label: `Asististe ${progress.attended}` },
     { state: "missed", label: `Faltaste ${progress.missed}` },
   ];
@@ -119,60 +105,18 @@ type CourseProgressCardProps = {
 const CourseProgressCard = ({ progress, isError, hasEndDate, startTime }: CourseProgressCardProps) => {
   if (!progress) {
     return (
-      <View className="mx-3 mt-2.5 gap-2 rounded-[22px] bg-ink p-[18px]">
-        <AppText variant="label" tone="hero-muted" className="text-[10px]">
-          Progreso del curso
-        </AppText>
-        <AppText tone="hero-soft" className="text-[14px]">
-          {isError ? "No pudimos cargar tu progreso. Desliza hacia abajo para intentarlo de nuevo." : "Cargando tu progreso…"}
-        </AppText>
-      </View>
+      <ProgressHeroMessage
+        message={isError ? "No pudimos cargar tu progreso. Desliza hacia abajo para intentarlo de nuevo." : "Cargando tu progreso…"}
+        className={CARD_MARGINS}
+      />
     );
   }
 
   const texts = progress.hasCalendar ? calendarTexts(progress, startTime) : attendanceOnlyTexts(progress, hasEndDate);
-  return (
-    <View className="mx-3 mt-2.5 gap-3.5 rounded-[22px] bg-ink p-[18px]">
-      <View className="flex-row items-end justify-between gap-3">
-        <View className="gap-1.5">
-          <AppText variant="label" tone="hero-muted" className="text-[10px]">
-            {texts.label}
-          </AppText>
-          <AppText variant="heavy" tone="inverse" className="text-[44px] leading-[48px]">
-            {texts.value}
-          </AppText>
-        </View>
-        <View className="flex-1 items-end">
-          <AppText tone="hero-soft" className="text-right text-[13.5px] leading-[19px]">
-            {texts.top}
-          </AppText>
-          <AppText variant="bold" tone="inverse" className="text-right text-[13.5px] leading-[19px]">
-            {texts.bottom}
-          </AppText>
-        </View>
-      </View>
-      {progress.hasCalendar && (
-        <>
-          <ProgressBlocks blocks={progress.blocks} theme="dark" />
-          <View className="flex-row flex-wrap gap-3.5">
-            {legendItems(progress).map((item) => (
-              <View key={item.state} className="flex-row items-center gap-1.5">
-                <ProgressSwatch state={item.state} theme="dark" size={SWATCH_SIZE} />
-                <AppText tone="hero-soft" className="text-[12.5px]">
-                  {item.label}
-                </AppText>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-      {!!texts.note && (
-        <AppText tone="hero-soft" className="border-t border-hero-line pt-3 text-[14px] leading-[20px]">
-          {texts.note}
-        </AppText>
-      )}
-    </View>
-  );
+  const bar: ProgressHeroBar | undefined = progress.hasCalendar
+    ? { blocks: progress.blocks, legend: legendItems(progress), viewer: "student" }
+    : undefined;
+  return <ProgressHeroCard texts={texts} bar={bar} className={CARD_MARGINS} />;
 };
 
 export default CourseProgressCard;

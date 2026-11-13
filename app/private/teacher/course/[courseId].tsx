@@ -1,5 +1,6 @@
 import ClassRow from "@/components/courses/ClassRow";
 import CourseAges from "@/components/courses/CourseAges";
+import StaffCourseProgressCard from "@/components/courses/StaffCourseProgressCard";
 import DataLoader from "@/components/DataLoader";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
@@ -24,14 +25,15 @@ import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
 import { toCourseAges } from "@/hooks/courseMember/schema";
 import { useMembersByCourse } from "@/hooks/courseMember/useMembersByCourse";
 import { useCourseById } from "@/hooks/courses/useCourseById";
+import { useStaffCourseProgress } from "@/hooks/courses/useStaffCourseProgress";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { RefreshControl, View } from "react-native";
 
 /**
- * A teacher's course: its numbers and its classes. Read only: teachers open
- * a class and take attendance; creating or editing is for admins.
+ * A teacher's course: its progress, its numbers and its classes. Read only:
+ * teachers open a class and take attendance; creating or editing is for admins.
  */
 const TeacherCourseScreen = () => {
   const router = useRouter();
@@ -46,6 +48,7 @@ const TeacherCourseScreen = () => {
   const course = courseQuery.data;
   // Teachers only see the courses assigned to them.
   const isMine = !!course && !course.isDeleted && (user?.role === "admin" || course.teacherId === user?.uid);
+  const progressQuery = useStaffCourseProgress(isMine ? course : null);
 
   const today = formatYYYYMMDD(new Date());
   const members = membersQuery.data;
@@ -71,10 +74,17 @@ const TeacherCourseScreen = () => {
       params: { courseId: cls.courseId, classId: cls.id },
     });
 
-  /** A row's right side: attendance today, "Hecha" once past, an arrow for the ones ahead. */
+  /**
+   * A row's right side: attendance today; once past, "Hecha", or "Sin
+   * asistencia" when nobody was marked present (no chip until the marks load);
+   * an arrow for the ones ahead.
+   */
   const rowRight = (cls: ClassesType, isToday: boolean, isPast: boolean) => {
     if (isToday) return <Button label="Asistencia" size="sm" onPress={() => openAttendance(cls)} />;
-    if (isPast) return <Chip label="Hecha" tone="muted" />;
+    if (isPast) {
+      if (!attendanceQuery.data) return undefined;
+      return attendedByClass.has(cls.id) ? <Chip label="Hecha" tone="muted" /> : <Chip label="Sin asistencia" tone="line" />;
+    }
     // The row's "Oculta" chip takes the arrow's place.
     if (cls.isHidden) return undefined;
     return <Ionicons name="chevron-forward" size={18} color={palette.faint} />;
@@ -85,6 +95,7 @@ const TeacherCourseScreen = () => {
     classesQuery.refetch();
     membersQuery.refetch();
     attendanceQuery.refetch();
+    progressQuery.refetch();
   };
 
   return (
@@ -98,7 +109,15 @@ const TeacherCourseScreen = () => {
             </AppText>
           ) : (
             <>
-              <View className="flex-row gap-2 px-3 pt-4">
+              {progressQuery.hasCalendar && (
+                <StaffCourseProgressCard
+                  progress={progressQuery.progress}
+                  isError={progressQuery.isError}
+                  startTime={course?.startTime ?? null}
+                />
+              )}
+              {/* Less space under the progress card than under the header. */}
+              <View className={`flex-row gap-2 px-3 ${progressQuery.hasCalendar ? "pt-2.5" : "pt-4"}`}>
                 {[
                   { value: members ? String(members.length) : "—", label: "Estudiantes" },
                   { value: classesQuery.data ? String(classesQuery.data.length) : "—", label: "Clases" },

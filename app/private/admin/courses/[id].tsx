@@ -1,6 +1,8 @@
 import AssignStudentModal from "@/components/AssignStudentModal";
 import ClassRow from "@/components/courses/ClassRow";
 import CourseAges from "@/components/courses/CourseAges";
+import CourseProgressHint from "@/components/courses/CourseProgressHint";
+import StaffCourseProgressCard from "@/components/courses/StaffCourseProgressCard";
 import DataLoader from "@/components/DataLoader";
 import AppText from "@/components/ui/AppText";
 import Avatar from "@/components/ui/Avatar";
@@ -27,6 +29,7 @@ import { useSetClassHidden } from "@/hooks/classes/useSetClassHidden";
 import { toCourseAges } from "@/hooks/courseMember/schema";
 import { useMembersByCourse } from "@/hooks/courseMember/useMembersByCourse";
 import { useCourseById } from "@/hooks/courses/useCourseById";
+import { useStaffCourseProgress } from "@/hooks/courses/useStaffCourseProgress";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, RefreshControl, View } from "react-native";
@@ -38,7 +41,7 @@ const SEGMENTS: { value: CourseView; label: string }[] = [
   { value: "students", label: "Estudiantes" },
 ];
 
-/** Admin: one course with its numbers, classes (each one can be hidden from students) and students. */
+/** Admin: one course with its progress, numbers, classes (each one can be hidden from students) and students. */
 const AdminCourseScreen = () => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -52,6 +55,7 @@ const AdminCourseScreen = () => {
   const [assigning, setAssigning] = useState(false);
 
   const found = courseQuery.data?.isDeleted ? null : courseQuery.data;
+  const progressQuery = useStaffCourseProgress(found);
   const today = formatYYYYMMDD(new Date());
   const members = membersQuery.data;
   const rate = attendanceRate(attendanceQuery.data, new Set((members ?? []).map((m) => m.userId)));
@@ -61,7 +65,10 @@ const AdminCourseScreen = () => {
     classesQuery.refetch();
     membersQuery.refetch();
     attendanceQuery.refetch();
+    progressQuery.refetch();
   };
+
+  const openCourseForm = () => router.push({ pathname: "/private/admin/courses/edit/[id]", params: { id } });
 
   return (
     <Screen refreshControl={<RefreshControl refreshing={courseQuery.isRefetching} onRefresh={refresh} />}>
@@ -79,7 +86,7 @@ const AdminCourseScreen = () => {
           found ? (
             <IconButton
               icon="create-outline"
-              onPress={() => router.push({ pathname: "/private/admin/courses/edit/[id]", params: { id } })}
+              onPress={openCourseForm}
               accessibilityLabel="Editar curso"
             />
           ) : undefined
@@ -94,7 +101,17 @@ const AdminCourseScreen = () => {
               </View>
             )}
 
-            <View className="flex-row gap-2 px-3 pt-4">
+            {progressQuery.hasCalendar ? (
+              <StaffCourseProgressCard
+                progress={progressQuery.progress}
+                isError={progressQuery.isError}
+                startTime={course.startTime}
+              />
+            ) : (
+              <CourseProgressHint onEditCourse={openCourseForm} />
+            )}
+
+            <View className="flex-row gap-2 px-3 pt-2.5">
               {[
                 { value: members ? String(members.length) : "—", label: "Estudiantes" },
                 { value: classesQuery.data ? String(classesQuery.data.length) : "—", label: "Clases" },

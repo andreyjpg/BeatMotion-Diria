@@ -1,5 +1,6 @@
 import HiddenClassChip from "@/components/courses/HiddenClassChip";
 import Birthdays from "@/components/teacher/Birthdays";
+import CourseTile from "@/components/teacher/CourseTile";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -7,25 +8,21 @@ import HomeHero from "@/components/ui/HomeHero";
 import Screen from "@/components/ui/Screen";
 import SectionHeader from "@/components/ui/SectionHeader";
 import {
-  capitalize,
   formatShortDate,
-  formatTimeRange,
   formatYYYYMMDD,
   hhmmTo12h,
   hhmmTo12hParts,
   parseLocalDate,
   to24h,
 } from "@/constants/helpers";
-import palette from "@/constants/palette.json";
 import { useAttendanceByClass } from "@/hooks/attendance/useAttendanceByClass";
 import type { ClassesType } from "@/hooks/classes/classesSchema";
 import { useActiveClasses } from "@/hooks/classes/useActiveClasses";
 import { useTeacherBirthdays } from "@/hooks/courseMember/useTeacherBirthdays";
 import { useCourses } from "@/hooks/courses/useCourses";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, RefreshControl, View } from "react-native";
+import { RefreshControl, View } from "react-native";
 
 type StartTimeTileProps = { startTime: string | null; isHero: boolean };
 
@@ -182,38 +179,9 @@ const HomeTeacher = () => {
             Todavía no tienes cursos asignados.
           </AppText>
         )}
-        {myCourses.map((course) => {
-          const hours = formatTimeRange(course.startTime, course.endTime);
-          return (
-            <Pressable
-              key={course.id}
-              onPress={() => openCourse(course.id)}
-              accessibilityRole="button"
-              accessibilityLabel={course.title}
-              className="gap-1 rounded-[18px] bg-surface p-4 active:opacity-80"
-              style={{ width: "49%" }}
-            >
-              <AppText variant="bold" className="text-[15px]" numberOfLines={2}>
-                {course.title}
-              </AppText>
-              <View className="flex-row items-center gap-1">
-                <Ionicons name="calendar-outline" size={13} color={palette.muted} />
-                <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
-                  {[course.day && capitalize(course.day), `Nivel ${course.level}`].filter(Boolean).join(" · ")}
-                </AppText>
-              </View>
-              {/* Own line: the tile is half the screen wide. */}
-              {hours !== "" && (
-                <View className="flex-row items-center gap-1">
-                  <Ionicons name="time-outline" size={13} color={palette.muted} />
-                  <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
-                    {hours}
-                  </AppText>
-                </View>
-              )}
-            </Pressable>
-          );
-        })}
+        {myCourses.map((course) => (
+          <CourseTile key={course.id} course={course} onPress={() => openCourse(course.id)} />
+        ))}
       </View>
     </Screen>
   );

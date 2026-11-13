@@ -6,6 +6,9 @@ import { useWindowDimensions, View } from "react-native";
 /** "light" on white cards, "dark" on the black progress card. */
 export type BlocksTheme = "light" | "dark";
 
+/** Whose bar it is: a student's counts the classes they attended and missed; staff's, the classes given. */
+export type BlocksViewer = "student" | "staff";
+
 type BlockLook = {
   backgroundColor: string;
   borderColor?: string;
@@ -29,6 +32,7 @@ const LOOKS: Record<BlocksTheme, Record<ProgressBlockState, BlockLook>> = {
     missed: { backgroundColor: palette.faint },
     noClass: NO_CLASS_LIGHT,
     beforeJoining: NO_CLASS_LIGHT,
+    given: { backgroundColor: palette.sand.strong },
     today: { backgroundColor: palette.surface, borderColor: palette.ink, borderWidth: 2 },
     upcoming: { backgroundColor: palette.surface, borderColor: palette.line.strong, borderWidth: 1 },
   },
@@ -37,6 +41,8 @@ const LOOKS: Record<BlocksTheme, Record<ProgressBlockState, BlockLook>> = {
     missed: { backgroundColor: palette.muted },
     noClass: NO_CLASS_DARK,
     beforeJoining: NO_CLASS_DARK,
+    // Sand, not white: white is a student's "Asististe".
+    given: { backgroundColor: palette.sand.strong },
     today: { backgroundColor: palette.ink, borderColor: palette.surface, borderWidth: 2.5 },
     upcoming: { backgroundColor: palette.ink, borderColor: palette.muted, borderWidth: 1.5 },
   },
@@ -102,15 +108,21 @@ const Block = ({ look, height, radius, width, maxWidth }: BlockProps) => (
   </View>
 );
 
-/** What the bar shows, for screen readers: "6 clases asistidas, 1 falta, hoy la clase 8, quedan 4 después de hoy". */
-const blocksDescription = (blocks: ProgressBlock[]) => {
+/**
+ * What the bar shows, for screen readers: "6 clases asistidas, 1 falta, hoy la
+ * clase 8, quedan 4 después de hoy" (student) or "6 clases dadas, 1 sin clase…" (staff).
+ */
+const blocksDescription = (blocks: ProgressBlock[], viewer: BlocksViewer) => {
   const count = (state: ProgressBlockState) => blocks.filter((block) => block.state === state).length;
   const upcoming = count("upcoming");
   if (upcoming === blocks.length) return `${plural(upcoming, "clase", "clases")} por venir`;
   const todayPosition = blocks.findIndex((block) => block.state === "today");
+  const pastParts =
+    viewer === "staff"
+      ? [plural(count("given"), "clase dada", "clases dadas")]
+      : [plural(count("attended"), "clase asistida", "clases asistidas"), plural(count("missed"), "falta", "faltas")];
   const parts = [
-    plural(count("attended"), "clase asistida", "clases asistidas"),
-    plural(count("missed"), "falta", "faltas"),
+    ...pastParts,
     count("noClass") > 0 && `${count("noClass")} sin clase`,
     count("beforeJoining") > 0 && `${count("beforeJoining")} antes de tu ingreso`,
     todayPosition >= 0 && `hoy la clase ${todayPosition + 1}`,
@@ -122,10 +134,12 @@ const blocksDescription = (blocks: ProgressBlock[]) => {
 type ProgressBlocksProps = {
   blocks: ProgressBlock[];
   theme?: BlocksTheme;
+  /** What the bar counts, for screen readers. */
+  viewer?: BlocksViewer;
 };
 
-/** A course's progress bar: one block per class date (attended, missed, no class, today, to come). */
-const ProgressBlocks = ({ blocks, theme = "light" }: ProgressBlocksProps) => {
+/** A course's progress bar: one block per class date (attended or given, missed, no class, today, to come). */
+const ProgressBlocks = ({ blocks, theme = "light", viewer = "student" }: ProgressBlocksProps) => {
   const { width: windowWidth } = useWindowDimensions();
   const size = BAR_SIZE[theme];
   // The bar is narrower than the window, so this is the most a block can take.
@@ -136,7 +150,7 @@ const ProgressBlocks = ({ blocks, theme = "light" }: ProgressBlocksProps) => {
       style={{ gap: size.gap, height: size.height }}
       accessible
       accessibilityRole="image"
-      accessibilityLabel={blocksDescription(blocks)}
+      accessibilityLabel={blocksDescription(blocks, viewer)}
     >
       {blocks.map((block) => (
         // The state is part of the key: a block that changes state mounts

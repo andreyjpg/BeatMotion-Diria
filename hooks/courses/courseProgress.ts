@@ -1,16 +1,24 @@
 import { addDays, formatYYYYMMDD, weekdayIndex } from "@/constants/helpers";
 
-// A student's progress in a course, from the course's calendar and the classes
-// where attendance was taken. Dates are calendar days on the phone ("YYYY-MM-DD"
-// keys compare as strings), which is Costa Rica time for the academy, like
-// every date helper in constants/helpers.ts.
+// A course's progress through its calendar: for a student, from their own
+// attendance (toCourseProgress); for its teacher and admins, from the classes
+// where attendance was taken (toStaffCourseProgress). Dates are calendar days
+// on the phone ("YYYY-MM-DD" keys compare as strings), which is Costa Rica
+// time for the academy, like every date helper in constants/helpers.ts.
 
 const DAYS_PER_WEEK = 7;
 
 /** How one class date of the course shows in the progress bar. */
-export type ProgressBlockState = "attended" | "missed" | "noClass" | "beforeJoining" | "today" | "upcoming";
+export type ProgressBlockState =
+  | "attended"
+  | "missed"
+  | "noClass"
+  | "beforeJoining"
+  | "given"
+  | "today"
+  | "upcoming";
 
-/** One class date of the course ("YYYY-MM-DD") and how it went for the student. */
+/** One class date of the course ("YYYY-MM-DD") and how it went. */
 export type ProgressBlock = { date: string; state: ProgressBlockState };
 
 /** How a past class went for the student (today's and later classes have none). */
@@ -36,12 +44,11 @@ export type AttendanceFacts = {
   joinedAt: Date;
 };
 
-export type CourseProgress = {
+/** Where a course is in its calendar: the same for everyone, from its class dates and today only. */
+export type CalendarProgress = {
   /** Whether the course has class dates (a weekday, a start and an end date), so a bar. */
   hasCalendar: boolean;
   phase: CoursePhase;
-  /** One per class date, in order; empty without a calendar. */
-  blocks: ProgressBlock[];
   /** N in "Clase X de N". */
   totalClasses: number;
   /** X: class dates up to today, today's included. */
@@ -51,6 +58,15 @@ export type CourseProgress = {
   remainingClasses: number;
   /** currentClass of totalClasses, 0-100. */
   progressPercent: number;
+  firstClassDate: Date | null;
+  lastClassDate: Date | null;
+  /** First class date after today. */
+  nextClassDate: Date | null;
+};
+
+export type CourseProgress = CalendarProgress & {
+  /** One per class date, in order; empty without a calendar. */
+  blocks: ProgressBlock[];
   /** Past days the student was marked present, make-up classes on other days included. */
   attended: number;
   /** Past days after joining where attendance was taken and the student wasn't marked present. */
@@ -63,15 +79,24 @@ export type CourseProgress = {
   attendancePercent: number | null;
   /** The attendance if the student comes today and to every class left; null when none is left. */
   projectedPercent: number | null;
-  firstClassDate: Date | null;
-  lastClassDate: Date | null;
-  /** First class date after today. */
-  nextClassDate: Date | null;
+};
+
+/** A course's progress for its teacher and admins. */
+export type StaffCourseProgress = CalendarProgress & {
+  /** One per class date, in order (given, no class, today or to come); empty without a calendar. */
+  blocks: ProgressBlock[];
+  /** Past class dates where someone was marked present in a class of that day. */
+  given: number;
+  /** Past class dates where nobody was marked present, or whose class is hidden. */
+  noClass: number;
 };
 
 type DayMark = "attended" | "missed";
 
 const percentOf = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : null);
+
+const countState = (blocks: ProgressBlock[], state: ProgressBlockState) =>
+  blocks.filter((block) => block.state === state).length;
 
 /** The course's class dates: its weekday from its start date to its end date ([] when one is missing). */
 export const courseClassDates = ({ day, startDate, endDate }: CourseSchedule) => {
@@ -92,6 +117,57 @@ export const courseClassDates = ({ day, startDate, endDate }: CourseSchedule) =>
 /** Whether a course has class dates, so its progress has a bar. */
 export const hasClassDates = (course: CourseSchedule) => courseClassDates(course).length > 0;
 
+const phaseOf = (dateKeys: string[], { startDate, endDate }: CourseSchedule, todayKey: string): CoursePhase => {
+  const first = dateKeys[0];
+  const last = dateKeys[dateKeys.length - 1];
+  if (first && last) {
+    if (first > todayKey) return "notStarted";
+    return last < todayKey ? "finished" : "inProgress";
+  }
+  // Without class dates, the course's own dates decide.
+  if (startDate && formatYYYYMMDD(startDate) > todayKey) return "notStarted";
+  if (endDate && formatYYYYMMDD(endDate) < todayKey) return "finished";
+  return "inProgress";
+};
+
+/**
+ * Where a course is in its calendar (its weekday between its start and end
+ * dates): "Clase X de N" and X ÷ N, with today's class counted. Attendance
+ * never changes it.
+ */
+export const toCalendarProgress = (course: CourseSchedule, today = new Date()): CalendarProgress => {
+  const todayKey = formatYYYYMMDD(today);
+  const classDates = courseClassDates(course);
+  const dateKeys = classDates.map((date) => formatYYYYMMDD(date));
+  const remainingClasses = dateKeys.filter((date) => date > todayKey).length;
+  const currentClass = dateKeys.length - remainingClasses;
+  return {
+    hasCalendar: dateKeys.length > 0,
+    phase: phaseOf(dateKeys, course, todayKey),
+    totalClasses: dateKeys.length,
+    currentClass,
+    isClassToday: dateKeys.includes(todayKey),
+    remainingClasses,
+    progressPercent: percentOf(currentClass, dateKeys.length) ?? 0,
+    firstClassDate: classDates[0] ?? null,
+    lastClassDate: classDates[classDates.length - 1] ?? null,
+    nextClassDate: classDates.find((date) => formatYYYYMMDD(date) > todayKey) ?? null,
+  };
+};
+
+/** One block per class date: to come after today, today's, and `pastState` for the earlier ones. */
+const toBlocks = (
+  course: CourseSchedule,
+  todayKey: string,
+  pastState: (date: string) => ProgressBlockState,
+): ProgressBlock[] =>
+  courseClassDates(course).map((classDate) => {
+    const date = formatYYYYMMDD(classDate);
+    if (date > todayKey) return { date, state: "upcoming" };
+    if (date === todayKey) return { date, state: "today" };
+    return { date, state: pastState(date) };
+  });
+
 /**
  * Past days (before today) where attendance was taken. A day is attended when
  * the student was marked present in any of its classes, even before joining;
@@ -107,32 +183,6 @@ const pastDayMarks = ({ takenClasses, attendedClassIds }: AttendanceFacts, today
   return marks;
 };
 
-const blockState = (
-  date: string,
-  todayKey: string,
-  joinedKey: string,
-  marks: Map<string, DayMark>,
-): ProgressBlockState => {
-  if (date > todayKey) return "upcoming";
-  if (date === todayKey) return "today";
-  const mark = marks.get(date);
-  if (mark) return mark;
-  return date < joinedKey ? "beforeJoining" : "noClass";
-};
-
-const phaseOf = (blocks: ProgressBlock[], { startDate, endDate }: CourseSchedule, todayKey: string): CoursePhase => {
-  const first = blocks[0];
-  const last = blocks[blocks.length - 1];
-  if (first && last) {
-    if (first.date > todayKey) return "notStarted";
-    return last.date < todayKey ? "finished" : "inProgress";
-  }
-  // Without class dates, the course's own dates decide.
-  if (startDate && formatYYYYMMDD(startDate) > todayKey) return "notStarted";
-  if (endDate && formatYYYYMMDD(endDate) < todayKey) return "finished";
-  return "inProgress";
-};
-
 /**
  * A student's progress in a course: one block per class date of its calendar
  * (its weekday between its start and end dates), and their attendance over
@@ -140,46 +190,57 @@ const phaseOf = (blocks: ProgressBlock[], { startDate, endDate }: CourseSchedule
  * missed yet: it counts from tomorrow.
  */
 export const toCourseProgress = (course: CourseSchedule, facts: AttendanceFacts, today = new Date()): CourseProgress => {
+  const calendar = toCalendarProgress(course, today);
   const todayKey = formatYYYYMMDD(today);
   const joinedKey = formatYYYYMMDD(facts.joinedAt);
   const marks = pastDayMarks(facts, todayKey, joinedKey);
-  const classDates = courseClassDates(course);
-  const blocks: ProgressBlock[] = classDates.map((date) => {
-    const key = formatYYYYMMDD(date);
-    return { date: key, state: blockState(key, todayKey, joinedKey, marks) };
-  });
-  const countBlocks = (state: ProgressBlockState) => blocks.filter((block) => block.state === state).length;
+  const blocks = toBlocks(
+    course,
+    todayKey,
+    (date) => marks.get(date) ?? (date < joinedKey ? "beforeJoining" : "noClass"),
+  );
 
-  const remainingClasses = countBlocks("upcoming");
-  const isClassToday = countBlocks("today") > 0;
-  const currentClass = blocks.length - remainingClasses;
+  const { phase, isClassToday, remainingClasses } = calendar;
   const dayMarks = [...marks.values()];
   const attended = dayMarks.filter((mark) => mark === "attended").length;
   const missed = dayMarks.length - attended;
-  const phase = phaseOf(blocks, course, todayKey);
   const classesLeft = remainingClasses + (isClassToday ? 1 : 0);
 
   return {
-    hasCalendar: blocks.length > 0,
-    phase,
+    ...calendar,
     blocks,
-    totalClasses: blocks.length,
-    currentClass,
-    isClassToday,
-    remainingClasses,
-    progressPercent: percentOf(currentClass, blocks.length) ?? 0,
     attended,
     missed,
-    noClass: countBlocks("noClass"),
-    beforeJoining: countBlocks("beforeJoining"),
+    noClass: countState(blocks, "noClass"),
+    beforeJoining: countState(blocks, "beforeJoining"),
     attendancePercent: phase === "notStarted" ? null : percentOf(attended, attended + missed),
     projectedPercent:
       phase === "inProgress" && classesLeft > 0
         ? percentOf(attended + classesLeft, attended + missed + classesLeft)
         : null,
-    firstClassDate: classDates[0] ?? null,
-    lastClassDate: classDates[classDates.length - 1] ?? null,
-    nextClassDate: classDates.find((date) => formatYYYYMMDD(date) > todayKey) ?? null,
+  };
+};
+
+/**
+ * A course's progress for its teacher and admins: its calendar
+ * (toCalendarProgress) and one block per class date. Attendance only tells
+ * whether a past date's class was given: someone was marked present in a
+ * class that day. `takenClasses` (course_classes_with_attendance) leaves
+ * hidden classes out, so their dates show as no class.
+ */
+export const toStaffCourseProgress = (
+  course: CourseSchedule,
+  takenClasses: { date: string }[],
+  today = new Date(),
+): StaffCourseProgress => {
+  const todayKey = formatYYYYMMDD(today);
+  const givenDates = new Set(takenClasses.map((taken) => taken.date));
+  const blocks = toBlocks(course, todayKey, (date) => (givenDates.has(date) ? "given" : "noClass"));
+  return {
+    ...toCalendarProgress(course, today),
+    blocks,
+    given: countState(blocks, "given"),
+    noClass: countState(blocks, "noClass"),
   };
 };
 
