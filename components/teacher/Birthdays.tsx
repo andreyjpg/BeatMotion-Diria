@@ -56,7 +56,10 @@ const Birthdays = ({ birthdays }: BirthdaysProps) => {
                   {`${courses} · cumple ${student.turns}`}
                 </AppText>
               </View>
-              <Chip label={`${weekdayShort(student.birthday)} ${student.birthday.getDate()}`} />
+              {/* The wrapper centers it: Chip aligns itself to the start. */}
+              <View>
+                <Chip label={`${weekdayShort(student.birthday)} ${student.birthday.getDate()}`} />
+              </View>
             </View>
           );
         })}

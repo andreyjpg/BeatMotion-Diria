@@ -12,7 +12,7 @@ import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import {
-  ageOrDash,
+  ageOrNoAge,
   attendanceRate,
   capitalize,
   classWhen,
@@ -106,7 +106,7 @@ const AdminCourseScreen = () => {
                 </Card>
               ))}
             </View>
-            {members && <CourseAges title="Edades en el curso" ages={toCourseAges(members)} chart="rows" />}
+            <CourseAges title="Edades en el curso" ages={members && toCourseAges(members)} chart="rows" />
 
             <SegmentedControl
               segments={SEGMENTS}
@@ -179,7 +179,7 @@ const AdminCourseScreen = () => {
                               {`${member.userInfo.name} ${member.userInfo.lastName}`}
                             </AppText>
                             <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
-                              {ageOrDash(member.userInfo.birthDate)}
+                              {ageOrNoAge(member.userInfo.birthDate)}
                             </AppText>
                           </View>
                           <View>

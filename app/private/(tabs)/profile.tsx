@@ -13,7 +13,14 @@ import type { IconName } from "@/components/ui/IconButton";
 import InfoRow from "@/components/ui/InfoRow";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { digitsOnly, formatYYYYMMDD, parseLocalDate, PRIVACY_POLICY_URL, roleLabel } from "@/constants/helpers";
+import {
+  birthDatePickerDates,
+  digitsOnly,
+  formatYYYYMMDD,
+  parseLocalDate,
+  PRIVACY_POLICY_URL,
+  roleLabel,
+} from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { FormErrors, profileFormSchema, validationErrors } from "@/constants/validationForms";
 import { useDeleteAccount } from "@/hooks/auth/useDeleteAccount";
@@ -74,6 +81,12 @@ const ProfileScreen = () => {
     setBirthDate(parseLocalDate(userInfo.data?.birthDate));
     setErrors({});
     setEditing(true);
+  };
+
+  // Its message goes as soon as the date changes; the others stay until the next save.
+  const handleBirthDateChange = (date: Date | null) => {
+    setBirthDate(date);
+    setErrors(({ birthDate: _, ...otherErrors }) => otherErrors);
   };
 
   const handleSave = async () => {
@@ -155,8 +168,9 @@ const ProfileScreen = () => {
                   label="Fecha de nacimiento"
                   mode="date"
                   value={birthDate}
-                  onChange={setBirthDate}
-                  onClear={() => setBirthDate(null)}
+                  onChange={handleBirthDateChange}
+                  onClear={() => handleBirthDateChange(null)}
+                  {...birthDatePickerDates()}
                   error={errors.birthDate}
                   hint="Opcional. La academia la usa para organizar los grupos por edad."
                 />

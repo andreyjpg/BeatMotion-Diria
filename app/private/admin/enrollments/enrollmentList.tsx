@@ -5,7 +5,7 @@ import Chip, { type ChipTone } from "@/components/ui/Chip";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SegmentedControl from "@/components/ui/SegmentedControl";
-import { ageOrDash, formatCurrency, formatDayMonth } from "@/constants/helpers";
+import { ageOrNoAge, formatCurrency, formatDayMonth } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import type { EnrollmentDetail, ReviewStatus } from "@/hooks/enrollment/schema";
 import { useEnrollmentCount } from "@/hooks/enrollment/useEnrollmentCount";
@@ -38,7 +38,7 @@ const studentName = (enrollment: EnrollmentDetail) =>
 /** Card footer: the student's age and when the request was sent (or assigned by an admin). */
 const enrollmentMeta = (enrollment: EnrollmentDetail) => {
   const sent = `${enrollment.source === "manual" ? "Asignada" : "Enviada"} ${formatDayMonth(enrollment.submittedAt)}`;
-  return `${ageOrDash(enrollment.user?.birthDate)} · ${sent}`;
+  return `${ageOrNoAge(enrollment.user?.birthDate)} · ${sent}`;
 };
 
 /** Admin: the students' enrollment requests, by review status. */

@@ -10,7 +10,7 @@ import {
   validationErrors,
   type FormErrors,
 } from "@/constants/validationForms";
-import { ageLabel, formatYYYYMMDD, PRIVACY_POLICY_URL } from "@/constants/helpers";
+import { ageLabel, birthDatePickerDates, formatYYYYMMDD, PRIVACY_POLICY_URL } from "@/constants/helpers";
 import { useSignUp } from "@/hooks/auth/useSignUp";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -32,6 +32,12 @@ const SignIn = () => {
   const signUp = useSignUp();
   const submitting = signUp.isPending;
   const age = birthDate ? ageLabel(formatYYYYMMDD(birthDate)) : null;
+
+  // Its message goes as soon as the date changes; the others stay until the next submit.
+  const handleBirthDateChange = (date: Date) => {
+    setBirthDate(date);
+    setFormErrors(({ birthDate: _, ...otherErrors }) => otherErrors);
+  };
 
   const register = () => {
     if (submitting) return;
@@ -139,7 +145,8 @@ const SignIn = () => {
           label="Fecha de nacimiento"
           mode="date"
           value={birthDate}
-          onChange={setBirthDate}
+          onChange={handleBirthDateChange}
+          {...birthDatePickerDates()}
           badge={age}
           error={formErrors.birthDate}
           hint="La academia la usa para organizar los grupos por edad y saludarte en tu cumpleaños."

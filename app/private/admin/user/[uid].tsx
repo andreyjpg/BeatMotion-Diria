@@ -16,7 +16,15 @@ import ScreenHeader from "@/components/ui/ScreenHeader";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import SelectField from "@/components/ui/SelectField";
 import SwitchRow from "@/components/ui/SwitchRow";
-import { capitalize, digitsOnly, formatYYYYMMDD, parseLocalDate, roleLabel, standingLabel } from "@/constants/helpers";
+import {
+  birthDatePickerDates,
+  capitalize,
+  digitsOnly,
+  formatYYYYMMDD,
+  parseLocalDate,
+  roleLabel,
+  standingLabel,
+} from "@/constants/helpers";
 import { adminProfileFormSchema, FormErrors, validationErrors } from "@/constants/validationForms";
 import { useBranches } from "@/hooks/branches/useBranches";
 import { useCourses } from "@/hooks/courses/useCourses";
@@ -82,6 +90,12 @@ const AdminUserProfile = () => {
     setBirthDate(parseLocalDate(profile.birthDate));
     setErrors({});
     setEditing(true);
+  };
+
+  // Its message goes as soon as the date changes; the others stay until the next save.
+  const handleBirthDateChange = (date: Date | null) => {
+    setBirthDate(date);
+    setErrors(({ birthDate: _, ...otherErrors }) => otherErrors);
   };
 
   const save = () => {
@@ -189,8 +203,9 @@ const AdminUserProfile = () => {
                 label="Fecha de nacimiento"
                 mode="date"
                 value={birthDate}
-                onChange={setBirthDate}
-                onClear={() => setBirthDate(null)}
+                onChange={handleBirthDateChange}
+                onClear={() => handleBirthDateChange(null)}
+                {...birthDatePickerDates()}
                 error={errors.birthDate}
               />
             </Card>

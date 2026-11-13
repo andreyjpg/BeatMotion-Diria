@@ -105,7 +105,7 @@ const TeacherCourseScreen = () => {
                   </Card>
                 ))}
               </View>
-              {members && <CourseAges title="Edades del grupo" ages={toCourseAges(members)} chart="stacked" />}
+              <CourseAges title="Edades del grupo" ages={members && toCourseAges(members)} chart="stacked" />
 
               <SectionHeader
                 title="Clases"

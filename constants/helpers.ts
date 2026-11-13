@@ -404,10 +404,41 @@ const ageLabel = (birthDate: string | null | undefined, date = new Date()) => {
 
 /**
  * A student's age where staff always expect one (Usuarios, Matrículas): "23 años",
- * or "—" without a valid birth date.
+ * or "Sin edad" without a valid birth date.
  */
-const ageOrDash = (birthDate: string | null | undefined, date = new Date()) =>
-  ageLabel(birthDate, date) ?? "—";
+const ageOrNoAge = (birthDate: string | null | undefined, date = new Date()) =>
+  ageLabel(birthDate, date) ?? "Sin edad";
+
+/** The academy's youngest students. */
+const MIN_AGE_YEARS = 15;
+
+/** Birth dates further back than this many years are taken as a typo. */
+const MAX_AGE_YEARS = 100;
+
+/** How old someone born on the day an empty birth date picker opens on is. */
+const BIRTH_DATE_PICKER_OPENING_AGE_YEARS = 20;
+
+/** The day `years` before `date`, at midnight; 29 Feb falls on 28 Feb in a non-leap year. */
+const yearsBefore = (date: Date, years: number) => birthdayIn(date, date.getFullYear() - years);
+
+/**
+ * Dates a birth date picker offers on `today` (default now), with the limits of
+ * birthDateSchema: from MAX_AGE_YEARS ago to the last birth date that is
+ * MIN_AGE_YEARS old (ageOn), opening BIRTH_DATE_PICKER_OPENING_AGE_YEARS back
+ * while the field is empty.
+ */
+const birthDatePickerDates = (today = new Date()) => {
+  const sameDay = yearsBefore(today, MIN_AGE_YEARS);
+  const dayAfter = new Date(sameDay.getFullYear(), sameDay.getMonth(), sameDay.getDate() + 1);
+  // Only a 29 Feb birth date is a day later and still old enough: on 28 Feb of
+  // a non-leap year it has its birthday too (birthdayIn).
+  const isDayAfterOldEnough = (ageOn(formatYYYYMMDD(dayAfter), today) ?? 0) >= MIN_AGE_YEARS;
+  return {
+    minimumDate: yearsBefore(today, MAX_AGE_YEARS),
+    maximumDate: isDayAfterOldEnough ? dayAfter : sameDay,
+    initialDate: yearsBefore(today, BIRTH_DATE_PICKER_OPENING_AGE_YEARS),
+  };
+};
 
 /** "2003-03-14" -> "14 mar 2003 · 23 años" on `date` (default today); null without a valid birth date. */
 const formatBirthDate = (birthDate: string | null | undefined, date = new Date()) => {
@@ -513,8 +544,9 @@ export {
   ageGroupOf,
   ageLabel,
   ageOn,
-  ageOrDash,
+  ageOrNoAge,
   attendanceRate,
+  birthDatePickerDates,
   birthdayBetween,
   birthdayIn,
   capitalize,
@@ -543,6 +575,7 @@ export {
   lastDayWithoutLateFee,
   lateFeeFor,
   lateFeePerDay,
+  MIN_AGE_YEARS,
   monthlyFareFor,
   monthName,
   monthShort,

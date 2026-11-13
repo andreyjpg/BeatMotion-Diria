@@ -7,7 +7,7 @@ import Field from "@/components/ui/Field";
 import Pill from "@/components/ui/Pill";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { ageOrDash, formatDayMonth, parseLocalDate, roleLabel, standingLabel } from "@/constants/helpers";
+import { ageOrNoAge, formatDayMonth, parseLocalDate, roleLabel, standingLabel } from "@/constants/helpers";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useUsers } from "@/hooks/user/useUsers";
 import type { PaymentStanding, UserListItem } from "@/hooks/user/userSchema";
@@ -43,7 +43,7 @@ const studentActivity = (user: UserListItem) => {
 /** Second line of a user's row: a student's age and courses, or a teacher's or admin's email. */
 const userDetail = (user: UserListItem) => {
   if (user.role !== "user") return user.isActive ? user.email : "Cuenta desactivada";
-  return `${ageOrDash(user.birthDate)} · ${studentActivity(user)}`;
+  return `${ageOrNoAge(user.birthDate)} · ${studentActivity(user)}`;
 };
 
 /** Ignores upper case and accents: "maria" finds "María". */
@@ -146,7 +146,8 @@ const AdminUsersScreen = () => {
                     <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
                       {name || "Sin nombre"}
                     </AppText>
-                    <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+                    {/* Two lines: with a wide chip, the next payment date wraps instead of being cut. */}
+                    <AppText tone="muted" className="text-[12.5px]" numberOfLines={2}>
                       {userDetail(item)}
                     </AppText>
                   </View>
