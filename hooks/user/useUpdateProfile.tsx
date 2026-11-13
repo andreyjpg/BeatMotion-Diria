@@ -33,6 +33,7 @@ export const useUpdateProfile = () => {
       queryClient.invalidateQueries({ queryKey: ["user", uid] });
       queryClient.invalidateQueries({ queryKey: ["activeUser"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["reports", "ages"] });
     },
   });
 };

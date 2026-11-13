@@ -1142,6 +1142,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      age_report: { Args: never; Returns: Json }
       assign_student_to_course: {
         Args: { p_course_id: string; p_user_id: string }
         Returns: string

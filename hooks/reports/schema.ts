@@ -2,8 +2,8 @@ import zod from "zod";
 
 /*
  * Report totals as returned by the database functions payment_report,
- * enrollment_report and attendance_report. `month` is "YYYY-MM" (Costa Rica),
- * oldest first, including months with nothing.
+ * enrollment_report, attendance_report and age_report. `month` is "YYYY-MM"
+ * (Costa Rica), oldest first, including months with nothing.
  */
 
 export const PaymentReportSchema = zod.object({
@@ -61,6 +61,23 @@ export const EnrollmentReportSchema = zod.object({
   ),
 });
 
+/**
+ * Active students per exact age today in Costa Rica (youngest first, only ages
+ * someone has), the ones without a birth date, and their exact mean age (null
+ * when nobody has a birth date).
+ */
+export const AgeReportSchema = zod.object({
+  ages: zod.array(
+    zod.object({
+      age: zod.number(),
+      count: zod.number(),
+    })
+  ),
+  withoutBirthDate: zod.number(),
+  averageAge: zod.number().nullable(),
+});
+
 export type PaymentReport = zod.infer<typeof PaymentReportSchema>;
 export type AttendanceReport = zod.infer<typeof AttendanceReportSchema>;
 export type EnrollmentReport = zod.infer<typeof EnrollmentReportSchema>;
+export type AgeReport = zod.infer<typeof AgeReportSchema>;

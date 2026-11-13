@@ -468,6 +468,35 @@ const summarizeAges = (birthDates: (string | null | undefined)[], date = new Dat
   };
 };
 
+/** Ages the database already counted (age_report): how many people have each age. */
+type AgeCounts = {
+  ages: { age: number; count: number }[];
+  withoutBirthDate: number;
+  /** Exact mean age; null when nobody has a birth date. */
+  averageAge: number | null;
+};
+
+/**
+ * The AgeSummary of ages counted by the database, grouped by AGE_GROUPS and
+ * with the average rounded, the same as summarizeAges does with birth dates.
+ */
+const summarizeAgeCounts = ({ ages, withoutBirthDate, averageAge }: AgeCounts): AgeSummary => {
+  const countedAges = ages.filter((row) => row.count > 0).map((row) => row.age);
+  const hasAges = countedAges.length > 0;
+  return {
+    groups: AGE_GROUPS.map((group) => ({
+      ...group,
+      count: ages
+        .filter((row) => ageGroupOf(row.age) === group)
+        .reduce((sum, row) => sum + row.count, 0),
+    })),
+    withoutBirthDate,
+    averageAge: hasAges && averageAge !== null ? Math.round(averageAge) : null,
+    youngestAge: hasAges ? Math.min(...countedAges) : null,
+    oldestAge: hasAges ? Math.max(...countedAges) : null,
+  };
+};
+
 /** Line under an age chart: "2 estudiantes sin fecha de nacimiento no aparecen en el gráfico."; null with none. */
 const withoutBirthDateNote = (count: number) => {
   if (count === 0) return null;
@@ -526,6 +555,7 @@ export {
   shortDayName,
   standingLabel,
   statusTranslations,
+  summarizeAgeCounts,
   summarizeAges,
   timeToDate,
   to12hLabel,

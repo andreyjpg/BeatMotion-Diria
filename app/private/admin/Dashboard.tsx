@@ -1,14 +1,14 @@
 import DataLoader from "@/components/DataLoader";
-import AcademyAgesMock from "@/components/mocks/AcademyAgesMock";
+import AcademyAges from "@/components/reports/AcademyAges";
 import AppText from "@/components/ui/AppText";
 import Card from "@/components/ui/Card";
 import IconButton, { type IconName } from "@/components/ui/IconButton";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
 import { plural } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { useDashboardCounts } from "@/hooks/dashboard/useDashboardCounts";
+import { useAgeReport } from "@/hooks/reports/useAgeReport";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { RefreshControl, ScrollView, View } from "react-native";
@@ -17,6 +17,12 @@ import { RefreshControl, ScrollView, View } from "react-native";
 const StatsScreen = () => {
   const router = useRouter();
   const countsQuery = useDashboardCounts();
+  const ageReport = useAgeReport();
+
+  const handleRefresh = () => {
+    countsQuery.refetch();
+    ageReport.refetch();
+  };
 
   return (
     <Screen scroll={false}>
@@ -32,7 +38,7 @@ const StatsScreen = () => {
         }
       />
       <DataLoader query={countsQuery}>
-        {(counts, isRefetching, refetch) => {
+        {(counts, isRefetching) => {
           const tiles: { n: number; label: string; icon: IconName }[] = [
             { n: counts.activeTeachers, label: "Profesores activos", icon: "person-outline" },
             { n: counts.courses, label: "Cursos", icon: "book-outline" },
@@ -43,7 +49,7 @@ const StatsScreen = () => {
             <ScrollView
               contentContainerClassName="pb-8"
               showsVerticalScrollIndicator={false}
-              refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+              refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />}
             >
               <View className="mx-3 mt-4 rounded-[22px] bg-ink p-[18px]">
                 <AppText variant="label" tone="hero-muted" className="text-[10px]">
@@ -75,8 +81,7 @@ const StatsScreen = () => {
                 ))}
               </View>
 
-              {/* TODO(edades): sample numbers until profiles have a birth date; see TODO.md. */}
-              {SHOW_FEATURE_MOCKS && <AcademyAgesMock />}
+              <AcademyAges report={ageReport} />
             </ScrollView>
           );
         }}
