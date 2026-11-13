@@ -358,9 +358,6 @@ export type Database = {
       enrollments: {
         Row: {
           annual_fee_year: number | null
-          assigned_class_id: string | null
-          class_assigned_at: string | null
-          class_assigned_by: string | null
           id: string
           legacy_id: string | null
           payment_proof_deleted_at: string | null
@@ -376,9 +373,6 @@ export type Database = {
         }
         Insert: {
           annual_fee_year?: number | null
-          assigned_class_id?: string | null
-          class_assigned_at?: string | null
-          class_assigned_by?: string | null
           id?: string
           legacy_id?: string | null
           payment_proof_deleted_at?: string | null
@@ -394,9 +388,6 @@ export type Database = {
         }
         Update: {
           annual_fee_year?: number | null
-          assigned_class_id?: string | null
-          class_assigned_at?: string | null
-          class_assigned_by?: string | null
           id?: string
           legacy_id?: string | null
           payment_proof_deleted_at?: string | null
@@ -411,20 +402,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "enrollments_assigned_class_id_fkey"
-            columns: ["assigned_class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollments_class_assigned_by_fkey"
-            columns: ["class_assigned_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "enrollments_reviewed_by_fkey"
             columns: ["reviewed_by"]

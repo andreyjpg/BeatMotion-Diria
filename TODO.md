@@ -45,11 +45,6 @@ Each one is a new migration in `supabase/migrations/`. Follow the rules in
   `rules_accepted_at` to `enrollments` and set it in `request_enrollment`.
 - [ ] **Unused `profiles.photo_url`.** Profile pictures use `photo_path` now, in the
   private `avatars` bucket. Drop the old column.
-- [ ] **Unused class assignment on enrollments.** Drop
-  `enrollments.assigned_class_id`, `class_assigned_by` and `class_assigned_at`;
-  nothing uses them since the "assign class" screen was removed. First update
-  the "students request, admins assign" insert policy, which still checks
-  `assigned_class_id is null`.
 
 ## Features that are only mocks
 
