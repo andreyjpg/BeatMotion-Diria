@@ -1,12 +1,11 @@
 import DataLoader from "@/components/DataLoader";
-import TransferDetailsMock from "@/components/mocks/TransferDetailsMock";
+import TransferDetails from "@/components/payments/TransferDetails";
 import { pickImage, RECEIPT_PERMISSION_MESSAGE } from "@/components/pickImage";
 import AmountRow from "@/components/ui/AmountRow";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Chip, { type ChipTone } from "@/components/ui/Chip";
-import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
 import {
   daysBetween,
   formatCurrency,
@@ -185,7 +184,7 @@ const Detail = () => {
                 </View>
               ) : (
                 <>
-                  {SHOW_FEATURE_MOCKS && <TransferDetailsMock />}
+                  <TransferDetails />
                   <Pressable
                     onPress={handleImagePick}
                     accessibilityRole="button"
