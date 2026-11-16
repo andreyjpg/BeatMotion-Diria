@@ -12,9 +12,12 @@ export type ReviewStatus = zod.infer<typeof reviewStatusSchema>;
 export const ENROLLMENT_COLUMNS =
   "id, userId:user_id, status, source, totalAmount:total_amount, receiptPath:payment_proof_path, annualFeeYear:annual_fee_year, submittedAt:submitted_at, reviewedBy:reviewed_by, reviewedAt:reviewed_at, enrollmentCourses:enrollment_courses(courseId:course_id)";
 
-/** Same request with each course (and its branch) and the student, for the admin screens. */
+/**
+ * Same request with each course (and its branch), the student and when they
+ * accepted the academy's rules, for the admin screens.
+ */
 export const ENROLLMENT_DETAIL_COLUMNS =
-  "id, userId:user_id, status, source, totalAmount:total_amount, receiptPath:payment_proof_path, annualFeeYear:annual_fee_year, submittedAt:submitted_at, reviewedBy:reviewed_by, reviewedAt:reviewed_at, enrollmentCourses:enrollment_courses(course:courses(id, title, description, level, day, branch:branches(name))), user:profiles!enrollments_user_id_fkey(id, name, lastName:last_name, email, phone, birthDate:birth_date)";
+  "id, userId:user_id, status, source, totalAmount:total_amount, receiptPath:payment_proof_path, annualFeeYear:annual_fee_year, submittedAt:submitted_at, reviewedBy:reviewed_by, reviewedAt:reviewed_at, rulesAcceptedAt:rules_accepted_at, enrollmentCourses:enrollment_courses(course:courses(id, title, description, level, day, branch:branches(name))), user:profiles!enrollments_user_id_fkey(id, name, lastName:last_name, email, phone, birthDate:birth_date)";
 
 /** Database row -> screen shape: the requested course ids as a flat list. */
 export function toEnrollment<T extends { enrollmentCourses: { courseId: string }[] }>(row: T) {
@@ -59,6 +62,8 @@ export type Enrollment = zod.infer<typeof enrollmentSchema>[number];
 export const enrollmentDetailSchema = zod.array(
   zod.object({
     ...enrollmentFields,
+    // Null for manual enrollments, older requests and builds that don't send it.
+    rulesAcceptedAt: dateTimeSchema.nullable(),
     receiptUrl: zod.string().nullable(),
     courses: zod.array(
       zod.object({

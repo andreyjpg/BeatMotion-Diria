@@ -364,6 +364,7 @@ export type Database = {
           payment_proof_path: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          rules_accepted_at: string | null
           source: Database["public"]["Enums"]["enrollment_source"]
           status: Database["public"]["Enums"]["review_status"]
           submitted_at: string
@@ -379,6 +380,7 @@ export type Database = {
           payment_proof_path?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          rules_accepted_at?: string | null
           source?: Database["public"]["Enums"]["enrollment_source"]
           status?: Database["public"]["Enums"]["review_status"]
           submitted_at?: string
@@ -394,6 +396,7 @@ export type Database = {
           payment_proof_path?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          rules_accepted_at?: string | null
           source?: Database["public"]["Enums"]["enrollment_source"]
           status?: Database["public"]["Enums"]["review_status"]
           submitted_at?: string
@@ -1160,6 +1163,7 @@ export type Database = {
           p_annual_fee_year?: number
           p_course_ids: string[]
           p_receipt_path: string
+          p_rules_accepted?: boolean
           p_total_amount: number
         }
         Returns: string

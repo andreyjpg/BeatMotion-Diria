@@ -40,9 +40,6 @@ Each one is a new migration in `supabase/migrations/`. Follow the rules in
 
 ### Cleanup (only once no store build uses them)
 
-- [ ] **Accepting the rules.** Step 1 of the enrollment asks the student to accept
-  the academy's rules, but nothing records it. If the academy wants proof, add
-  `rules_accepted_at` to `enrollments` and set it in `request_enrollment`.
 - [ ] **Unused `profiles.photo_url`.** Profile pictures use `photo_path` now, in the
   private `avatars` bucket. Drop the old column.
 
