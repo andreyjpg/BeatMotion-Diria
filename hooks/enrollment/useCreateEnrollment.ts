@@ -31,6 +31,9 @@ export const useCreateEnrollment = () => {
         // The column takes null; the generated types only know the argument as text.
         p_receipt_path: receiptPath as string,
         p_annual_fee_year: input.annualFeeYear ?? undefined,
+        // Step 1 (RulesStep) only lets the student continue after accepting the
+        // rules; the database records the moment the request is sent.
+        p_rules_accepted: true,
       });
       if (error) {
         if (receiptPath) await removeUnusedReceipt(receiptPath);

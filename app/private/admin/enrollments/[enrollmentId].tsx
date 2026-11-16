@@ -9,7 +9,7 @@ import Chip from "@/components/ui/Chip";
 import IconButton from "@/components/ui/IconButton";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { formatShortDate, shortDayName, to12hLabel } from "@/constants/helpers";
+import { formatDayMonthYear, formatShortDate, shortDayName, to12hLabel } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import type { ReviewStatus } from "@/hooks/enrollment/schema";
 import { useEnrollmentCount } from "@/hooks/enrollment/useEnrollmentCount";
@@ -107,6 +107,14 @@ const EnrollmentReviewScreen = () => {
           const hasAnnualFee = !!enrollment.annualFeeYear && annualFare > 0;
           return (
             <>
+              {enrollment.rulesAcceptedAt && (
+                <View className="flex-row items-center gap-1.5 px-5 pt-2.5">
+                  <Ionicons name="checkmark" size={16} color={palette.ink} />
+                  <AppText className="flex-1 text-[13.5px]">
+                    {`Reglamento aceptado · ${formatDayMonthYear(enrollment.rulesAcceptedAt)}, ${to12hLabel(enrollment.rulesAcceptedAt)}`}
+                  </AppText>
+                </View>
+              )}
               <View className="flex-row flex-wrap items-center gap-1.5 px-5 pt-2.5">
                 {enrollment.status === "pending" ? (
                   <Chip label="Pendiente" tone="pending" />
