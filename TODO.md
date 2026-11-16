@@ -53,16 +53,6 @@ in development and preview builds, never in production. Each one is marked in
 the code with the `TODO(...)` tag given below. Their designs are on the canvas
 page "Funciones nuevas (mock)".
 
-- [ ] **Transfer details** (`TODO(datos bancarios)`). Shown in Pagos › Por
-  pagar by `components/mocks/TransferDetailsMock.tsx`, which already has the
-  academy's real accounts.
-  - Make the copy buttons copy: install `expo-clipboard` with
-    `npx expo install expo-clipboard` (Expo Go includes it). Today they only
-    show the check mark.
-  - Decide where the accounts live: a constant (e.g. `constants/academy.ts`),
-    or a table the admin can edit.
-  - Show it in production. It's also step 3 of the enrollment ("Matrícula ·
-    paso 3 · transferencia").
 - [ ] **Help section** (`TODO(ayuda)`). The screens are in `app/private/help/`;
   the entry points are the "?" button on Pagos and "¿Problema con este pago?"
   in the payment history.

@@ -1,14 +1,15 @@
-import TransferDetailsMock from "@/components/mocks/TransferDetailsMock";
+import TransferDetails from "@/components/payments/TransferDetails";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
+import CopyButton from "@/components/ui/CopyButton";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
 import { formatCurrency } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import type { PickedImage } from "@/hooks/storage/compressImage";
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { Image, Pressable, View } from "react-native";
 import StepBar from "./StepBar";
 
@@ -39,6 +40,7 @@ const PaymentStep = ({
   onSend,
 }: PaymentStepProps) => {
   const needsReceipt = total > 0;
+  const [descriptionCopied, setDescriptionCopied] = useState(false);
 
   return (
     <Screen
@@ -79,16 +81,22 @@ const PaymentStep = ({
             </AppText>
           </View>
 
-          {SHOW_FEATURE_MOCKS && <TransferDetailsMock />}
+          <TransferDetails />
 
           <View className="mx-3 mt-2.5 gap-2 rounded-[18px] bg-sand-soft px-4 py-3.5">
             <AppText variant="bold" tone="sand" className="text-[14px]">
               En la descripción de la transferencia escribe:
             </AppText>
-            <View className="rounded-xl bg-surface px-3 py-2.5">
-              <AppText variant="semibold" className="text-[13.5px] leading-[19px]" selectable>
+            <View className="flex-row items-center gap-2.5 rounded-xl bg-surface py-2 pl-3 pr-2">
+              <AppText variant="semibold" className="flex-1 text-[13.5px] leading-[19px]" selectable>
                 {transferDescription}
               </AppText>
+              <CopyButton
+                value={transferDescription}
+                accessibilityLabel="Copiar descripción"
+                copied={descriptionCopied}
+                onCopied={() => setDescriptionCopied(true)}
+              />
             </View>
           </View>
 

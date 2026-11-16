@@ -1,5 +1,5 @@
 import DataLoader from "@/components/DataLoader";
-import TransferDetailsMock from "@/components/mocks/TransferDetailsMock";
+import TransferDetails from "@/components/payments/TransferDetails";
 import { pickImage, RECEIPT_PERMISSION_MESSAGE } from "@/components/pickImage";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
@@ -9,7 +9,6 @@ import IconButton, { type IconName } from "@/components/ui/IconButton";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
 import { capitalize, formatLongDate, to12hLabel } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { useEventById } from "@/hooks/events/useEventById";
@@ -256,7 +255,7 @@ const EventDetailScreen = () => {
 
       {canSignUp && (
         <>
-          {!isFree && SHOW_FEATURE_MOCKS && <TransferDetailsMock />}
+          {!isFree && <TransferDetails />}
           <Card className="mx-3 mt-3.5 gap-3">
             {signup?.status === "rejected" && (
               <AppText tone="danger" className="text-[13.5px] leading-[19px]">

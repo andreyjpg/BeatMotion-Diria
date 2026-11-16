@@ -385,6 +385,9 @@ export const sanitizeYouTubeUrl = (url: string) => {
 /** "8606-1644" -> "86061644": sign-up accepts phones in any format. */
 const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
+/** "CR10 0102 0000 9622 3368 07" -> "CR10010200009622336807": banking apps take an account without separators. */
+const withoutSeparators = (value: string) => value.replace(/[\s-]/g, "");
+
 /** "1 curso", "3 cursos". */
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -659,4 +662,5 @@ export {
   weekdayShort,
   weekOf,
   withoutBirthDateNote,
+  withoutSeparators,
 };
