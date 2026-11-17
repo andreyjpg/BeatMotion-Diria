@@ -7,11 +7,13 @@ import Card from "@/components/ui/Card";
 import Chip, { statusTone } from "@/components/ui/Chip";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { formatCourseSchedule, formatShortDate, standingLabel } from "@/constants/helpers";
+import { formatCourseSchedule, formatDayMonth, formatShortDate, standingLabel } from "@/constants/helpers";
 import { useRefreshAttendance } from "@/hooks/attendance/useRefreshAttendance";
 import { useBranches } from "@/hooks/branches/useBranches";
 import { hasClassDates, type ProgressBlockState } from "@/hooks/courses/courseProgress";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
+import { leavingDateOf, scheduledChangeOf } from "@/hooks/membership/membershipRules";
+import { useMembershipChanges } from "@/hooks/membership/useMembershipChanges";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useRouter } from "expo-router";
 import { FlatList, RefreshControl, View } from "react-native";
@@ -45,10 +47,12 @@ const MyCourses = () => {
   const { user: activeUser } = useActiveUser();
   const userId = activeUser?.uid ?? "";
   const myCoursesQuery = useCoursesByUserMember(userId);
+  const changesQuery = useMembershipChanges(userId);
   const branchesQuery = useBranches();
   const refreshAttendance = useRefreshAttendance();
 
   const courses = myCoursesQuery.data ?? [];
+  const change = scheduledChangeOf(changesQuery.data);
   const nextPayment = courses
     .map((course) => course.nextPaymentDate)
     .filter((date): date is Date => date instanceof Date)
@@ -91,6 +95,7 @@ const MyCourses = () => {
                 refreshing={isRefetching}
                 onRefresh={() => {
                   refetch();
+                  changesQuery.refetch();
                   // Each card's progress loads its own attendance.
                   refreshAttendance();
                 }}
@@ -102,20 +107,38 @@ const MyCourses = () => {
               const when = [formatCourseSchedule(course.day, course.startTime, course.endTime), branch?.name]
                 .filter(Boolean)
                 .join(" · ");
+              // Until then the student keeps attending; on that day the course leaves this list.
+              const leavesOn = leavingDateOf(course.courseId, change);
+              const leavingLabel = leavesOn ? `Baja el ${formatDayMonth(leavesOn)}` : null;
               return (
                 <Card
                   onPress={() => handleClickCourse(course.courseId)}
-                  accessibilityLabel={`${course.title}, pago ${standingLabel[course.paymentStatus] ?? ""}`}
+                  accessibilityLabel={[
+                    `${course.title}, pago ${standingLabel[course.paymentStatus] ?? ""}`,
+                    leavingLabel,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
                   className="gap-2.5"
                 >
                   <View className="flex-row items-start justify-between gap-2.5">
                     <AppText variant="bold" className="flex-1 text-[18px] leading-[22px]">
                       {course.title}
                     </AppText>
-                    <Chip
-                      label={standingLabel[course.paymentStatus] ?? course.paymentStatus}
-                      tone={statusTone(course.paymentStatus)}
-                    />
+                    {/* Each chip in its own View: Chip is self-start, which would pull it left. */}
+                    <View className="items-end gap-1">
+                      <View>
+                        <Chip
+                          label={standingLabel[course.paymentStatus] ?? course.paymentStatus}
+                          tone={statusTone(course.paymentStatus)}
+                        />
+                      </View>
+                      {leavingLabel && (
+                        <View>
+                          <Chip label={leavingLabel} tone="pending" />
+                        </View>
+                      )}
+                    </View>
                   </View>
                   {!!when && (
                     <AppText tone="muted" className="text-[14px]" numberOfLines={1}>

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
 import type { PickedImage } from "../storage/compressImage";
 import { removeUnusedReceipt, uploadReceipt } from "../storage/receiptStorage";
+import { ENROLLMENT_ERROR_MESSAGES } from "./schema";
 
 type CreateEnrollmentInput = {
   courseIds: string[];
@@ -46,17 +47,14 @@ export const useCreateEnrollment = () => {
       queryClient.invalidateQueries({ queryKey: ["annualFeeDue"] });
     },
     onError: (error) => {
-      console.error("Error creating enrollment:", error);
       // A course may have been removed while the screen was open.
       queryClient.invalidateQueries({ queryKey: ["courses"] });
-      Alert.alert(
-        "Error",
-        isUniqueViolation(error)
-          ? "Ya tienes una matrícula activa o pendiente en uno de esos cursos."
-          : error.message === "COURSE_NOT_AVAILABLE"
-            ? "Uno de los cursos ya no está disponible. Actualiza la lista e intenta de nuevo."
-            : "No se pudo enviar la matrícula. Intenta de nuevo."
-      );
+      const expected = isUniqueViolation(error)
+        ? "Ya tienes una matrícula activa o pendiente en uno de esos cursos."
+        : ENROLLMENT_ERROR_MESSAGES[error.message];
+      if (expected) console.warn("Enrollment refused:", error.message);
+      else console.error("Error creating enrollment:", error);
+      Alert.alert("Error", expected ?? "No se pudo enviar la matrícula. Intenta de nuevo.");
     },
   });
 };

@@ -5,6 +5,7 @@ import RulesStep from "@/components/enrollment/RulesStep";
 import { pickImage, RECEIPT_PERMISSION_MESSAGE } from "@/components/pickImage";
 import { monthlyFareFor, plural } from "@/constants/helpers";
 import { useCoursesAvailable } from "@/hooks/courses/useCoursesAvailable";
+import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
 import { useCreateEnrollment } from "@/hooks/enrollment/useCreateEnrollment";
 import { useEnrollmentByUserId } from "@/hooks/enrollment/useEnrollmentByUserId";
 import { useFares } from "@/hooks/fares/useFares";
@@ -21,6 +22,7 @@ const CreateEnrollment = () => {
   const { user } = useActiveUser();
   const createEnrollment = useCreateEnrollment();
   const coursesQuery = useCoursesAvailable();
+  const myCoursesQuery = useCoursesByUserMember(user?.uid ?? "");
   const enrollmentsQuery = useEnrollmentByUserId(user?.uid);
   const annualFeeQuery = useAnnualFeeDue(user?.uid);
   const faresQuery = useFares();
@@ -32,8 +34,15 @@ const CreateEnrollment = () => {
   // What was sent: sending refreshes the enrollments, which would change the totals.
   const [sent, setSent] = useState<{ courseTitles: string[]; total: number; at: Date } | null>(null);
 
-  // Pending requests count too: they can't be requested twice.
-  const enrolledCourseIds = (enrollmentsQuery.data ?? []).flatMap((e) => e.courseIds);
+  // The courses the student is in now (active memberships) and the ones in a
+  // pending request: those can't be asked for twice, and the fare difference
+  // starts from them. A course they left (a drop or cancel) can be picked again.
+  const pendingCourseIds = (enrollmentsQuery.data ?? [])
+    .filter((enrollment) => enrollment.status === "pending")
+    .flatMap((enrollment) => enrollment.courseIds);
+  const enrolledCourseIds = [
+    ...new Set([...(myCoursesQuery.data ?? []).map((course) => course.courseId), ...pendingCourseIds]),
+  ];
 
   // Without fares every price is 0; never let a request go out like that.
   const faresReady = (faresQuery.data?.length ?? 0) > 0;
@@ -51,7 +60,7 @@ const CreateEnrollment = () => {
   // Plan Diriá covers any number of courses: adding one may cost nothing.
   const needsReceipt = totalAmount > 0;
 
-  const pricesReady = annualFeeQuery.isSuccess && faresReady;
+  const pricesReady = annualFeeQuery.isSuccess && faresReady && myCoursesQuery.isSuccess;
   const selectedTitles = (coursesQuery.data ?? [])
     .filter((course) => selectedCourses.includes(course.id))
     .map((course) => course.title);

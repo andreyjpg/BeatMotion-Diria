@@ -23,6 +23,8 @@ import { useBranches } from "@/hooks/branches/useBranches";
 import { useActiveClasses } from "@/hooks/classes/useActiveClasses";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
 import { useFares } from "@/hooks/fares/useFares";
+import { coursesContinuingOn, earliestPaymentDate, scheduledChangeOf } from "@/hooks/membership/membershipRules";
+import { useMembershipChanges } from "@/hooks/membership/useMembershipChanges";
 import { useAnnualFeeDue } from "@/hooks/payment/useAnnualFeeDue";
 import { usePaymentsByUser } from "@/hooks/payment/usePaymentsByUser";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
@@ -42,6 +44,7 @@ const HomeUser = () => {
   const router = useRouter();
   const { user } = useActiveUser();
   const coursesQuery = useCoursesByUserMember(user?.uid ?? "");
+  const changesQuery = useMembershipChanges(user?.uid);
   const classesQuery = useActiveClasses();
   const paymentsQuery = usePaymentsByUser(user?.uid);
   const annualFeeQuery = useAnnualFeeDue(user?.uid);
@@ -56,6 +59,7 @@ const HomeUser = () => {
   const refreshing = coursesQuery.isRefetching || paymentsQuery.isRefetching;
   const refresh = () => {
     coursesQuery.refetch();
+    changesQuery.refetch();
     paymentsQuery.refetch();
     classesQuery.refetch();
   };
@@ -137,20 +141,26 @@ const HomeUser = () => {
   const nextClass = todayClass ? undefined : myClasses.find((cls) => (cls.date ?? "") > todayKey);
   const courseTitle = (courseId: string) => courses.find((c) => c.courseId === courseId)?.title ?? "";
 
-  // Same total as the payment screen: monthly fare + late fee + annual fee when due.
-  const dueDate =
-    courses
-      .map((course) => course.nextPaymentDate)
-      .filter((date): date is Date => date instanceof Date)
-      .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
-  const owes = courses.some((course) => course.paymentStatus !== "ok");
+  // Same total as the payment screen: monthly fare + late fee + annual fee when due,
+  // for the courses that still pay that due date (not those leaving by then).
+  const change = scheduledChangeOf(changesQuery.data);
+  const dueDate = earliestPaymentDate(courses);
+  const payingCourses = coursesContinuingOn(courses, change, dueDate);
+  const monthCourses = payingCourses.length > 0 ? payingCourses : courses;
+  const cancelDate = change?.kind === "cancel" ? change.effectiveDate : null;
+  const owes = payingCourses.some((course) => course.paymentStatus !== "ok");
   const isLate = courses.some((course) => course.paymentStatus === "late");
   const inReview = paymentsQuery.data?.some((payment) => payment.status === "pending") ?? false;
   const annualFare = faresQuery.data?.find((f) => f.type === "annual")?.fare ?? 0;
   const total =
-    monthlyFareFor(faresQuery.data, courses.length) +
+    monthlyFareFor(faresQuery.data, payingCourses.length) +
     lateFeeFor(faresQuery.data, dueDate).amount +
     (annualFeeQuery.data ? annualFare : 0);
+  const upToDateText = cancelDate
+    ? `Membresía termina el ${formatShortDate(cancelDate).toLowerCase()}`
+    : dueDate
+      ? `Próximo pago el ${formatShortDate(dueDate).toLowerCase()}`
+      : "No debes nada";
 
   const payment: { label: string; tone: ChipTone; text: string } = inReview
     ? { label: "En revisión", tone: "pending", text: "Recibimos tu comprobante y lo estamos revisando." }
@@ -158,7 +168,7 @@ const HomeUser = () => {
       ? { label: "Atrasado", tone: "late", text: dueDate ? `Venció el ${formatShortDate(dueDate).toLowerCase()}` : "Pago atrasado" }
       : owes
         ? { label: "Pendiente", tone: "pending", text: dueDate ? `Vence el ${formatShortDate(dueDate).toLowerCase()}` : "Pago pendiente" }
-        : { label: "Al día", tone: "ok", text: dueDate ? `Próximo pago el ${formatShortDate(dueDate).toLowerCase()}` : "No debes nada" };
+        : { label: "Al día", tone: "ok", text: upToDateText };
   const mustPay = owes && !inReview;
 
   return (
@@ -210,10 +220,10 @@ const HomeUser = () => {
         <View className="flex-row items-end justify-between gap-3">
           <View className="flex-1">
             <AppText variant="bold" className="text-[16px]">
-              {courses.length === 1 ? "1 curso este mes" : `${courses.length} cursos este mes`}
+              {monthCourses.length === 1 ? "1 curso este mes" : `${monthCourses.length} cursos este mes`}
             </AppText>
             <AppText tone="muted" className="mt-0.5 text-[13.5px]" numberOfLines={1}>
-              {courses.map((c) => c.title).join(" + ")}
+              {monthCourses.map((c) => c.title).join(" + ")}
             </AppText>
           </View>
           {mustPay && faresQuery.isSuccess && (

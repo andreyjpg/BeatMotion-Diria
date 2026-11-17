@@ -1,4 +1,5 @@
 import DataLoader from "@/components/DataLoader";
+import MembershipEntryCard from "@/components/membership/MembershipEntryCard";
 import TransferDetails from "@/components/payments/TransferDetails";
 import { pickImage, RECEIPT_PERMISSION_MESSAGE } from "@/components/pickImage";
 import AmountRow from "@/components/ui/AmountRow";
@@ -21,6 +22,8 @@ import {
 import palette from "@/constants/palette.json";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
 import { useFares } from "@/hooks/fares/useFares";
+import { coursesContinuingOn, earliestPaymentDate, scheduledChangeOf } from "@/hooks/membership/membershipRules";
+import { useMembershipChanges } from "@/hooks/membership/useMembershipChanges";
 import { useAnnualFeeDue } from "@/hooks/payment/useAnnualFeeDue";
 import { useCreatePayment } from "@/hooks/payment/useCreatePayment";
 import { usePaymentsByUser } from "@/hooks/payment/usePaymentsByUser";
@@ -38,29 +41,38 @@ const dueChip = (daysToDue: number): { label: string; tone: ChipTone } => {
   return { label: `Atrasado ${-daysToDue} d`, tone: "late" };
 };
 
+/** Under "Estás al día": the next due date, and when the membership ends if a cancel is scheduled. */
+const upToDateMessage = (dueDate: Date | null, cancelDate: Date | null) => {
+  const endsText = cancelDate ? `Tu membresía termina el ${formatLongDate(cancelDate)}.` : "";
+  const endsFirst = !!cancelDate && !!dueDate && cancelDate.getTime() <= dueDate.getTime();
+  if (!dueDate || endsFirst) return endsText || "No tienes pagos pendientes.";
+  return `Tu próximo pago vence el ${formatLongDate(dueDate)}.${endsText ? ` ${endsText}` : ""}`;
+};
+
 /** "Por pagar": this month's amount, how it adds up, and sending the receipt. */
 const Detail = () => {
   const { user } = useActiveUser();
   const faresQuery = useFares();
   const coursesQuery = useCoursesByUserMember(user?.uid ?? "");
+  const changesQuery = useMembershipChanges(user?.uid);
   const paymentsQuery = usePaymentsByUser(user?.uid);
   const annualFeeQuery = useAnnualFeeDue(user?.uid);
   const createPayment = useCreatePayment();
   const [receipt, setReceipt] = useState<PickedImage | null>(null);
 
   const courses = coursesQuery.data ?? [];
+  const change = scheduledChangeOf(changesQuery.data);
   // New courses share the student's existing due date, so the earliest one is
   // the date for the whole monthly payment.
-  const dueDate =
-    courses
-      .map((course) => course.nextPaymentDate)
-      .filter((date): date is Date => date instanceof Date)
-      .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
-  const owesPayment = courses.some((course) => course.paymentStatus !== "ok");
+  const dueDate = earliestPaymentDate(courses);
+  // A course whose scheduled drop or cancel starts on or before that date isn't charged it.
+  const payingCourses = coursesContinuingOn(courses, change, dueDate);
+  const owesPayment = payingCourses.some((course) => course.paymentStatus !== "ok");
+  const cancelDate = change?.kind === "cancel" ? change.effectiveDate : null;
 
   // Without fares every price is 0; never let a payment go out like that.
   const faresReady = (faresQuery.data?.length ?? 0) > 0;
-  const monthlyFare = monthlyFareFor(faresQuery.data, courses.length);
+  const monthlyFare = monthlyFareFor(faresQuery.data, payingCourses.length);
   const lateFee = lateFeeFor(faresQuery.data, dueDate);
   const shouldChargeAnnualFee = annualFeeQuery.data ?? false;
   const annualFare =
@@ -79,7 +91,7 @@ const Detail = () => {
     if (!receipt) return;
     try {
       await createPayment.mutateAsync({
-        courseIds: courses.map((course) => course.courseId),
+        courseIds: payingCourses.map((course) => course.courseId),
         receipt,
         monthlyFare,
         lateFare: lateFee.amount,
@@ -95,6 +107,7 @@ const Detail = () => {
 
   const refresh = () => {
     coursesQuery.refetch();
+    changesQuery.refetch();
     paymentsQuery.refetch();
     faresQuery.refetch();
     annualFeeQuery.refetch();
@@ -102,7 +115,7 @@ const Detail = () => {
 
   return (
     <DataLoader query={coursesQuery} emptyMessage="No tienes pagos pendientes.">
-      {(myCourses) => (
+      {() => (
         <ScrollView
           contentContainerClassName="pb-8"
           showsVerticalScrollIndicator={false}
@@ -117,9 +130,7 @@ const Detail = () => {
                 Estás al día
               </AppText>
               <AppText tone="muted" className="text-center text-[14.5px] leading-[20px]">
-                {dueDate
-                  ? `Tu próximo pago vence el ${formatLongDate(dueDate)}.`
-                  : "No tienes pagos pendientes."}
+                {upToDateMessage(dueDate, cancelDate)}
               </AppText>
             </View>
           ) : (
@@ -143,7 +154,7 @@ const Detail = () => {
 
               <Card padded={false} className="mx-3 mt-2.5 px-4 pb-1">
                 <AmountRow
-                  label={`${planName(myCourses.length)} · ${myCourses.map((course) => course.title).join(" + ")}`}
+                  label={`${planName(payingCourses.length)} · ${payingCourses.map((course) => course.title).join(" + ")}`}
                   amount={monthlyFare}
                 />
                 <AmountRow
@@ -212,6 +223,8 @@ const Detail = () => {
                       !receipt ||
                       !paymentsQuery.isSuccess ||
                       !annualFeeQuery.isSuccess ||
+                      // The amount leaves out courses whose drop starts first.
+                      !changesQuery.isSuccess ||
                       !faresReady
                     }
                     className="mx-3 mt-2.5"
@@ -220,6 +233,7 @@ const Detail = () => {
               )}
             </>
           )}
+          <MembershipEntryCard className={owesPayment ? "mx-3 mt-2.5" : "mx-3 mt-8"} />
         </ScrollView>
       )}
     </DataLoader>

@@ -323,6 +323,12 @@ export const helpPaymentFormSchema = yup.object({
     .max(500, "El mensaje no puede superar 500 caracteres."),
 });
 
+// The optional reason of a drop or cancel (app/private/user/membership).
+// Same limit as membership_changes.reason.
+export const membershipChangeFormSchema = yup.object({
+  reason: yup.string().trim().max(500, "El motivo no puede superar 500 caracteres."),
+});
+
 // Limits match the database constraints on public.branches.
 export const branchFormSchema = yup.object({
   name: yup

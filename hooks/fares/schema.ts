@@ -10,4 +10,7 @@ const FareSchema = zod.array(
   })
 );
 
+/** A row of public.fares as the app reads it (useFares). */
+export type Fare = zod.infer<typeof FareSchema>[number];
+
 export { FareSchema };

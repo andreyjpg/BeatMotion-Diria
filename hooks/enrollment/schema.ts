@@ -4,6 +4,12 @@ import { dateTimeSchema } from "../common/schema";
 export const reviewStatusSchema = zod.enum(["pending", "approved", "rejected"]);
 export type ReviewStatus = zod.infer<typeof reviewStatusSchema>;
 
+/** Codes request_enrollment raises (P0001, the code is the message), in Spanish. */
+export const ENROLLMENT_ERROR_MESSAGES: Record<string, string> = {
+  COURSE_NOT_AVAILABLE: "Uno de los cursos ya no está disponible. Actualiza la lista e intenta de nuevo.",
+  CANCEL_SCHEDULED: "Tienes una cancelación programada. Deshazla para matricularte.",
+};
+
 /**
  * public.enrollments columns renamed to the fields the app uses. An enrollment
  * is one request (receipt, total, status) for one or more courses

@@ -391,6 +391,10 @@ const withoutSeparators = (value: string) => value.replace(/[\s-]/g, "");
 /** "1 curso", "3 cursos". */
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** ["Salsa", "Bachata", "Swing"] -> "Salsa, Bachata y Swing" (course titles in a sentence). */
+const joinWithAnd = (items: string[]) =>
+  items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+
 /** "Lun" for a date. */
 const weekdayShort = (date: Date) => WEEKDAYS_SHORT[date.getDay()];
 
@@ -635,6 +639,7 @@ export {
   initials,
   isAnnualFeeExemptMonth,
   isUniqueViolation,
+  joinWithAnd,
   lastDayWithoutLateFee,
   lateFeeFor,
   lateFeePerDay,

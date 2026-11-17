@@ -83,6 +83,19 @@ const PrivateLayout = () => {
           name="user/attendance/rsvp"
           options={{ headerShown: false }}
         />
+        {/* Mi membresía: dropping courses or canceling */}
+        <Stack.Screen
+          name="user/membership/index"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="user/membership/drop"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="user/membership/cancel"
+          options={{ headerShown: false }}
+        />
       </Stack>
       <PrivacyConsentModal
         visible={userData !== undefined && userData.consentAccepted !== true}
