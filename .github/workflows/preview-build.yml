@@ -1,4 +1,13 @@
-name: Preview Build (develop → TestFlight + Android Internal)
+name: Preview Build (dev → TestFlight + Android Internal)
+
+# Starts the EAS builds and returns: EAS builds both platforms in the cloud
+# and submits each one when it finishes (--auto-submit uses the "preview"
+# submit profile in eas.json), so GitHub doesn't wait (and spend minutes) on
+# them. Follow the builds on expo.dev.
+#
+# The app's settings come from the EAS "preview" environment (eas.json):
+# EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY must be set
+# there (expo.dev → project → Environment variables).
 
 on:
   pull_request:
@@ -6,10 +15,11 @@ on:
       - dev
     types:
       - closed
+  workflow_dispatch:
 
 jobs:
   build-preview:
-    if: github.event.pull_request.merged == true
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     name: EAS Build Preview
     runs-on: ubuntu-latest
 
@@ -20,9 +30,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: "npm"
 
+      # eas reads app.config.js, which needs the project's packages.
       - name: Install dependencies
         run: npm ci
 
@@ -32,14 +43,5 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build iOS Preview
-        run: eas build --platform ios --profile preview --non-interactive
-
-      - name: Build Android Preview
-        run: eas build --platform android --profile preview --non-interactive
-
-      - name: Submit iOS to TestFlight
-        run: eas submit --platform ios --profile preview --non-interactive
-
-      - name: Submit Android to Internal Track
-        run: eas submit --platform android --profile preview --non-interactive
+      - name: Build and submit (iOS + Android)
+        run: eas build --platform all --profile preview --non-interactive --no-wait --auto-submit

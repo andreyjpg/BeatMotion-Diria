@@ -1,83 +1,60 @@
-import { auth, firestore } from "@/firebaseConfig";
-import { Stack, router } from "expo-router";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import AppText from "@/components/ui/AppText";
+import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { Redirect, Stack } from "expo-router";
+import { View } from "react-native";
 
-export default function AdminLayout() {
-  const [allowed, setAllowed] = useState<null | boolean>(null);
+// Admins only: creating and editing courses, classes and the rest. Teachers
+// have their own read-only screens in app/private/teacher. This only hides
+// screens: what each role may actually change is enforced by the database's
+// access rules.
+const AdminLayout = () => {
+  const { user, isLoading } = useActiveUser();
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (!u) {
-        setAllowed(false);
-        router.replace("/public/login");
-        return;
-      }
-      const snap = await getDoc(doc(firestore, "users", u.uid));
-      const role = snap.exists() ? (snap.data() as any).role : "user";
-      const isAdmin = role === "admin" || role === "teacher";
-      setAllowed(isAdmin);
-      if (!isAdmin) router.replace("/private/home");
-    });
-    return () => unsub();
-  }, []);
-
-  if (allowed === null) {
+  if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-black">
-        <Text className="text-white">Cargando acceso...</Text>
+      <View className="flex-1 items-center justify-center bg-ground">
+        <AppText tone="faint" className="text-[14px]">
+          Cargando acceso…
+        </AppText>
       </View>
     );
   }
+  if (!user) return <Redirect href="/public/login" />;
+  if (user.role !== "admin") return <Redirect href="/private/home" />;
 
   return (
-    <Stack initialRouteName="coursesMenu">
+    <Stack>
       {/* Menú principal sin colisiones */}
-      <Stack.Screen
-        name="users"
-        options={{ title: "Users", headerShown: false }}
-      />
       <Stack.Screen
         name="user/[uid]"
         options={{ title: "Users", headerShown: false }}
       />
-      <Stack.Screen
-        name="coursesMenu"
-        options={{ title: "Cursos", headerShown: false }}
-      />
-      <Stack.Screen
-        name="user/dataUsersComparison"
-        options={{
-          title: "Estadisticas",
-          headerShown: true,
-          headerStyle: { backgroundColor: "#000" },
-          headerTintColor: "#fff",
-        }}
-      />
 
+      {/* Membresía de un estudiante: pausar, dar de baja, cancelar */}
       <Stack.Screen
-        name="user/progress"
-        options={{
-          title: "Estudiante",
-          headerShown: true,
-          headerStyle: { backgroundColor: "#000" },
-          headerTintColor: "#fff",
-        }}
+        name="membership/[uid]/pause"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="membership/[uid]/drop"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="membership/[uid]/cancel"
+        options={{ headerShown: false }}
       />
 
       {/* Cursos */}
-      <Stack.Screen
-        name="courses/list"
-        options={{ title: "Ver cursos", headerShown: false }}
-      />
       <Stack.Screen
         name="courses/new"
         options={{ title: "Nuevo curso", headerShown: false }}
       />
       <Stack.Screen
         name="courses/[id]"
+        options={{ title: "Curso", headerShown: false }}
+      />
+      <Stack.Screen
+        name="courses/edit/[id]"
         options={{ title: "Editar curso", headerShown: false }}
       />
 
@@ -92,13 +69,17 @@ export default function AdminLayout() {
       />
       <Stack.Screen
         name="events/[id]"
+        options={{ title: "Evento", headerShown: false }}
+      />
+      <Stack.Screen
+        name="events/edit/[id]"
         options={{ title: "Editar evento", headerShown: false }}
       />
 
       {/* Clases */}
       <Stack.Screen
-        name="classes/list"
-        options={{ title: "Ver clases", headerShown: false }}
+        name="classes/index"
+        options={{ title: "Clases", headerShown: false }}
       />
       <Stack.Screen
         name="classes/new"
@@ -108,14 +89,20 @@ export default function AdminLayout() {
         name="classes/[id]"
         options={{ title: "Editar clase", headerShown: false }}
       />
+
+      {/* Cobros */}
       <Stack.Screen
-        name="attendance/[courseId]/[classId]/attendance"
+        name="payments/[paymentId]"
         options={{ headerShown: false }}
       />
 
       {/* Matriculas */}
       <Stack.Screen
         name="enrollments/enrollmentList"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="enrollments/[enrollmentId]"
         options={{ headerShown: false }}
       />
 
@@ -128,10 +115,7 @@ export default function AdminLayout() {
         name="notifications/[draftId]"
         options={{ headerShown: false }}
       />
-      <Stack.Screen
-        name="notifications/notificationsHistory"
-        options={{ headerShown: false }}
-      />
+      <Stack.Screen name="Dashboard" options={{ headerShown: false }} />
       <Stack.Screen
         name="surveys/list"
         options={{
@@ -140,12 +124,6 @@ export default function AdminLayout() {
         }}
       />
       {/* Encuestas*/}
-      <Stack.Screen
-        name="user/surveys/list"
-        options={{
-          headerShown: false,
-        }}
-      />
       {/* Encuestas*/}
       <Stack.Screen
         name="surveys/create"
@@ -156,24 +134,12 @@ export default function AdminLayout() {
         }}
       />
       <Stack.Screen
-        name="surveys/edit/[surveyId]"
-        options={{
-          headerShown: false,
-          title: "Editar Encuesta",
-        }}
-      />
-      <Stack.Screen
         name="surveys/results/[surveyId]"
         options={{
           headerShown: false,
           title: "Resultados de Encuesta",
         }}
       />
-      <Stack.Screen
-        name="payment/paymentCenter"
-        options={{ headerShown: false }}
-      />
-
       {/* Reports */}
       <Stack.Screen
         name="reports/index"
@@ -195,4 +161,6 @@ export default function AdminLayout() {
       />
     </Stack>
   );
-}
+};
+
+export default AdminLayout;

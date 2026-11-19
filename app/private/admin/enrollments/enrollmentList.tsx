@@ -1,279 +1,147 @@
 import DataLoader from "@/components/DataLoader";
-import FilterPills from "@/components/FilterPills";
-import HeaderTitle from "@/components/headerTitle";
-import ImageModal from "@/components/ImageModal";
-import PhotoCard from "@/components/PhotoCard";
-import {
-  formatCurrency,
-  getEnrollmentColor,
-  statusTranslations,
-} from "@/constants/helpers";
-import { useBranches } from "@/hooks/branches/useBranches";
-import { useCourses } from "@/hooks/courses/useCourses";
-import { Enrollment as Enrollmentype } from "@/hooks/enrollment/schema";
+import AppText from "@/components/ui/AppText";
+import Card from "@/components/ui/Card";
+import Chip, { type ChipTone } from "@/components/ui/Chip";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import SegmentedControl from "@/components/ui/SegmentedControl";
+import { ageOrNoAge, formatCurrency, formatDayMonth } from "@/constants/helpers";
+import palette from "@/constants/palette.json";
+import type { EnrollmentDetail, ReviewStatus } from "@/hooks/enrollment/schema";
+import { useEnrollmentCount } from "@/hooks/enrollment/useEnrollmentCount";
 import { useEnrollmentsByStatus } from "@/hooks/enrollment/useEnrollmentsByStatus";
-import { useUpdateEnrollment } from "@/hooks/enrollment/useUpdateEnrollment";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Alert,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native";
 
-const FILTER_OPTIONS = [
-  { label: "Pendientes", value: "pending" },
-  { label: "Aceptadas", value: "approved" },
-  { label: "Rechazadas", value: "rejected" },
+const SEGMENTS: { value: ReviewStatus; label: string }[] = [
+  { value: "pending", label: "Pendientes" },
+  { value: "approved", label: "Aceptadas" },
+  { value: "rejected", label: "Rechazadas" },
 ];
 
-const statusBg: Record<string, string> = {
-  pending: "bg-yellow-950",
-  approved: "bg-green-950",
-  rejected: "bg-red-950",
+const EMPTY: Record<ReviewStatus, string> = {
+  pending: "No hay matrículas por revisar.",
+  approved: "Todavía no hay matrículas aceptadas.",
+  rejected: "No hay matrículas rechazadas.",
 };
 
+const STATUS_CHIP: Record<ReviewStatus, { label: string; tone: ChipTone }> = {
+  pending: { label: "Pendiente", tone: "pending" },
+  approved: { label: "Aceptada", tone: "ok" },
+  rejected: { label: "Rechazada", tone: "muted" },
+};
+
+const studentName = (enrollment: EnrollmentDetail) =>
+  enrollment.user ? `${enrollment.user.name} ${enrollment.user.lastName}`.trim() : "Estudiante";
+
+/** Card footer: the student's age and when the request was sent (or assigned by an admin). */
+const enrollmentMeta = (enrollment: EnrollmentDetail) => {
+  const sent = `${enrollment.source === "manual" ? "Asignada" : "Enviada"} ${formatDayMonth(enrollment.submittedAt)}`;
+  return `${ageOrNoAge(enrollment.user?.birthDate)} · ${sent}`;
+};
+
+/** Admin: the students' enrollment requests, by review status. */
 const EnrollmentList = () => {
-  const [statusFilter, setStatusFilter] = useState<string>("pending");
-  const enrollmentByStatusQuery = useEnrollmentsByStatus(statusFilter);
-
   const router = useRouter();
-  const [imageSelected, setImageSelected] = useState<string>("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const updateEnrollment = useUpdateEnrollment();
-  const { user: activeUser } = useActiveUser();
-  const coursesQuery = useCourses();
-  const branchesQuery = useBranches();
+  const [status, setStatus] = useState<ReviewStatus>("pending");
+  const enrollmentsQuery = useEnrollmentsByStatus(status);
+  const pendingCount = useEnrollmentCount("pending");
+  const approvedCount = useEnrollmentCount("approved");
+  const rejectedCount = useEnrollmentCount("rejected");
 
-  const handleFilterChange = (value: string) => {
-    setStatusFilter(value);
+  const counts: Record<ReviewStatus, number | undefined> = {
+    pending: pendingCount.data,
+    approved: approvedCount.data,
+    rejected: rejectedCount.data,
   };
+  const count = counts[status];
+  const subtitle =
+    count === undefined
+      ? undefined
+      : status === "pending"
+        ? count === 0
+          ? "Nada por revisar"
+          : `${count} ${count === 1 ? "solicitud espera" : "solicitudes esperan"} revisión`
+        : `${count} ${count === 1 ? "matrícula" : "matrículas"} ${
+            status === "approved" ? (count === 1 ? "aceptada" : "aceptadas") : count === 1 ? "rechazada" : "rechazadas"
+          }`;
 
-  const handleViewUserProfile = (userId: string) => {
-    router.push(`/private/admin/user/${userId}`);
-  };
-
-  const handleViewCourseDetails = (courseId: string) => {
-    router.push(`/private/admin/courses/${courseId}`);
-  };
-
-  const handleClickOption = async (
-    enrollment: Enrollmentype,
-    action: "approve" | "reject",
-  ) => {
-    const { course, user, ...rest } = enrollment;
-    try {
-      await updateEnrollment.mutateAsync({
-        ...rest,
-        status: action === "approve" ? "approved" : "rejected",
-        reviewedBy: activeUser?.uid || null,
-      });
-      Alert.alert("Matrícula actualizada");
-    } catch (error: any) {
-      Alert.alert("Error updating enrollment:", error.message);
-    }
-  };
-
-  const handleConfirmationEnrollment = (
-    enrollment: Enrollmentype,
-    action: "approve" | "reject",
-  ) => {
-    Alert.alert(
-      `Confirmar ${action === "approve" ? "aprobar" : "rechazar"}`,
-      `¿Estás seguro de que deseas ${
-        action === "approve" ? "aprobar" : "rechazar"
-      } la matrícula de ${enrollment.user?.name} ${enrollment.user?.lastName}?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Confirmar",
-          onPress: () => handleClickOption(enrollment, action),
-        },
-      ],
-    );
+  const refresh = () => {
+    enrollmentsQuery.refetch();
+    pendingCount.refetch();
+    approvedCount.refetch();
+    rejectedCount.refetch();
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-950">
-      <HeaderTitle title="Centro de Matriculas" />
-      <View className="items-center mb-2">
-        <FilterPills
-          options={FILTER_OPTIONS}
-          onSelect={handleFilterChange}
-          selected={statusFilter}
-        />
-      </View>
-      <DataLoader
-        query={enrollmentByStatusQuery}
-        emptyMessage="No existen matriculas"
-      >
-        {(data, isRefetching, refetch) => (
+    <Screen scroll={false}>
+      <ScreenHeader eyebrow="Administración" title="Matrículas" subtitle={subtitle} />
+      <SegmentedControl
+        segments={SEGMENTS.map((segment) => ({ ...segment, count: counts[segment.value] }))}
+        value={status}
+        onChange={setStatus}
+        accessibilityLabel="Estado de las matrículas"
+        className="mx-5 mt-4"
+      />
+      <DataLoader query={enrollmentsQuery} emptyMessage={EMPTY[status]}>
+        {(data, isRefetching) => (
           <FlatList
             data={data}
             keyExtractor={(item) => item.id}
-            numColumns={1}
-            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefetching}
-                onRefresh={refetch}
-                tintColor="#facc15"
-              />
-            }
-            renderItem={({ item }) => {
-              const fullCourse = coursesQuery.data?.find(
-                (c) => c.id === item.course?.id,
-              );
-              const branch = fullCourse?.branchId
-                ? branchesQuery.data?.find((b) => b.id === fullCourse.branchId)
-                : undefined;
-              return (
-                <View className="mb-3">
-                  <PhotoCard
-                    image={item.paymentProofImage || ""}
-                    item={item}
-                    onClickImage={(url) => {
-                      setImageSelected(url);
-                      setIsModalOpen(true);
-                    }}
-                    showStatusApprovement
-                    onConfirmation={(i, action) =>
-                      handleConfirmationEnrollment(i, action)
-                    }
-                  >
-                    <View className="gap-3">
-                      {/* Student */}
-                      <Pressable
-                        onPress={() =>
-                          handleViewUserProfile(item.user?.id || "")
-                        }
-                      >
-                        <View className="flex-row items-center gap-2">
-                          <Ionicons
-                            name="person-circle-outline"
-                            size={20}
-                            color="turquoise"
-                          />
-                          <Text className="text-primary text-lg font-bold">
-                            {item.user?.name} {item.user?.lastName}
-                          </Text>
-                        </View>
-                      </Pressable>
-
-                      <View className="h-px bg-gray-800" />
-
-                      {/* Course */}
-                      <View className="gap-1">
-                        <Pressable
-                          onPress={() =>
-                            handleViewCourseDetails(item.course?.id || "")
-                          }
-                        >
-                          <View className="flex-row items-center gap-2">
-                            <Ionicons
-                              name="school-outline"
-                              size={16}
-                              color="#9ca3af"
-                            />
-                            <Text className="text-white font-semibold">
-                              {item.course?.title}
-                            </Text>
-                          </View>
-                        </Pressable>
-                        {branch && (
-                          <View className="flex-row items-center gap-1 ml-6">
-                            <Ionicons
-                              name="business-outline"
-                              size={12}
-                              color="turquoise"
-                            />
-                            <Text className="text-primary text-xs">
-                              {branch.name}
-                            </Text>
-                          </View>
-                        )}
-                        {item.course?.day && (
-                          <View className="flex-row items-center gap-1 ml-6">
-                            <Ionicons
-                              name="calendar-outline"
-                              size={12}
-                              color="#6b7280"
-                            />
-                            <Text className="text-gray-500 text-xs capitalize">
-                              {item.course.day}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <View className="h-px bg-gray-800" />
-
-                      {/* Status + Amount */}
-                      <View className="flex-row items-center justify-between">
-                        <View
-                          className={`px-2 py-1 rounded-full ${statusBg[item.status]}`}
-                        >
-                          <Text
-                            className={`text-xs font-bold ${getEnrollmentColor(item.status)}`}
-                          >
-                            {statusTranslations[item.status]}
-                          </Text>
-                        </View>
-                        <View className="flex-row items-center gap-1">
-                          <Ionicons
-                            name="cash-outline"
-                            size={14}
-                            color="#9ca3af"
-                          />
-                          <Text className="text-white font-semibold">
-                            {formatCurrency(item.totalAmount)}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {/* Email + Date */}
-                      <View className="gap-1">
-                        <View className="flex-row items-center gap-2">
-                          <Ionicons
-                            name="mail-outline"
-                            size={13}
-                            color="#6b7280"
-                          />
-                          <Text className="text-gray-400 text-xs">
-                            {item.user?.email}
-                          </Text>
-                        </View>
-                        <View className="flex-row items-center gap-2">
-                          <Ionicons
-                            name="time-outline"
-                            size={13}
-                            color="#6b7280"
-                          />
-                          <Text className="text-gray-400 text-xs">
-                            {new Date(item.submittedAt).toLocaleDateString()}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </PhotoCard>
-                </View>
-              );
+            contentContainerClassName="gap-2 px-3 pb-8 pt-3.5"
+            showsVerticalScrollIndicator={false}
+            // Loads the next 20 when nearing the end of the list.
+            onEndReached={() => {
+              if (enrollmentsQuery.hasNextPage && !enrollmentsQuery.isFetchingNextPage) {
+                enrollmentsQuery.fetchNextPage();
+              }
             }}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              enrollmentsQuery.isFetchingNextPage ? <ActivityIndicator color={palette.faint} /> : undefined
+            }
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refresh} />}
+            renderItem={({ item }) => (
+              <Card
+                onPress={() =>
+                  router.push({
+                    pathname: "/private/admin/enrollments/[enrollmentId]",
+                    params: { enrollmentId: item.id, status },
+                  })
+                }
+                accessibilityLabel={`${studentName(item)}, ${formatCurrency(item.totalAmount)}, ${STATUS_CHIP[item.status].label}`}
+                padded={false}
+                className="gap-2 p-3.5"
+              >
+                <View className="flex-row items-baseline justify-between gap-2">
+                  <AppText variant="bold" className="flex-1 text-[16px]" numberOfLines={1}>
+                    {studentName(item)}
+                  </AppText>
+                  <AppText variant="heavy" className="text-[17px]">
+                    {formatCurrency(item.totalAmount)}
+                  </AppText>
+                </View>
+                <View className="flex-row flex-wrap gap-1.5">
+                  {item.courses.map((course) => (
+                    <Chip key={course.id} label={course.title} />
+                  ))}
+                </View>
+                <View className="flex-row items-center justify-between">
+                  <AppText variant="label" tone="muted" className="text-[10px]">
+                    {enrollmentMeta(item)}
+                  </AppText>
+                  <View>
+                    <Chip {...STATUS_CHIP[item.status]} />
+                  </View>
+                </View>
+              </Card>
+            )}
           />
         )}
       </DataLoader>
-      <ImageModal
-        isVisible={isModalOpen}
-        imageSelected={imageSelected}
-        toggleVisibility={() => setIsModalOpen(false)}
-      />
-    </SafeAreaView>
+    </Screen>
   );
 };
+
 export default EnrollmentList;

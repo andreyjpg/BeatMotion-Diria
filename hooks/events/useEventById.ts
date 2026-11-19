@@ -1,20 +1,22 @@
-import { useMemo } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { firestore } from "@/firebaseConfig";
-import { eventSchema, type Event } from "./schema";
+import { EVENT_COLUMNS, eventSchema, toEvent } from "./schema";
 
-const fetchEventById = async (id: string): Promise<Event | null> => {
-  const snap = await getDoc(doc(firestore, "events", id));
-  if (!snap.exists()) return null;
-  return eventSchema.parse({ id: snap.id, ...snap.data() });
-};
-
+/** One event, or null if it doesn't exist (or the user can't see it). */
 export const useEventById = (id?: string) => {
-  const enabled = useMemo(() => Boolean(id), [id]);
-  return useQuery<Event | null>({
-    queryKey: ["events", id],
-    queryFn: () => fetchEventById(id as string),
-    enabled,
+  const fetchEvent = async () => {
+    const { data, error } = await supabase
+      .from("events")
+      .select(EVENT_COLUMNS)
+      .eq("id", id!)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? eventSchema.parse(toEvent(data)) : null;
+  };
+
+  return useQuery({
+    queryKey: ["events", "byId", id],
+    queryFn: fetchEvent,
+    enabled: !!id,
   });
 };

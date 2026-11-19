@@ -1,29 +1,26 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { surveyListSchema } from "./surveySchema";
+import { SURVEY_LIST_COLUMNS, surveyWithCountListSchema, toSurvey } from "./surveySchema";
 
-const fetchSurveys = async () => {
-  try {
-    const q = query(
-      collection(firestore, "surveys"),
-      where("isDeleted", "==", false),
-    );
-    const snapshot = await getDocs(q);
-    const surveys = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    return surveyListSchema.parse(surveys);
-  } catch (error) {
-    console.error("Error fetching surveys:", error);
-    throw error;
-  }
-};
-
+/** Admin: every survey that isn't deleted, newest first, with its response count. */
 export const useSurveys = () => {
+  const fetchSurveys = async () => {
+    const { data, error } = await supabase
+      .from("surveys")
+      .select(SURVEY_LIST_COLUMNS)
+      .eq("is_deleted", false)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return surveyWithCountListSchema.parse(
+      data.map(({ responses, ...survey }) => ({
+        ...toSurvey(survey),
+        responseCount: responses[0]?.count ?? 0,
+      })),
+    );
+  };
+
   return useQuery({
-    queryKey: ["surveys"],
+    queryKey: ["surveys", "list"],
     queryFn: fetchSurveys,
     staleTime: 1000 * 60 * 5,
   });

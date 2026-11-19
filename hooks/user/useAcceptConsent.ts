@@ -1,11 +1,19 @@
-import { firestore } from "@/firebaseConfig";
-import { useMutation } from "@tanstack/react-query";
-import { doc, updateDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-const acceptConsent = (uid: string) =>
-  updateDoc(doc(firestore, "users", uid), {
-    consentAccepted: true,
-    consentAcceptedAt: new Date(),
+const acceptConsent = async (uid: string) => {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ consent_accepted: true, consent_accepted_at: new Date().toISOString() })
+    .eq("id", uid);
+  if (error) throw error;
+};
+
+export const useAcceptConsent = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: acceptConsent,
+    // Refetch so the consent modal closes.
+    onSuccess: (_data, uid) => queryClient.invalidateQueries({ queryKey: ["user", uid] }),
   });
-
-export const useAcceptConsent = () => useMutation({ mutationFn: acceptConsent });
+};

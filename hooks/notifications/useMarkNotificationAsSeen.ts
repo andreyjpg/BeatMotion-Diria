@@ -1,28 +1,25 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { doc, updateDoc } from "firebase/firestore";
 import { Alert } from "react-native";
 
-export const useMarkNotificationAsSeen = (uid?  : string) => {
+/** Marks one of the user's notifications as read (`read` is the only column they can change). */
+export const useMarkNotificationAsSeen = () => {
   const queryClient = useQueryClient();
-  const markNotificationAsSeen = async (notificationId: string) => {
-    try {
-      const ref = doc(firestore, "notifications", notificationId);
-      await updateDoc(ref, {
-        read: true,
-      });
-    } catch (err) {
-      Alert.alert("Error", "Error al marcar la notificación como vista");
-      console.error("Error en useMarkNotificationAsSeen", err);
-    }
-  };
 
-  const mutation = useMutation({
-    mutationFn: markNotificationAsSeen,
+  return useMutation({
+    mutationFn: async (notificationId: string) => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("id", notificationId);
+      if (error) throw error;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["myNotifications", uid] });
+      queryClient.invalidateQueries({ queryKey: ["myNotifications"] });
+    },
+    onError: (error) => {
+      console.error("Error en useMarkNotificationAsSeen", error);
+      Alert.alert("Error", "Error al marcar la notificación como vista");
     },
   });
-
-  return mutation;
 };

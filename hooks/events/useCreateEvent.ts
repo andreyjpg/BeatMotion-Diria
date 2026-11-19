@@ -1,53 +1,31 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Alert } from "react-native";
-import { useActiveUser } from "../user/UseActiveUser";
-
-type CreateEventInput = {
-  title: string;
-  description?: string;
-  bannerUrl?: string;
-  datetime: Date;
-  capacity: number | null;
-  isPublic: boolean;
-  price: number | null;
-  status: "draft" | "published";
-  category?: string;
-  location?: string;
-};
+import { uploadMedia } from "../storage/mediaStorage";
+import { EventInput, toEventRow } from "./schema";
 
 export const useCreateEvent = () => {
   const queryClient = useQueryClient();
-  const { user } = useActiveUser();
 
   return useMutation({
-    mutationFn: async (input: CreateEventInput) => {
-      if (!input.title.trim()) {
-        throw new Error("El título es obligatorio");
-      }
-
-      const payload = {
-        title: input.title.trim(),
-        description: input.description?.trim() ?? "",
-        bannerUrl: input.bannerUrl ?? null,
-        datetime: input.datetime,
-        capacity: input.capacity,
-        isPublic: input.isPublic,
-        price: input.price,
-        status: input.status,
-        category: input.category ?? "general",
-        location: input.location?.trim() ?? "",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        createdBy: user?.uid ?? "system",
-        isDeleted: false,
-      };
-
-      await addDoc(collection(firestore, "events"), payload);
+    mutationFn: async (input: EventInput) => {
+      const { data: session } = await supabase.auth.getSession();
+      const bannerPath = input.banner ? await uploadMedia("events", input.banner) : null;
+      const { data, error } = await supabase
+        .from("events")
+        .insert({
+          ...toEventRow(input),
+          banner_path: bannerPath,
+          created_by: session.session?.user.id ?? null,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      Alert.alert("Evento", "Evento creado correctamente.");
     },
     onError: (error) => {
       console.error("No se pudo crear el evento:", error);

@@ -1,46 +1,24 @@
-import { firestore } from "@/firebaseConfig";
-import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { branchListSchema } from "./schema";
-
-const branchQuery = query(
-  collection(firestore, "branches"),
-  where("isDeleted", "==", false),
-);
+import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+import { BRANCH_COLUMNS, branchListSchema } from "./schema";
 
 const fetchBranches = async () => {
-  const snapshot = await getDocs(branchQuery);
-  const branches = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-  return branchListSchema.parse(branches);
+  const { data, error } = await supabase
+    .from("branches")
+    .select(BRANCH_COLUMNS)
+    .eq("is_deleted", false)
+    .order("name");
+  if (error) throw error;
+  return branchListSchema.parse(data);
 };
 
+// Branch changes made in the app refresh this list through the mutations'
+// invalidateQueries(["branches"]).
 export const useBranches = () => {
-  const queryClient = useQueryClient();
-  const query = useQuery({
+  return useQuery({
     queryKey: ["branches"],
     queryFn: fetchBranches,
     staleTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,
   });
-
-  useEffect(() => {
-    const unsub = onSnapshot(branchQuery, (snapshot) => {
-      const branches = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      try {
-        queryClient.setQueryData(["branches"], branchListSchema.parse(branches));
-      } catch {
-        queryClient.setQueryData(["branches"], branches);
-      }
-    });
-    return () => unsub();
-  }, [queryClient]);
-
-  return query;
 };

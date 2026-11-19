@@ -1,0 +1,60 @@
+name: Production database backup (weekly)
+
+# The Supabase free plan has no downloadable backups. Every Sunday this dumps
+# the production database (roles, schema, data — accounts included), encrypts
+# it with BACKUP_PASSPHRASE and keeps it as a workflow artifact for 30 days.
+# Storage files (receipt photos) aren't included: they're temporary by design.
+#
+# Uses the same secrets as supabase-deploy.yml plus:
+#   BACKUP_PASSPHRASE   long random passphrase; keep a copy outside GitHub,
+#                       without it the backups can't be opened.
+#
+# Restore (on a computer with gpg and the Supabase CLI):
+#   gpg --decrypt backup.tar.gz.gpg > backup.tar.gz && tar -xzf backup.tar.gz
+#   psql "$DB_URL" -f roles.sql -f schema.sql -f data.sql
+# (see https://supabase.com/docs/guides/platform/migrating-within-supabase)
+
+on:
+  schedule:
+    - cron: "0 9 * * 0" # Sundays 03:00 Costa Rica
+  workflow_dispatch:
+
+jobs:
+  backup:
+    name: Dump and encrypt production
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_PRODUCTION_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PRODUCTION_PROJECT_ID }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.121.0
+
+      - run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+
+      - name: Dump
+        run: |
+          mkdir backup
+          supabase db dump --linked -f backup/roles.sql --role-only
+          supabase db dump --linked -f backup/schema.sql
+          supabase db dump --linked -f backup/data.sql --use-copy --data-only
+
+      - name: Encrypt
+        run: |
+          test -n "$BACKUP_PASSPHRASE" || { echo "BACKUP_PASSPHRASE is not set"; exit 1; }
+          tar -czf backup.tar.gz backup
+          gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+            --passphrase "$BACKUP_PASSPHRASE" -o backup.tar.gz.gpg backup.tar.gz
+          rm -rf backup backup.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: production-db-${{ github.run_id }}
+          path: backup.tar.gz.gpg
+          retention-days: 30
+          if-no-files-found: error

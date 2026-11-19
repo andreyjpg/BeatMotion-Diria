@@ -1,42 +1,24 @@
-import { firestore } from "@/firebaseConfig";
-import { collection, getDocs, onSnapshot, orderBy, query, where } from "firebase/firestore";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { courseSchema } from "./schema/courseSchema";
+import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+import { COURSE_COLUMNS, courseSchema, toCourse } from "./schema/courseSchema";
 
-const courseQuery = query(
-  collection(firestore, "courses"),
-  where("isDeleted", "==", false),
-  orderBy("createdAt", "desc"),
-);
-
+// Courses students can enroll in: active and assigned to a branch.
 const fetchCoursesAvailable = async () => {
-  const snapshot = await getDocs(courseQuery);
-  const courses = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-  return courseSchema.parse(courses).filter((c) => !!c.branchId);
+  const { data, error } = await supabase
+    .from("courses")
+    .select(COURSE_COLUMNS)
+    .eq("is_deleted", false)
+    .not("branch_id", "is", null)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return courseSchema.parse(data.map(toCourse));
 };
 
 export const useCoursesAvailable = () => {
-  const queryClient = useQueryClient();
-  const query = useQuery({
+  return useQuery({
     queryKey: ["courses", "available"],
     queryFn: fetchCoursesAvailable,
     staleTime: 1000 * 60 * 15,
     refetchOnWindowFocus: false,
   });
-
-  useEffect(() => {
-    const unsub = onSnapshot(courseQuery, (snapshot) => {
-      const courses = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .filter((c: any) => !!c.branchId);
-      queryClient.setQueryData(["courses", "available"], courses);
-    });
-    return () => unsub();
-  }, [queryClient]);
-
-  return query;
 };

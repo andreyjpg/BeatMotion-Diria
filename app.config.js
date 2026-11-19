@@ -17,12 +17,11 @@ export default ({ config }) => {
     expo: {
       name: appName,
       slug: "BeatMotion-Diria",
-      version: "1.2.0",
+      version: "2.0.0",
       orientation: "portrait",
       icon: "./assets/images/LogoDiria.png",
       scheme: isProd ? "beatmotiondiria" : "beatmotiondiria-qa",
-      userInterfaceStyle: "automatic",
-      newArchEnabled: true,
+      userInterfaceStyle: "light",
       owner: "beatmotion",
       ios: {
         bundleIdentifier: iosBundleIdentifier,
@@ -34,13 +33,12 @@ export default ({ config }) => {
       android: {
         package: androidPackage,
         googleServicesFile: isProd
-          ? "./android/app/google-services-production.json"
-          : "./android/app/google-services-preview.json",
+          ? "./config/google-services-production.json"
+          : "./config/google-services-preview.json",
         adaptiveIcon: {
           foregroundImage: "./assets/images/LogoDiria.png",
           backgroundColor: "#000000",
         },
-        edgeToEdgeEnabled: true,
         predictiveBackGestureEnabled: false,
       },
       web: {
@@ -63,6 +61,10 @@ export default ({ config }) => {
           },
         ],
         "expo-web-browser",
+        "expo-secure-store",
+        "expo-image",
+        "expo-status-bar",
+        "@react-native-community/datetimepicker",
         [
           "expo-notifications",
           {

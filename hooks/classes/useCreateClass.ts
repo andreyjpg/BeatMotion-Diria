@@ -1,6 +1,6 @@
-import { firestore } from "@/firebaseConfig";
+import { emptyToNull } from "@/constants/helpers";
+import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Alert } from "react-native";
 
 type VideoLink = {
@@ -15,10 +15,12 @@ type CreateClassInput = {
   description?: string | null;
   content: string;
   objectives?: string | null;
-  date?: string | null;
-  startTime?: string | null;
+  date?: string | null; // "YYYY-MM-DD"
+  startTime?: string | null; // "HH:MM"
   endTime?: string | null;
   videoLinks?: VideoLink[];
+  /** Hidden from students until an admin shows it (default false). */
+  isHidden?: boolean;
 };
 
 export const useCreateClass = () => {
@@ -26,27 +28,30 @@ export const useCreateClass = () => {
 
   return useMutation({
     mutationFn: async (input: CreateClassInput) => {
-      const docRef = await addDoc(collection(firestore, "classes"), {
-        courseId: input.courseId,
-        title: input.title,
-        description: input.description ?? null,
-        content: input.content,
-        objectives: input.objectives ?? null,
-        date: input.date ?? null,
-        startTime: input.startTime ?? null,
-        endTime: input.endTime ?? null,
-        videoLinks: input.videoLinks ?? [],
-        isDeleted: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      return docRef.id;
+      const { data, error } = await supabase
+        .from("classes")
+        .insert({
+          course_id: input.courseId,
+          title: input.title,
+          description: input.description ?? null,
+          content: input.content,
+          objectives: input.objectives ?? null,
+          date: emptyToNull(input.date),
+          start_time: emptyToNull(input.startTime),
+          end_time: emptyToNull(input.endTime),
+          video_links: input.videoLinks ?? [],
+          is_hidden: input.isHidden ?? false,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["classes"] });
       Alert.alert("Clase", "Creada correctamente.");
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Error creating class:", error);
       Alert.alert("Error", "No se pudo crear la clase.");
     },

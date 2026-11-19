@@ -6,7 +6,11 @@ import { Redirect, Stack } from "expo-router";
 import React from "react";
 import { ActivityIndicator } from "react-native";
 
-export default function PrivateLayout() {
+// Default screen of this stack (where sign-in lands) and the back destination
+// when a link opens a deeper screen. Replaces Stack's initialRouteName (SDK 58).
+export const unstable_settings = { anchor: "(tabs)" };
+
+const PrivateLayout = () => {
   const { user, isLoading } = useActiveUser();
   const { data: userData } = useUserInfo(user?.uid ?? "");
   const { mutateAsync: acceptConsent } = useAcceptConsent();
@@ -16,18 +20,28 @@ export default function PrivateLayout() {
 
   return (
     <React.Fragment>
-      <Stack initialRouteName="home">
-        <Stack.Screen name="home" options={{ headerShown: false }} />
-        <Stack.Screen name="profile" options={{ headerShown: false }} />
+      <Stack>
+        {/* Bottom tab bar (home, courses, payments, notices, users, profile). */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="user/course/[courseId]"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="user/class/[classId]"
           options={{ headerShown: false }}
         />
         <Stack.Screen
           name="user/events/index"
           options={{ headerShown: false }}
         />
+        <Stack.Screen
+          name="user/events/[id]"
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
+        <Stack.Screen name="teacher" options={{ headerShown: false }} />
+        <Stack.Screen name="help" options={{ headerShown: false }} />
         {/* MarketPlace */}
         <Stack.Screen
           name="marketplace/MarketplaceList"
@@ -38,7 +52,7 @@ export default function PrivateLayout() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="user/notifications/myNotifications"
+          name="marketplace/MarketplaceAdminForm"
           options={{ headerShown: false }}
         />
         {/* Encuestas */}
@@ -58,11 +72,32 @@ export default function PrivateLayout() {
           }}
         />
         <Stack.Screen
-          name="user/payment/paymentCenter"
+          name="user/enrollment/createEnrollment"
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="user/enrollment/createEnrollment"
+          name="user/conoce"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="user/attendance/rsvp"
+          options={{ headerShown: false }}
+        />
+        {/* Mi membresía: dropping courses, pausing or canceling */}
+        <Stack.Screen
+          name="user/membership/index"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="user/membership/drop"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="user/membership/cancel"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="user/membership/pause"
           options={{ headerShown: false }}
         />
       </Stack>
@@ -72,4 +107,6 @@ export default function PrivateLayout() {
       />
     </React.Fragment>
   );
-}
+};
+
+export default PrivateLayout;

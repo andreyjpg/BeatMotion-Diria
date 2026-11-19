@@ -1,54 +1,44 @@
-import { useQuery } from "@tanstack/react-query";
-import { Alert } from "react-native";
-
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { signReceiptUrls } from "../storage/receiptStorage";
 import {
-  collection,
-  getDocs,
-  orderBy,
-  query,
-  where,
-} from "@firebase/firestore";
-import { useCourses } from "../courses/useCourses";
-import { useUsers } from "../user/useUsers";
-import { enrollmentSchema } from "./schema";
+  ENROLLMENT_DETAIL_COLUMNS,
+  enrollmentDetailSchema,
+  ReviewStatus,
+  toEnrollmentDetail,
+} from "./schema";
 
-export const useEnrollmentsByStatus = (status: string) => {
-  const { data: courses } = useCourses();
-  const { data: users } = useUsers();
+const PAGE_SIZE = 20;
 
-  const getEnrollmentsByStatus = async () => {
-    try {
-      const queryRef = query(
-        collection(firestore, "enrollments"),
-        where("status", "==", status),
-        orderBy("submittedAt", "desc"),
-      );
-      const snapshot = await getDocs(queryRef);
-      const enrollments = snapshot.docs.map((doc) => {
-        const enrollmentData = doc.data();
-        const course = courses?.find((c) => c.id === enrollmentData.courseId);
-        const user = users?.find((u) => u.id === enrollmentData.userId);
-        return {
-          id: doc.id,
-          ...enrollmentData,
-          course,
-          user,
-        };
-      });
-      return enrollmentSchema.parse(enrollments);
-    } catch (error) {
-      console.error("Error fetching enrollments by status:", error);
-      Alert.alert("Error fetching enrollments by status");
-      throw error;
-    }
+/**
+ * Admin list: enrollment requests in one status, newest first, 20 at a time.
+ * Only the loaded page's receipts get a signed URL. `data` is the flat list
+ * of loaded requests; call fetchNextPage at the end of the list.
+ */
+export const useEnrollmentsByStatus = (status: ReviewStatus) => {
+  const fetchPage = async ({ pageParam }: { pageParam: number }) => {
+    const from = pageParam * PAGE_SIZE;
+    const { data, error } = await supabase
+      .from("enrollments")
+      .select(ENROLLMENT_DETAIL_COLUMNS)
+      .eq("status", status)
+      .order("submitted_at", { ascending: false })
+      .order("id")
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const urls = await signReceiptUrls(data.map((row) => row.receiptPath));
+    return enrollmentDetailSchema.parse(data.map((row) => toEnrollmentDetail(row, urls)));
   };
 
-  return useQuery({
-    queryKey: ["enrollments", status, courses?.length ?? 0, users?.length ?? 0],
-    queryFn: getEnrollmentsByStatus,
-    staleTime: 1000 * 60 * 20, // 20 minutes
+  return useInfiniteQuery({
+    queryKey: ["enrollments", "byStatus", status],
+    queryFn: fetchPage,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length < PAGE_SIZE ? undefined : allPages.length,
+    select: (data) => data.pages.flat(),
+    staleTime: 1000 * 60 * 10, // under the signed URLs' hour
     refetchOnWindowFocus: false,
-    enabled: !!courses && !!users,
   });
 };

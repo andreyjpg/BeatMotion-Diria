@@ -1,26 +1,19 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs } from "firebase/firestore";
 import { FareSchema } from "./schema";
 
 export const useFares = () => {
   const fetchFares = async () => {
-    try {
-      const snapShots = await getDocs(collection(firestore, "fares"));
-      const responseFares = snapShots.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      return FareSchema.parse(responseFares);
-    } catch (error: any) {
-      console.error("Error in Fares", error.message);
-    }
+    const { data, error } = await supabase
+      .from("fares")
+      .select("id, description, fare:amount, type, numCourse:num_courses");
+    if (error) throw error;
+    return FareSchema.parse(data);
   };
-  const faresQuery = useQuery({
+
+  return useQuery({
     queryKey: ["fares"],
     queryFn: fetchFares,
     staleTime: Infinity,
   });
-
-  return faresQuery;
 };

@@ -1,0 +1,190 @@
+import HiddenClassChip from "@/components/courses/HiddenClassChip";
+import Birthdays from "@/components/teacher/Birthdays";
+import CourseTile from "@/components/teacher/CourseTile";
+import AppText from "@/components/ui/AppText";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import HomeHero from "@/components/ui/HomeHero";
+import Screen from "@/components/ui/Screen";
+import SectionHeader from "@/components/ui/SectionHeader";
+import {
+  formatShortDate,
+  formatYYYYMMDD,
+  hhmmTo12h,
+  hhmmTo12hParts,
+  parseLocalDate,
+  to24h,
+} from "@/constants/helpers";
+import { useAttendanceByClass } from "@/hooks/attendance/useAttendanceByClass";
+import type { ClassesType } from "@/hooks/classes/classesSchema";
+import { useActiveClasses } from "@/hooks/classes/useActiveClasses";
+import { useTeacherBirthdays } from "@/hooks/courseMember/useTeacherBirthdays";
+import { useCourses } from "@/hooks/courses/useCourses";
+import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { useRouter } from "expo-router";
+import { RefreshControl, View } from "react-native";
+
+type StartTimeTileProps = { startTime: string | null; isHero: boolean };
+
+/** A class's start time stacked as in the design ("P. M." over "7:00"), or "—" without one. Dark for the hero's class. */
+const StartTimeTile = ({ startTime, isHero }: StartTimeTileProps) => {
+  const start = hhmmTo12hParts(startTime);
+  return (
+    <View className={`h-[52px] w-[60px] items-center justify-center rounded-xl ${isHero ? "bg-ink" : "bg-ground"}`}>
+      {start && (
+        <AppText variant="label" tone={isHero ? "hero-soft" : "ink"} className="text-[9px]">
+          {start.period}
+        </AppText>
+      )}
+      <AppText variant="heavy" tone={isHero ? "inverse" : "ink"} className="text-[15px]">
+        {start?.time ?? "—"}
+      </AppText>
+    </View>
+  );
+};
+
+/** Teacher home: the next class with who's coming, this week's birthdays, today's classes and their courses. */
+const HomeTeacher = () => {
+  const router = useRouter();
+  const { user } = useActiveUser();
+  const coursesQuery = useCourses();
+  const classesQuery = useActiveClasses();
+  const birthdaysQuery = useTeacherBirthdays(user?.uid ?? "");
+
+  const today = new Date();
+  const todayKey = formatYYYYMMDD(today);
+  const nowHHMM = to24h(today);
+
+  const myCourses = (coursesQuery.data ?? []).filter((course) => course.teacherId === user?.uid);
+  const myCourseIds = new Set(myCourses.map((c) => c.id));
+  const courseTitle = (courseId: string) => myCourses.find((c) => c.id === courseId)?.title ?? "";
+  const myClasses = (classesQuery.data ?? []).filter((cls) => myCourseIds.has(cls.courseId) && cls.date);
+  const todayClasses = myClasses
+    .filter((cls) => cls.date === todayKey)
+    .sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""));
+  // The class still to finish today; once they're all over, the last one.
+  const heroClass =
+    todayClasses.find((cls) => (cls.endTime ?? cls.startTime ?? "99:99") >= nowHHMM) ?? todayClasses.at(-1);
+  const nextClass = heroClass ? undefined : myClasses.find((cls) => (cls.date ?? "") > todayKey);
+
+  const attendanceQuery = useAttendanceByClass(heroClass?.id ?? "");
+  const rsvps = attendanceQuery.data ?? [];
+  const count = (status: string) => rsvps.filter((row) => row.rsvpStatus === status).length;
+
+  const openAttendance = (cls: ClassesType) =>
+    router.push({
+      pathname: "/private/teacher/attendance/[courseId]/[classId]",
+      params: { courseId: cls.courseId, classId: cls.id },
+    });
+  const openCourse = (courseId: string) =>
+    router.push({ pathname: "/private/teacher/course/[courseId]", params: { courseId } });
+
+  const refresh = () => {
+    coursesQuery.refetch();
+    classesQuery.refetch();
+    attendanceQuery.refetch();
+    birthdaysQuery.refetch();
+  };
+
+  return (
+    <Screen
+      inTabs
+      refreshControl={<RefreshControl refreshing={classesQuery.isRefetching} onRefresh={refresh} />}
+    >
+      {heroClass ? (
+        <HomeHero
+          eyebrow={`${formatShortDate(today)} · Próxima clase`}
+          title={`${courseTitle(heroClass.courseId)}${heroClass.startTime ? `\na las ${hhmmTo12h(heroClass.startTime)}` : ""}`}
+        >
+          <View className="mt-5 flex-row border-t border-hero-line pt-3">
+            {[
+              { n: count("leaders"), label: "Líderes" },
+              { n: count("followers"), label: "Seguidores" },
+              { n: count("no_asistira"), label: "No vienen", dim: true },
+            ].map((s, i) => (
+              <View key={s.label} className={`flex-1 ${i > 0 ? "border-l border-hero-line pl-3" : ""}`}>
+                <AppText variant="heavy" tone={s.dim ? "hero-soft" : "inverse"} className="text-[24px]">
+                  {s.n}
+                </AppText>
+                <AppText tone="hero-soft" className="text-[11.5px]">
+                  {s.label}
+                </AppText>
+              </View>
+            ))}
+          </View>
+          <Button label="Tomar asistencia" variant="inverse" className="mt-4" onPress={() => openAttendance(heroClass)} />
+        </HomeHero>
+      ) : (
+        <HomeHero
+          eyebrow={formatShortDate(today)}
+          title="Hoy no tienes clases"
+          subtitle={
+            nextClass?.date
+              ? `La próxima: ${courseTitle(nextClass.courseId)}, ${formatShortDate(
+                  parseLocalDate(nextClass.date) ?? today,
+                ).toLowerCase()}${nextClass.startTime ? ` a las ${hhmmTo12h(nextClass.startTime)}` : ""}.`
+              : "No tienes clases programadas."
+          }
+        />
+      )}
+
+      {/* Left out while it loads or if it fails: an optional block shouldn't hold up the home. */}
+      <Birthdays birthdays={birthdaysQuery.data ?? []} />
+
+      {todayClasses.length > 0 && (
+        <>
+          <SectionHeader
+            title="Hoy"
+            note={todayClasses.length === 1 ? "1 clase" : `${todayClasses.length} clases`}
+          />
+          <View className="gap-2 px-3">
+            {todayClasses.map((cls) => {
+              const isHero = cls.id === heroClass?.id;
+              return (
+                <Card
+                  key={cls.id}
+                  onPress={() => openAttendance(cls)}
+                  accessibilityLabel={`${courseTitle(cls.courseId)}${cls.isHidden ? ", oculta" : ""}, tomar asistencia`}
+                  className="flex-row items-center gap-3.5 px-3.5 py-3.5"
+                >
+                  <StartTimeTile startTime={cls.startTime} isHero={isHero} />
+                  <View className="flex-1">
+                    <AppText variant="bold" className="text-[15.5px]" numberOfLines={1}>
+                      {courseTitle(cls.courseId)}
+                    </AppText>
+                    <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+                      {cls.title ?? "Clase"}
+                    </AppText>
+                  </View>
+                  {/* Own box: the chip aligns itself to the top of a row. */}
+                  {cls.isHidden && (
+                    <View>
+                      <HiddenClassChip />
+                    </View>
+                  )}
+                  <AppText variant="semibold" className="text-[13px] underline">
+                    Asistencia
+                  </AppText>
+                </Card>
+              );
+            })}
+          </View>
+        </>
+      )}
+
+      <SectionHeader title="Mis cursos" />
+      <View className="flex-row flex-wrap justify-between gap-y-2 px-3">
+        {myCourses.length === 0 && (
+          <AppText tone="muted" className="px-2 text-[14px]">
+            Todavía no tienes cursos asignados.
+          </AppText>
+        )}
+        {myCourses.map((course) => (
+          <CourseTile key={course.id} course={course} onPress={() => openCourse(course.id)} />
+        ))}
+      </View>
+    </Screen>
+  );
+};
+
+export default HomeTeacher;

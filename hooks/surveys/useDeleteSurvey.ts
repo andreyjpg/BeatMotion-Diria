@@ -1,26 +1,24 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { Alert } from "react-native";
 
-const deleteSurvey = async (surveyId: string) => {
-  const docRef = doc(firestore, "surveys", surveyId);
-  await updateDoc(docRef, {
-    isDeleted: true,
-    updatedAt: serverTimestamp(),
-  });
-};
-
+/** Soft delete: the survey disappears from the app, its responses stay. */
 export const useDeleteSurvey = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: deleteSurvey,
+    mutationFn: async (surveyId: string) => {
+      const { error } = await supabase
+        .from("surveys")
+        .update({ is_deleted: true })
+        .eq("id", surveyId);
+      if (error) throw error;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["surveys"] });
       Alert.alert("Éxito", "Encuesta eliminada correctamente.");
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Error deleting survey:", error);
       Alert.alert("Error", "No se pudo eliminar la encuesta.");
     },

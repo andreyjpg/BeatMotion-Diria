@@ -1,29 +1,32 @@
-import { firestore } from "@/firebaseConfig";
-import { useMutation } from "@tanstack/react-query";
-import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
-import { RequestSchema } from "./notificationSchemas";
+import { DraftInput } from "./notificationSchemas";
 
-const updateDraft = async ({
-  id,
-  body,
-}: {
-  id: string;
-  body: RequestSchema;
-}) => {
-  try {
-    const draftRef = doc(firestore, "drafts", id);
-    await updateDoc(draftRef, { ...body, updateAt: serverTimestamp() });
-    Alert.alert("Borrador guardado correctamente.");
-  } catch (err) {
-    console.error("Error in draft update", err);
-    Alert.alert("Error al guardar. Intentelo de nuevo.");
-  }
-};
+type UpdateDraftInput = DraftInput & { id: string };
 
 export const useUpdateDraft = () => {
-  const mutation = useMutation({
-    mutationFn: updateDraft,
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...input }: UpdateDraftInput) => {
+      const { error } = await supabase
+        .from("notification_drafts")
+        .update({
+          title: input.title.trim(),
+          content: input.content.trim(),
+          recipients: input.recipients,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["drafts"] });
+      Alert.alert("Borrador guardado correctamente.");
+    },
+    onError: (error) => {
+      console.error("Error in draft update", error);
+      Alert.alert("Error al guardar. Intentelo de nuevo.");
+    },
   });
-  return mutation;
 };

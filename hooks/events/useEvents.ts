@@ -1,92 +1,37 @@
-import { firestore } from "@/firebaseConfig";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  collection,
-  getDocs,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
-import { useEffect } from "react";
-import { Alert } from "react-native";
-import { eventCollectionSchema, type Event } from "./schema";
+import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+import { EVENT_COLUMNS, eventCollectionSchema, toEvent } from "./schema";
 
 type Options = {
+  /** Admins also see drafts (students only ever get published events). */
   includeDrafts?: boolean;
+  /** Include members-only events, not just public ones. */
   includePrivate?: boolean;
 };
 
-const buildQuery = (options?: Options) => {
-  const constraints: any[] = [orderBy("datetime", "asc")];
-  if (!options?.includeDrafts) {
-    constraints.push(where("status", "==", "published"));
-  }
-  if (!options?.includePrivate) {
-    constraints.push(where("isPublic", "==", true));
-  }
-  return query(
-    collection(firestore, "events"),
-    where("isDeleted", "==", false),
-    ...constraints,
-  );
-};
-
-const fetchEvents = async (options?: Options) => {
-  const q = buildQuery(options);
-  const snapshot = await getDocs(q);
-  const records = snapshot.docs.map(
-    (doc) =>
-      ({
-        id: doc.id,
-        ...doc.data(),
-      }) as Record<string, unknown>,
-  );
-  return eventCollectionSchema.parse(records);
-};
-
+/** Events that aren't deleted, soonest first. */
 export const useEvents = (options?: Options) => {
-  const queryClient = useQueryClient();
-  const queryKey = [
-    "events",
-    !!options?.includeDrafts,
-    !!options?.includePrivate,
-  ];
+  const includeDrafts = !!options?.includeDrafts;
+  const includePrivate = !!options?.includePrivate;
 
-  const queryResult = useQuery<Event[]>({
-    queryKey,
-    queryFn: async () => {
-      try {
-        return await fetchEvents(options);
-      } catch (error) {
-        console.error("Error al obtener eventos:", error);
-        Alert.alert("Error", "No se pudieron cargar los eventos.");
-        throw error;
-      }
-    },
+  const fetchEvents = async () => {
+    let query = supabase
+      .from("events")
+      .select(EVENT_COLUMNS)
+      .eq("is_deleted", false)
+      .order("starts_at", { ascending: true });
+    if (!includeDrafts) query = query.eq("status", "published");
+    if (!includePrivate) query = query.eq("is_public", true);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return eventCollectionSchema.parse(data.map(toEvent));
+  };
+
+  return useQuery({
+    queryKey: ["events", "list", includeDrafts, includePrivate],
+    queryFn: fetchEvents,
     staleTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,
   });
-
-  useEffect(() => {
-    const q = buildQuery(options);
-    const unsub = onSnapshot(q, (snapshot) => {
-      try {
-        const records = snapshot.docs.map(
-          (doc) =>
-            ({
-              id: doc.id,
-              ...doc.data(),
-            }) as Record<string, unknown>,
-        );
-        const parsed = eventCollectionSchema.parse(records);
-        queryClient.setQueryData(queryKey, parsed);
-      } catch (error) {
-        console.error("Error sincronizando eventos:", error);
-      }
-    });
-    return () => unsub();
-  }, [queryClient, queryKey, options?.includeDrafts, options?.includePrivate]);
-
-  return queryResult;
 };

@@ -1,256 +1,197 @@
 import DataLoader from "@/components/DataLoader";
-import HeaderTitle from "@/components/headerTitle";
-import { useSurveyById } from "@/hooks/surveys/useSurveyById";
+import FieldError from "@/components/FieldError";
+import AppText from "@/components/ui/AppText";
+import Card from "@/components/ui/Card";
+import Field from "@/components/ui/Field";
+import FormActions from "@/components/ui/FormActions";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
+import { surveyAnswersSchema, validationErrors } from "@/constants/validationForms";
+import type { Survey, SurveyQuestion } from "@/hooks/surveys/surveySchema";
 import { useSubmitSurveyResponse } from "@/hooks/surveys/useSubmitSurveyResponse";
-import {
-  QuestionResponse,
-  SurveyQuestion,
-} from "@/hooks/surveys/surveySchema";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
-import { Ionicons } from "@expo/vector-icons";
+import { useSurveyById } from "@/hooks/surveys/useSurveyById";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import {
-  Alert,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useState } from "react";
+import { Pressable, View } from "react-native";
 
-export default function TakeSurveyScreen() {
+/** Answer per question id: 1-5 for ratings, text otherwise. */
+type Answers = Record<string, string | number>;
+
+const RATINGS = [1, 2, 3, 4, 5];
+
+const secondsSince = (start: number) => Math.round((Date.now() - start) / 1000);
+
+const TakeSurveyScreen = () => {
   const router = useRouter();
   const { surveyId } = useLocalSearchParams<{ surveyId: string }>();
-  const { user } = useActiveUser();
 
   const surveyQuery = useSurveyById(surveyId);
   const submitResponse = useSubmitSurveyResponse();
 
-  const [responses, setResponses] = useState<Record<string, any>>({});
-  const [startTime, setStartTime] = useState<number>(Date.now());
+  const [answers, setAnswers] = useState<Answers>({});
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  // When the screen opened, for the completion time.
+  const [startTime] = useState(() => Date.now());
 
-  useEffect(() => {
-    setStartTime(Date.now());
-  }, []);
-
-  const handleRatingChange = (questionId: string, rating: number) => {
-    setResponses({ ...responses, [questionId]: rating });
+  const setAnswer = (questionId: string, value: string | number) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
-  const handleMultipleChoiceChange = (questionId: string, option: string) => {
-    setResponses({ ...responses, [questionId]: option });
-  };
-
-  const handleTextChange = (questionId: string, text: string) => {
-    setResponses({ ...responses, [questionId]: text });
-  };
-
-  const validateResponses = (questions: SurveyQuestion[]) => {
-    for (const question of questions) {
-      if (question.required) {
-        const response = responses[question.id];
-        if (!response || (typeof response === "string" && !response.trim())) {
-          Alert.alert(
-            "Pregunta requerida",
-            `Por favor responde: "${question.questionText}"`
-          );
-          return false;
-        }
-      }
-    }
-    return true;
-  };
-
-  const handleSubmit = async () => {
-    if (!surveyQuery.data) return;
-
-    if (!validateResponses(surveyQuery.data.questions)) {
-      return;
-    }
-
-    const questionResponses: QuestionResponse[] =
-      surveyQuery.data.questions.map((q) => ({
-        questionId: q.id,
-        questionText: q.questionText,
-        questionType: q.questionType,
-        response: responses[q.id] || "",
-      }));
-
-    const completionTimeSeconds = Math.round((Date.now() - startTime) / 1000);
+  const handleSubmit = async (survey: Survey) => {
+    const formErrors = validationErrors(surveyAnswersSchema(survey.questions), answers);
+    setErrors(formErrors);
+    if (Object.keys(formErrors).length > 0) return;
 
     try {
       await submitResponse.mutateAsync({
-        surveyId: surveyQuery.data.id,
-        userId: user?.uid || "",
-        courseId: surveyQuery.data.courseId,
-        responses: questionResponses,
-        completionTimeSeconds,
+        surveyId: survey.id,
+        answers,
+        completionTimeSeconds: secondsSince(startTime),
       });
-
       router.back();
-    } catch (error) {
-      console.error("Error submitting survey:", error);
+    } catch {
+      // useSubmitSurveyResponse already told the student what went wrong.
     }
   };
 
-  const renderRatingQuestion = (question: SurveyQuestion) => {
-    const currentRating = responses[question.id] || 0;
-
-    return (
-      <View className="flex-row justify-center gap-2 mt-3">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <TouchableOpacity
-            key={star}
-            onPress={() => handleRatingChange(question.id, star)}
-            className="p-2"
+  const renderRatingQuestion = (question: SurveyQuestion) => (
+    <View accessibilityRole="radiogroup" accessibilityLabel="Calificación de 1 a 5" className="flex-row gap-1.5">
+      {RATINGS.map((rating) => {
+        const isSelected = answers[question.id] === rating;
+        return (
+          <Pressable
+            key={rating}
+            onPress={() => setAnswer(question.id, rating)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: isSelected }}
+            className={`h-[52px] flex-1 items-center justify-center rounded-xl border-[1.5px] ${
+              isSelected ? "border-ink bg-ink" : "border-field-line bg-surface"
+            }`}
           >
-            <Ionicons
-              name={star <= currentRating ? "star" : "star-outline"}
-              size={40}
-              color={star <= currentRating ? "#facc15" : "#9CA3AF"}
-            />
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
-  };
+            <AppText variant="bold" tone={isSelected ? "inverse" : "ink"} className="text-[18px]">
+              {rating}
+            </AppText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 
-  const renderMultipleChoiceQuestion = (question: SurveyQuestion) => {
-    const currentSelection = responses[question.id];
-
-    return (
-      <View className="mt-3 gap-2">
-        {question.options?.map((option, index) => {
-          const isSelected = currentSelection === option;
-          return (
-            <TouchableOpacity
-              key={index}
-              className={`rounded-xl p-4 border-2 ${
-                isSelected
-                  ? "border-primary"
-                  : "bg-gray-800 border-gray-700"
+  const renderMultipleChoiceQuestion = (question: SurveyQuestion) => (
+    <View accessibilityRole="radiogroup" accessibilityLabel="Opciones" className="gap-2">
+      {question.options?.map((option) => {
+        const isSelected = answers[question.id] === option;
+        return (
+          <Pressable
+            key={option}
+            onPress={() => setAnswer(question.id, option)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: isSelected }}
+            className={`flex-row items-center gap-3 rounded-xl border-[1.5px] bg-surface px-3.5 py-3 ${
+              isSelected ? "border-ink" : "border-field-line"
+            }`}
+          >
+            <View
+              className={`h-[22px] w-[22px] items-center justify-center rounded-full border-2 ${
+                isSelected ? "border-ink" : "border-faint"
               }`}
-              style={isSelected ? { backgroundColor: "rgba(64, 224, 208, 0.2)" } : undefined}
-              onPress={() => handleMultipleChoiceChange(question.id, option)}
             >
-              <View className="flex-row items-center gap-3">
-                <View
-                  className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
-                    isSelected ? "border-primary bg-primary" : "border-gray-500"
-                  }`}
-                >
-                  {isSelected && (
-                    <Ionicons name="checkmark" size={16} color="black" />
-                  )}
-                </View>
-                <Text
-                  className={`flex-1 ${
-                    isSelected ? "text-white font-semibold" : "text-gray-300"
-                  }`}
-                >
-                  {option}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    );
-  };
+              {isSelected && <View className="h-2.5 w-2.5 rounded-full bg-ink" />}
+            </View>
+            <AppText variant="medium" className="flex-1 text-[15px]">
+              {option}
+            </AppText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 
-  const renderTextQuestion = (question: SurveyQuestion) => {
+  const survey = surveyQuery.data;
+
+  if (!survey) {
     return (
-      <TextInput
-        className="bg-gray-800 text-white rounded-xl px-4 py-3 mt-3 min-h-24"
-        value={responses[question.id] || ""}
-        onChangeText={(text) => handleTextChange(question.id, text)}
-        placeholder="Escribe tu respuesta aquí..."
-        placeholderTextColor="#9CA3AF"
-        multiline
-        textAlignVertical="top"
-      />
+      <Screen scroll={false}>
+        <ScreenHeader nav="close" eyebrow="Encuesta" title="Responder encuesta" />
+        <View className="flex-1">
+          <DataLoader query={surveyQuery} emptyMessage="Encuesta no encontrada.">
+            {() => null}
+          </DataLoader>
+        </View>
+      </Screen>
     );
-  };
+  }
+
+  const total = survey.questions.length;
+  const answered = survey.questions.filter((question) => {
+    const answer = answers[question.id];
+    return typeof answer === "number" || !!answer?.trim();
+  }).length;
 
   return (
-    <SafeAreaView className="flex-1 bg-black">
-      <HeaderTitle title="Responder Encuesta" subtitle="Tu opinión es importante" />
+    <Screen
+      form
+      footer={
+        <FormActions
+          saveLabel="Enviar respuestas"
+          onSave={() => handleSubmit(survey)}
+          loading={submitResponse.isPending}
+          hasErrors={Object.keys(errors).length > 0}
+        />
+      }
+    >
+      <ScreenHeader
+        nav="close"
+        eyebrow={`${answered} de ${total} respondidas`}
+        title={survey.title}
+        subtitle={survey.description || "Las preguntas con * son obligatorias."}
+      />
+      <View
+        className="mx-5 mt-3.5 h-1 overflow-hidden rounded-sm bg-line-strong"
+        accessible
+        accessibilityLabel={`${answered} de ${total} preguntas respondidas`}
+      >
+        <View className="h-full bg-ink" style={{ width: `${total ? (answered / total) * 100 : 0}%` }} />
+      </View>
 
-      <DataLoader query={surveyQuery} emptyMessage="Encuesta no encontrada">
-        {(survey) => (
-          <ScrollView
-            className="flex-1 px-6"
-            contentContainerStyle={{ paddingBottom: 100 }}
-          >
-            {/* Header de encuesta */}
-            <View className="bg-gray-900 rounded-3xl p-6 mb-6">
-              <Text className="text-white text-2xl font-bold mb-2">
-                {survey.title}
-              </Text>
-              {survey.description && (
-                <Text className="text-gray-400 mb-4">{survey.description}</Text>
-              )}
-              <View className="flex-row items-center gap-4">
-                <View className="flex-row items-center gap-1">
-                  <Ionicons name="help-circle-outline" size={16} color="#9CA3AF" />
-                  <Text className="text-gray-400 text-sm">
-                    {survey.questions.length} preguntas
-                  </Text>
-                </View>
-                <View className="flex-row items-center gap-1">
-                  <Ionicons name="time-outline" size={16} color="#9CA3AF" />
-                  <Text className="text-gray-400 text-sm">~5 min</Text>
-                </View>
-              </View>
-            </View>
+      {survey.description && (
+        <AppText tone="muted" className="mx-5 mt-2.5 text-[13px]">
+          Las preguntas con * son obligatorias.
+        </AppText>
+      )}
 
-            {/* Preguntas */}
-            {survey.questions.map((question, index) => (
-              <View key={question.id} className="bg-gray-900 rounded-3xl p-5 mb-4">
-                <View className="flex-row items-start justify-between mb-3">
-                  <View className="flex-1">
-                    <Text className="text-primary font-semibold mb-1">
-                      Pregunta {index + 1}
-                      {question.required && (
-                        <Text className="text-red-400"> *</Text>
-                      )}
-                    </Text>
-                    <Text className="text-white text-base">
-                      {question.questionText}
-                    </Text>
-                  </View>
-                </View>
+      {survey.questions.map((question, index) => (
+        <Card
+          key={question.id}
+          // The border is always there, so the content doesn't move when it turns red.
+          className={`mx-3 mt-2.5 gap-3 border-[1.5px] ${errors[question.id] ? "border-danger-line" : "border-surface"}`}
+        >
+          <View className="flex-row gap-2">
+            <AppText variant="label-bold" tone="muted" className="pt-1 text-[12px] tracking-normal">
+              {String(index + 1).padStart(2, "0")}
+            </AppText>
+            <AppText variant="bold" accessibilityRole="header" className="flex-1 text-[16px] leading-[21px]">
+              {`${question.questionText}${question.required ? " *" : ""}`}
+            </AppText>
+          </View>
 
-                {question.questionType === "rating" &&
-                  renderRatingQuestion(question)}
-                {question.questionType === "multiple_choice" &&
-                  renderMultipleChoiceQuestion(question)}
-                {question.questionType === "text" && renderTextQuestion(question)}
-              </View>
-            ))}
-
-            {/* Botón enviar */}
-            <TouchableOpacity
-              className="bg-primary rounded-2xl py-4 items-center mb-4"
-              onPress={handleSubmit}
-              disabled={submitResponse.isPending}
-            >
-              <Text className="text-black font-bold text-base">
-                {submitResponse.isPending ? "Enviando..." : "Enviar Respuestas"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className="bg-gray-800 rounded-2xl py-3 items-center"
-              onPress={() => router.back()}
-            >
-              <Text className="text-white font-semibold">Cancelar</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        )}
-      </DataLoader>
-    </SafeAreaView>
+          {question.questionType === "rating" && renderRatingQuestion(question)}
+          {question.questionType === "multiple_choice" && renderMultipleChoiceQuestion(question)}
+          {question.questionType === "text" && (
+            <Field
+              label={question.questionText}
+              hideLabel
+              value={String(answers[question.id] ?? "")}
+              onChangeText={(text) => setAnswer(question.id, text)}
+              placeholder="Escribe tu respuesta aquí…"
+              multiline
+            />
+          )}
+          <FieldError message={errors[question.id]} />
+        </Card>
+      ))}
+    </Screen>
   );
-}
+};
+
+export default TakeSurveyScreen;

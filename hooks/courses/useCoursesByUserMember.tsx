@@ -1,38 +1,28 @@
-import { firestore } from "@/firebaseConfig";
-import {
-  collection,
-  documentId,
-  query as firestoreQuery,
-  getDocs,
-  where,
-} from "@firebase/firestore";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { Alert } from "react-native";
-import { useCourseMemberByUser } from "../courseMember/useCourseMemberByUser";
-import { courseSchemaWithMember } from "./schema/courseSchema";
+import { MEMBER_COLUMNS, toMember } from "../courseMember/schema";
+import { COURSE_COLUMNS, courseSchemaWithMember, toCourse } from "./schema/courseSchema";
 
-//Bring courses where the user is member
-//TODO add update when a new course is added
+const MEMBERS_WITH_COURSE = `${MEMBER_COLUMNS}, course:courses!inner(${COURSE_COLUMNS})` as const;
+
+/**
+ * Courses the user is currently enrolled in, each merged with its membership
+ * (payment status, next payment date). `id` is the membership id and
+ * `courseId` the course id, as before.
+ */
 export const useCoursesByUserMember = (uid: string) => {
-  const { data: courseMembers } = useCourseMemberByUser(uid);
-
   const getMyCourses = async () => {
     try {
-      if (!courseMembers || courseMembers.length === 0) {
-        return [];
-      }
-      const courseIds = courseMembers.map((member) => member.courseId);
-      const q = firestoreQuery(
-        collection(firestore, "courses"),
-        where(documentId(), "in", courseIds)
-      );
-      const querySnapshot = await getDocs(q);
-      const courses = querySnapshot.docs.map((doc) => {
-        return {
-          id: doc.id,
-          ...courseMembers.find((member) => member.courseId === doc.id),
-          ...doc.data(),
-        };
+      const { data, error } = await supabase
+        .from("course_members")
+        .select(MEMBERS_WITH_COURSE)
+        .eq("user_id", uid)
+        .eq("active", true);
+      if (error) throw error;
+      const courses = data.map(({ course, ...member }) => {
+        const { id: _courseId, ...courseFields } = toCourse(course);
+        return { ...toMember(member), ...courseFields, id: member.id };
       });
       return courseSchemaWithMember.parse(courses);
     } catch (error) {
@@ -42,13 +32,11 @@ export const useCoursesByUserMember = (uid: string) => {
     }
   };
 
-  const query = useQuery({
+  return useQuery({
     queryKey: ["myCourses", uid],
     queryFn: getMyCourses,
-    enabled: !!uid && !!courseMembers,
+    enabled: !!uid,
     refetchOnWindowFocus: false,
-    staleTime: 1000 * 60 * 10, // 1 minute
+    staleTime: 1000 * 60 * 10,
   });
-
-  return query;
 };

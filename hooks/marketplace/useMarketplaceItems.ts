@@ -1,60 +1,22 @@
-import { useEffect } from "react";
-import { Alert } from "react-native";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { collection, getDocs, onSnapshot } from "firebase/firestore";
-import { firestore } from "@/firebaseConfig";
-import { marketplaceCollectionSchema, MarketplaceItem } from "./schema";
+import { supabase } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
+import { MARKETPLACE_COLUMNS, marketplaceCollectionSchema, toMarketplaceItem } from "./schema";
 
-const fetchMarketplaceItems = async () => {
-  try {
-    const snapshot = await getDocs(collection(firestore, "marketplace"));
-    const records = snapshot.docs.map(
-      (doc) =>
-        ({
-          id: doc.id,
-          ...doc.data(),
-        }) as Record<string, unknown>,
-    );
-    return marketplaceCollectionSchema.parse(records);
-  } catch (error) {
-    console.error("Error al obtener la tienda:", error);
-    Alert.alert("Error", "No se pudo cargar el marketplace. Intenta de nuevo mas tarde.");
-    throw error;
-  }
-};
-
+/** Marketplace items, newest first. Students only get active ones (RLS); admins get all. */
 export const useMarketplaceItems = () => {
-  const queryClient = useQueryClient();
+  const fetchItems = async () => {
+    const { data, error } = await supabase
+      .from("marketplace_items")
+      .select(MARKETPLACE_COLUMNS)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return marketplaceCollectionSchema.parse(data.map(toMarketplaceItem));
+  };
 
-  const query = useQuery<MarketplaceItem[]>({
+  return useQuery({
     queryKey: ["marketplace"],
-    queryFn: fetchMarketplaceItems,
+    queryFn: fetchItems,
     staleTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,
   });
-
-  useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(firestore, "marketplace"),
-      (snapshot) => {
-        try {
-          const records = snapshot.docs.map(
-            (doc) =>
-              ({
-                id: doc.id,
-                ...doc.data(),
-              }) as Record<string, unknown>,
-          );
-          const parsed = marketplaceCollectionSchema.parse(records);
-          queryClient.setQueryData(["marketplace"], parsed);
-        } catch (error) {
-          console.error("Error al sincronizar marketplace:", error);
-        }
-      },
-    );
-
-    return () => unsubscribe();
-  }, [queryClient]);
-
-  return query;
 };

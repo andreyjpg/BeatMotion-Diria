@@ -1,17 +1,58 @@
 // app/_layout.tsx
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import AppContent from "@/components/AppContent";
+import palette from "@/constants/palette.json";
+import { AuthProvider } from "@/hooks/user/UseActiveUser";
+import { Notifications } from "@/lib/notifications";
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
+  Archivo_400Regular,
+  Archivo_500Medium,
+  Archivo_600SemiBold,
+  Archivo_700Bold,
+  Archivo_800ExtraBold,
+  Archivo_800ExtraBold_Italic,
+  Archivo_900Black_Italic,
+} from "@expo-google-fonts/archivo";
+import {
+  JetBrainsMono_500Medium,
+  JetBrainsMono_600SemiBold,
+} from "@expo-google-fonts/jetbrains-mono";
 import * as Sentry from "@sentry/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { useFonts } from "expo-font";
+import { DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import "react-native-reanimated";
 import "../global.css";
+
+// Keep the splash screen until the fonts are ready, so text never renders in
+// the system font first.
+SplashScreen.preventAutoHideAsync();
+
+// The redesign is light-only: navigation backgrounds match the app's ground color.
+const navigationTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: palette.ground,
+    card: palette.ground,
+    text: palette.ink,
+    border: palette.line.DEFAULT,
+    primary: palette.ink,
+  },
+};
+
+// Notifications is null in Expo Go on Android (see lib/notifications.ts).
+Notifications?.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
@@ -24,30 +65,37 @@ Sentry.init({
 
 const queryClient = new QueryClient();
 
-function AppContent() {
-  const { user } = useActiveUser();
+const RootLayout = () => {
+  const [fontsLoaded, fontError] = useFonts({
+    Archivo_400Regular,
+    Archivo_500Medium,
+    Archivo_600SemiBold,
+    Archivo_700Bold,
+    Archivo_800ExtraBold,
+    Archivo_800ExtraBold_Italic,
+    Archivo_900Black_Italic,
+    JetBrainsMono_500Medium,
+    JetBrainsMono_600SemiBold,
+  });
+  // If a font fails to load the app still opens, in the system font.
+  const fontsReady = fontsLoaded || !!fontError;
 
-  return (
-    <Stack>
-      <Stack.Protected guard={!user}>
-        <Stack.Screen name="public" options={{ headerShown: false }} />
-      </Stack.Protected>
-      <Stack.Protected guard={!!user}>
-        <Stack.Screen name="private" options={{ headerShown: false }} />
-      </Stack.Protected>
-    </Stack>
-  );
-}
+  useEffect(() => {
+    if (fontsReady) SplashScreen.hideAsync();
+  }, [fontsReady]);
 
-export default Sentry.wrap(function RootLayout() {
-  const colorScheme = useColorScheme();
+  if (!fontsReady) return null;
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <AppContent />
-        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider value={navigationTheme}>
+          <AppContent />
+          <StatusBar style="dark" />
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
-});
+};
+
+export default Sentry.wrap(RootLayout);

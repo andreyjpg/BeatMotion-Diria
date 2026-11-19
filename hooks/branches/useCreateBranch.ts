@@ -1,7 +1,5 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
 import { Alert } from "react-native";
 
 type CreateBranchInput = {
@@ -14,22 +12,24 @@ export const useCreateBranch = () => {
 
   return useMutation({
     mutationFn: async (input: CreateBranchInput) => {
-      const uid = getAuth().currentUser?.uid ?? null;
-      const docRef = await addDoc(collection(firestore, "branches"), {
-        name: input.name.trim(),
-        location: input.location.trim(),
-        createdBy: uid,
-        isDeleted: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      return docRef.id;
+      const { data: session } = await supabase.auth.getSession();
+      const { data, error } = await supabase
+        .from("branches")
+        .insert({
+          name: input.name.trim(),
+          location: input.location.trim(),
+          created_by: session.session?.user.id ?? null,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["branches"] });
       Alert.alert("Éxito", "Sucursal creada correctamente.");
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error("Error creating branch:", error);
       Alert.alert("Error", "No se pudo crear la sucursal.");
     },

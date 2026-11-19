@@ -1,29 +1,34 @@
-import { firestore } from "@/firebaseConfig";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { Notifications } from "@/lib/notifications";
 import { useEffect } from "react";
+import { registerPushToken } from "./pushToken";
 
+/**
+ * Registers this device's Expo push token for the signed-in user. Runs on
+ * every sign-in, so devices register themselves again after the migration.
+ */
 export const useCreateFCMToken = () => {
   const { user } = useActiveUser();
 
   useEffect(() => {
-    if (!user?.uid) return;
+    // No notifications module in Expo Go on Android (see lib/notifications.ts).
+    const notifications = Notifications;
+    if (!user?.uid || !notifications) return;
 
     const registerToken = async () => {
       if (!Device.isDevice) {
-        console.error("Push notifications only work on a physical device");
+        console.warn("Push notifications only work on a physical device");
         return;
       }
 
       // Request permission if needed
       const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
+        await notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
+        const { status } = await notifications.requestPermissionsAsync();
         finalStatus = status;
       }
 
@@ -32,28 +37,31 @@ export const useCreateFCMToken = () => {
         return;
       }
 
-      const { data: expoToken } = await Notifications.getExpoPushTokenAsync({
+      const { data: expoToken } = await notifications.getExpoPushTokenAsync({
         projectId: Constants.expoConfig?.extra?.eas?.projectId,
       });
 
-      const ref = doc(firestore, "pushTokens", user.uid);
-      await setDoc(
-        ref,
-        {
-          token: expoToken,
-          role: user.role,
-          timestamp: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      // The device now belongs to this user (a previous user on it stops
+      // getting pushes here).
+      await registerPushToken(expoToken);
     };
 
-    registerToken();
+    // Push tokens aren't available everywhere (Expo Go on Android throws since
+    // SDK 55); a missing token must never break the app.
+    const safeRegisterToken = () =>
+      registerToken().catch((error) =>
+        console.warn(
+          "Push notifications unavailable:",
+          error?.message ?? error,
+        ),
+      );
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(
+    safeRegisterToken();
+
+    const subscription = notifications.addNotificationResponseReceivedListener(
       () => {
-        registerToken();
-      }
+        safeRegisterToken();
+      },
     );
 
     return () => subscription.remove();

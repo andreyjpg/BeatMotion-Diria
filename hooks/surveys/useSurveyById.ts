@@ -1,33 +1,22 @@
-import { firestore } from "@/firebaseConfig";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
-import { doc, getDoc } from "firebase/firestore";
-import { surveySchema } from "./surveySchema";
+import { SURVEY_COLUMNS, surveySchema, toSurvey } from "./surveySchema";
 
-const fetchSurveyById = async (surveyId: string) => {
-  try {
-    const docRef = doc(firestore, "surveys", surveyId);
-    const snapshot = await getDoc(docRef);
+/** One survey with its questions in order, or null if it doesn't exist. */
+export const useSurveyById = (surveyId?: string) => {
+  const fetchSurvey = async () => {
+    const { data, error } = await supabase
+      .from("surveys")
+      .select(SURVEY_COLUMNS)
+      .eq("id", surveyId!)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? surveySchema.parse(toSurvey(data)) : null;
+  };
 
-    if (!snapshot.exists()) {
-      throw new Error("Encuesta no encontrada");
-    }
-
-    const survey = {
-      id: snapshot.id,
-      ...snapshot.data(),
-    };
-
-    return surveySchema.parse(survey);
-  } catch (error) {
-    console.error("Error fetching survey:", error);
-    throw error;
-  }
-};
-
-export const useSurveyById = (surveyId: string) => {
   return useQuery({
-    queryKey: ["survey", surveyId],
-    queryFn: () => fetchSurveyById(surveyId),
+    queryKey: ["surveys", "byId", surveyId],
+    queryFn: fetchSurvey,
     enabled: !!surveyId,
   });
 };
