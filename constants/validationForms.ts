@@ -326,18 +326,30 @@ export const helpPaymentFormSchema = yup.object({
 
 // The optional reason of a drop or cancel (app/private/user/membership).
 // Same limit as membership_changes.reason.
+const membershipReasonSchema = yup.string().trim().max(500, "El motivo no puede superar 500 caracteres.");
+
 export const membershipChangeFormSchema = yup.object({
-  reason: yup.string().trim().max(500, "El motivo no puede superar 500 caracteres."),
+  reason: membershipReasonSchema,
 });
 
-// How long a pause lasts (app/private/user/membership/pause): 1 to 3 months,
-// as request_membership_change allows.
+// How long a pause lasts: 1 to 3 months, as request_membership_change and
+// admin_request_membership_change allow.
+const pauseMonthsSchema = yup
+  .number()
+  .nullable()
+  .required("Elige cuánto dura la pausa.")
+  .oneOf([...PAUSE_MONTHS], "Elige una pausa de 1, 2 o 3 meses.");
+
+// The student's pause (app/private/user/membership/pause).
 export const pauseFormSchema = yup.object({
-  months: yup
-    .number()
-    .nullable()
-    .required("Elige cuánto dura la pausa.")
-    .oneOf([...PAUSE_MONTHS], "Elige una pausa de 1, 2 o 3 meses."),
+  months: pauseMonthsSchema,
+});
+
+// An admin's pause for a student (app/private/admin/membership/[uid]/pause),
+// which also takes a reason.
+export const adminPauseFormSchema = yup.object({
+  months: pauseMonthsSchema,
+  reason: membershipReasonSchema,
 });
 
 // Limits match the database constraints on public.branches.

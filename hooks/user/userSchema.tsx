@@ -1,5 +1,6 @@
 import zod from "zod";
 import { dateTimeSchema } from "../common/schema";
+import { liveMembershipChangeSchema, type LiveMembershipChange } from "../membership/schema";
 
 /**
  * Columns of public.profiles, renamed to the camelCase fields the app uses.
@@ -34,10 +35,11 @@ export const userSchema = zod
 
 /**
  * Admin user list: each profile with its current courses and how its monthly
- * payment stands (course_members).
+ * payment stands (course_members), and its live membership changes (useUsers
+ * keeps the scheduled ones and the ones applied).
  */
 export const USER_LIST_COLUMNS =
-  "id, email, name, lastName:last_name, phone, birthDate:birth_date, role, photoPath:photo_path, isActive:is_active, memberships:course_members!course_members_user_id_fkey(active, paymentStatus:payment_status, nextPaymentDate:next_payment_date, course:courses(title))";
+  "id, email, name, lastName:last_name, phone, birthDate:birth_date, role, photoPath:photo_path, isActive:is_active, memberships:course_members!course_members_user_id_fkey(active, paymentStatus:payment_status, nextPaymentDate:next_payment_date, course:courses(title)), changes:membership_changes!membership_changes_user_id_fkey(kind, status)";
 
 export const paymentStandingSchema = zod.enum(["ok", "pending", "late"]);
 export type PaymentStanding = zod.infer<typeof paymentStandingSchema>;
@@ -51,15 +53,29 @@ type ListRow = {
     nextPaymentDate: string | null;
     course: { title: string } | null;
   }[];
+  changes: { kind: "drop" | "cancel" | "pause"; status: "scheduled" | "applied" | "withdrawn" | "ended" }[];
+};
+
+/**
+ * A student's change in progress: a pause that started, or the one change
+ * waiting for its date. A drop or cancel already applied isn't in progress.
+ */
+const listMembershipChangeOf = (changes: ListRow["changes"]): LiveMembershipChange | null => {
+  if (changes.some((change) => change.kind === "pause" && change.status === "applied")) return "paused";
+  const scheduled = changes.find((change) => change.status === "scheduled");
+  if (!scheduled) return null;
+  if (scheduled.kind === "pause") return "pauseScheduled";
+  return scheduled.kind === "cancel" ? "cancelScheduled" : "dropScheduled";
 };
 
 /**
  * Database row -> list card: titles of the active courses, the worst payment
- * status among them (one late course makes the student late) and the earliest
- * due date. Students without courses get null for both.
+ * status among them (one late course makes the student late), the earliest
+ * due date and the change in progress. Students without courses get null for
+ * the payment fields.
  */
 export function toUserListItem<T extends ListRow>(row: T) {
-  const { memberships, ...profile } = row;
+  const { memberships, changes, ...profile } = row;
   const active = memberships.filter((membership) => membership.active);
   const paymentStatus = active.reduce<PaymentStanding | null>(
     (worst, membership) =>
@@ -78,6 +94,7 @@ export function toUserListItem<T extends ListRow>(row: T) {
     courses: active.flatMap((membership) => (membership.course ? [membership.course.title] : [])),
     paymentStatus,
     nextPaymentDate,
+    membershipChange: listMembershipChangeOf(changes),
   };
 }
 
@@ -94,6 +111,7 @@ export const userListItemSchema = zod.object({
   courses: zod.array(zod.string()),
   paymentStatus: paymentStandingSchema.nullable(),
   nextPaymentDate: zod.string().nullable(), // "YYYY-MM-DD"
+  membershipChange: liveMembershipChangeSchema.nullable(),
 });
 
 export const userListSchema = zod.array(userListItemSchema);

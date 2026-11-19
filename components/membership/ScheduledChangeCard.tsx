@@ -11,7 +11,7 @@ import {
   planName,
 } from "@/constants/helpers";
 import type { Fare } from "@/hooks/fares/schema";
-import { lastDayBefore } from "@/hooks/membership/membershipRules";
+import { isMadeByAdmin, lastDayBefore } from "@/hooks/membership/membershipRules";
 import type { MembershipChange } from "@/hooks/membership/schema";
 import { useWithdrawMembershipChange } from "@/hooks/membership/useWithdrawMembershipChange";
 
@@ -22,7 +22,8 @@ type ScheduledChangeCardProps = {
   fares: Fare[] | undefined;
 };
 
-type CardTexts = { tag: string; title: string; text: string };
+/** The card's texts; `undo` says until when the student can undo it (left out for an admin's change). */
+type CardTexts = { tag: string; title: string; text: string; undo: string };
 
 /** A pause waiting for its date, or past it while a payment is in review (it starts once approved). */
 const pauseTexts = (change: MembershipChange, lastDay: string): CardTexts => {
@@ -33,8 +34,9 @@ const pauseTexts = (change: MembershipChange, lastDay: string): CardTexts => {
     tag: "Pausa programada",
     title: `Pausa del ${startsOn} al ${endsOn}`,
     text: isWaitingForPayment
-      ? "Empieza cuando la academia apruebe tu pago. Puedes deshacerla mientras tanto."
-      : `No pagas mensualidad durante la pausa. Vuelves a pagar el ${endsOn}. Puedes deshacerla hasta el ${lastDay}.`,
+      ? "Empieza cuando la academia apruebe tu pago."
+      : `No pagas mensualidad durante la pausa. Vuelves a pagar el ${endsOn}.`,
+    undo: isWaitingForPayment ? "Puedes deshacerla mientras tanto." : `Puedes deshacerla hasta el ${lastDay}.`,
   };
 };
 
@@ -50,7 +52,8 @@ const leavingTexts = (
     return {
       tag: "Cancelación programada",
       title: `Tu membresía termina el ${startsOn}`,
-      text: `Sigues asistiendo hasta el ${lastDay}. Puedes deshacerlo hasta ese día.`,
+      text: `Sigues asistiendo hasta el ${lastDay}.`,
+      undo: "Puedes deshacerlo hasta ese día.",
     };
   }
   const leaving = courses.filter((course) => change.courseIds.includes(course.courseId));
@@ -60,16 +63,21 @@ const leavingTexts = (
     title: `${joinWithAnd(leaving.map((course) => course.title))} ${leaving.length === 1 ? "sale" : "salen"} de tu plan el ${startsOn}`,
     text: `Desde esa fecha pasas a ${planName(remainingCount)} y pagas ${formatCurrency(
       monthlyFareFor(fares, remainingCount),
-    )} al mes. Puedes deshacerlo hasta el ${lastDay}.`,
+    )} al mes.`,
+    undo: `Puedes deshacerlo hasta el ${lastDay}.`,
   };
 };
 
-/** The drop, cancel or pause waiting for its date: what changes, from when, and undoing it. */
+/**
+ * The drop, cancel or pause waiting for its date: what changes, from when, and
+ * undoing it. A change an admin made can only be undone by an admin.
+ */
 const ScheduledChangeCard = ({ change, courses, fares }: ScheduledChangeCardProps) => {
   const withdraw = useWithdrawMembershipChange();
 
   const lastDay = formatDayMonth(lastDayBefore(change.effectiveDate));
   const texts = change.kind === "pause" ? pauseTexts(change, lastDay) : leavingTexts(change, courses, fares, lastDay);
+  const isByAdmin = isMadeByAdmin(change);
 
   return (
     <Card className="mx-3 mt-4 gap-2">
@@ -78,16 +86,22 @@ const ScheduledChangeCard = ({ change, courses, fares }: ScheduledChangeCardProp
         {texts.title}
       </AppText>
       <AppText tone="muted" className="text-[13.5px] leading-[19px]">
-        {texts.text}
+        {isByAdmin ? texts.text : `${texts.text} ${texts.undo}`}
       </AppText>
-      <Button
-        label="Deshacer"
-        variant="secondary"
-        size="sm"
-        className="mt-1 self-start"
-        loading={withdraw.isPending}
-        onPress={() => withdraw.mutate(change.id)}
-      />
+      {isByAdmin ? (
+        <AppText variant="semibold" className="mt-1 text-[13.5px]">
+          La academia programó este cambio.
+        </AppText>
+      ) : (
+        <Button
+          label="Deshacer"
+          variant="secondary"
+          size="sm"
+          className="mt-1 self-start"
+          loading={withdraw.isPending}
+          onPress={() => withdraw.mutate(change.id)}
+        />
+      )}
     </Card>
   );
 };

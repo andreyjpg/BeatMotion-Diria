@@ -1,20 +1,20 @@
 import DataLoader from "@/components/DataLoader";
 import CancelBlockedNotice from "@/components/membership/CancelBlockedNotice";
+import CancelFacts from "@/components/membership/CancelFacts";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Field from "@/components/ui/Field";
-import type { IconName } from "@/components/ui/IconButton";
 import Notice from "@/components/ui/Notice";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { formatCurrency, formatDayMonth, monthlyFareFor } from "@/constants/helpers";
+import { formatDayMonth, monthlyFareFor } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { FormErrors, membershipChangeFormSchema, validationErrors } from "@/constants/validationForms";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
 import { useFares } from "@/hooks/fares/useFares";
-import { lastDayBefore, paysComingMonth } from "@/hooks/membership/membershipRules";
-import { MEMBERSHIP_ERROR_MESSAGES, type MembershipChangePreview } from "@/hooks/membership/schema";
+import { paysComingMonth } from "@/hooks/membership/membershipRules";
+import { MEMBERSHIP_ERROR_MESSAGES } from "@/hooks/membership/schema";
 import { useMembershipChangePreview } from "@/hooks/membership/useMembershipChangePreview";
 import { useRequestMembershipChange } from "@/hooks/membership/useRequestMembershipChange";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
@@ -22,36 +22,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
-
-type Fact = { icon: IconName; text: string };
-
-/** What canceling means for this student, from the dates the database gave. */
-const cancelFacts = (preview: MembershipChangePreview, monthlyFare: number): Fact[] => {
-  if (!preview.effectiveDate) return [];
-  const startsOn = formatDayMonth(preview.effectiveDate);
-  const payment =
-    preview.paymentDate && paysComingMonth(preview.paymentDate, preview.effectiveDate)
-      ? `Pagas la mensualidad del ${formatDayMonth(preview.paymentDate)} (${formatCurrency(
-          monthlyFare,
-        )}). No te cobramos la del ${startsOn}.`
-      : `No te cobramos la mensualidad del ${startsOn}.`;
-  return [
-    { icon: "calendar-outline", text: `Sigues asistiendo hasta el ${formatDayMonth(lastDayBefore(preview.effectiveDate))}.` },
-    { icon: "card-outline", text: payment },
-    { icon: "notifications-outline", text: `Desde el ${startsOn} no recibes recordatorios de pago.` },
-    { icon: "refresh-outline", text: "Tu cuenta sigue activa. Para volver, haces una matrícula nueva." },
-  ];
-};
-
-/** One line of the facts card. */
-const FactRow = ({ fact, divider }: { fact: Fact; divider: boolean }) => (
-  <View className={`flex-row items-start gap-3 py-3 ${divider ? "border-b border-line-soft" : ""}`}>
-    <View className="h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-sand">
-      <Ionicons name={fact.icon} size={18} color={palette.ink} />
-    </View>
-    <AppText className="flex-1 pt-1.5 text-[14.5px] leading-[20px]">{fact.text}</AppText>
-  </View>
-);
 
 /** "¿Solo necesitas un descanso?": pausing instead of canceling. */
 const BreakCard = ({ onPress }: { onPress: () => void }) => (
@@ -127,8 +97,6 @@ const CancelMembershipScreen = () => {
         {(preview) => (
           <DataLoader query={coursesQuery} emptyMessage="No tienes cursos activos.">
             {(myCourses) => {
-              const monthlyFare = monthlyFareFor(faresQuery.data, myCourses.length);
-              const facts = cancelFacts(preview, monthlyFare);
               const isShifted = paysComingMonth(preview.paymentDate, preview.effectiveDate);
               return (
                 <>
@@ -138,11 +106,11 @@ const CancelMembershipScreen = () => {
                     </Notice>
                   )}
 
-                  <Card padded={false} className="mx-3 mt-4 px-4 py-1.5">
-                    {facts.map((fact, index) => (
-                      <FactRow key={fact.icon} fact={fact} divider={index < facts.length - 1} />
-                    ))}
-                  </Card>
+                  <CancelFacts
+                    effectiveDate={preview.effectiveDate}
+                    paymentDate={preview.paymentDate}
+                    monthlyFare={monthlyFareFor(faresQuery.data, myCourses.length)}
+                  />
 
                   {isShifted && preview.paymentDate && preview.effectiveDate && (
                     <Notice tone="pending" className="mx-3 mt-2.5">

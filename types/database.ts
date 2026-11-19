@@ -669,6 +669,7 @@ export type Database = {
           effective_date: string
           end_date: string | null
           ended_at: string | null
+          ended_by: string | null
           id: string
           kind: Database["public"]["Enums"]["membership_change_kind"]
           reason: string | null
@@ -676,6 +677,7 @@ export type Database = {
           updated_at: string
           user_id: string
           withdrawn_at: string | null
+          withdrawn_by: string | null
         }
         Insert: {
           applied_at?: string | null
@@ -685,6 +687,7 @@ export type Database = {
           effective_date: string
           end_date?: string | null
           ended_at?: string | null
+          ended_by?: string | null
           id?: string
           kind: Database["public"]["Enums"]["membership_change_kind"]
           reason?: string | null
@@ -692,6 +695,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           withdrawn_at?: string | null
+          withdrawn_by?: string | null
         }
         Update: {
           applied_at?: string | null
@@ -701,6 +705,7 @@ export type Database = {
           effective_date?: string
           end_date?: string | null
           ended_at?: string | null
+          ended_by?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["membership_change_kind"]
           reason?: string | null
@@ -708,6 +713,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           withdrawn_at?: string | null
+          withdrawn_by?: string | null
         }
         Relationships: [
           {
@@ -718,8 +724,22 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "membership_changes_ended_by_fkey"
+            columns: ["ended_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "membership_changes_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_changes_withdrawn_by_fkey"
+            columns: ["withdrawn_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1203,6 +1223,104 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_end_pause: {
+        Args: { p_user_id: string }
+        Returns: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_changes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_membership_change_preview: {
+        Args: { p_user_id: string }
+        Returns: {
+          blocked_reason: string
+          cancel_blocked_reason: string
+          effective_date: string
+          owed_payment_date: string
+          pause_end_dates: string[]
+          payment_date: string
+        }[]
+      }
+      admin_request_membership_change: {
+        Args: {
+          p_course_ids?: string[]
+          p_kind: Database["public"]["Enums"]["membership_change_kind"]
+          p_months?: number
+          p_reason?: string
+          p_user_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_changes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_withdraw_membership_change: {
+        Args: { p_change_id: string }
+        Returns: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_changes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       age_report: { Args: never; Returns: Json }
       assign_student_to_course: {
         Args: { p_course_id: string; p_user_id: string }
@@ -1226,6 +1344,7 @@ export type Database = {
           effective_date: string
           end_date: string | null
           ended_at: string | null
+          ended_by: string | null
           id: string
           kind: Database["public"]["Enums"]["membership_change_kind"]
           reason: string | null
@@ -1233,6 +1352,7 @@ export type Database = {
           updated_at: string
           user_id: string
           withdrawn_at: string | null
+          withdrawn_by: string | null
         }
         SetofOptions: {
           from: "*"
@@ -1289,6 +1409,7 @@ export type Database = {
           effective_date: string
           end_date: string | null
           ended_at: string | null
+          ended_by: string | null
           id: string
           kind: Database["public"]["Enums"]["membership_change_kind"]
           reason: string | null
@@ -1296,6 +1417,7 @@ export type Database = {
           updated_at: string
           user_id: string
           withdrawn_at: string | null
+          withdrawn_by: string | null
         }
         SetofOptions: {
           from: "*"
@@ -1345,6 +1467,7 @@ export type Database = {
           effective_date: string
           end_date: string | null
           ended_at: string | null
+          ended_by: string | null
           id: string
           kind: Database["public"]["Enums"]["membership_change_kind"]
           reason: string | null
@@ -1352,6 +1475,7 @@ export type Database = {
           updated_at: string
           user_id: string
           withdrawn_at: string | null
+          withdrawn_by: string | null
         }
         SetofOptions: {
           from: "*"

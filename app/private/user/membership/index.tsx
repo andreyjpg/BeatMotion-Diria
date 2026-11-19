@@ -22,6 +22,7 @@ import {
   coursesContinuingOn,
   earliestPaymentDate,
   nextChargedDate,
+  notStartedPauseOf,
   scheduledChangeOf,
 } from "@/hooks/membership/membershipRules";
 import { MEMBERSHIP_ERROR_MESSAGES } from "@/hooks/membership/schema";
@@ -110,6 +111,7 @@ const MembershipScreen = () => {
 
   const change = scheduledChangeOf(changesQuery.data);
   const activePause = activePauseOf(changesQuery.data);
+  const notStartedPause = notStartedPauseOf(changesQuery.data);
   const blockedReason = previewQuery.data?.blockedReason ?? null;
   const cancelBlockedReason = previewQuery.data?.cancelBlockedReason ?? null;
   // Until the database says the student can, no option opens.
@@ -173,6 +175,12 @@ const MembershipScreen = () => {
                   action={<Button label="Ir a pagar" onPress={() => router.navigate("/private/payments")} />}
                 >
                   Tienes un pago atrasado. Ponte al día para hacer cambios.
+                </Notice>
+              )}
+
+              {notStartedPause && (
+                <Notice tone="neutral" className="mx-3 mt-4">
+                  {`Tu pausa del ${formatDayMonth(notStartedPause.effectiveDate)} no empezó porque tenías un pago atrasado. Ponte al día y vuelve a pedirla.`}
                 </Notice>
               )}
 

@@ -1,5 +1,7 @@
-import { addDays, formatYYYYMMDD } from "@/constants/helpers";
-import type { MembershipChange } from "./schema";
+import { addDays, daysBetween, formatYYYYMMDD } from "@/constants/helpers";
+import type { LiveMembershipChange, MembershipChange } from "./schema";
+
+const MONTHS_PER_YEAR = 12;
 
 // What a scheduled drop, cancel or pause means for the student's courses and
 // their monthly payment. The database decides the dates (membership_change_preview,
@@ -7,11 +9,11 @@ import type { MembershipChange } from "./schema";
 // are local midnights (parseLocalDate), so they compare by calendar day.
 
 /** The change waiting for its date, if any: the database allows one at a time. */
-export const scheduledChangeOf = (changes: MembershipChange[] | undefined) =>
+export const scheduledChangeOf = <T extends MembershipChange>(changes: T[] | undefined): T | null =>
   changes?.find((change) => change.status === "scheduled") ?? null;
 
 /** The pause that has started and not ended, if any: the student is paused now. */
-export const activePauseOf = (changes: MembershipChange[] | undefined) =>
+export const activePauseOf = <T extends MembershipChange>(changes: T[] | undefined): T | null =>
   changes?.find((change) => change.kind === "pause" && change.status === "applied") ?? null;
 
 /** Whether `change` is a pause that starts on or before `dueDate`, so that payment isn't charged. */
@@ -93,3 +95,57 @@ export const lastDayBefore = (effectiveDate: Date) => addDays(effectiveDate, -1)
  */
 export const paysComingMonth = (paymentDate: Date | null, effectiveDate: Date | null) =>
   !!paymentDate && !!effectiveDate && effectiveDate.getTime() > paymentDate.getTime();
+
+// Who made, undid or ended a change (BM-035). createdBy, withdrawnBy and
+// endedBy are the student's own id when they did it.
+
+/** Whether an admin made the change for the student (a deleted creator counts too). */
+export const isMadeByAdmin = (change: MembershipChange) => change.createdBy !== change.userId;
+
+/** Whether the daily job withdrew it: a pause that didn't start over an unpaid month. */
+export const wasWithdrawnByJob = (change: MembershipChange) =>
+  change.status === "withdrawn" && change.withdrawnBy === null;
+
+/** Days the student is told their pause didn't start (Mi membresía). */
+const NOT_STARTED_NOTICE_DAYS = 30;
+
+/**
+ * The pause the job didn't start, while it's the student's latest change and
+ * less than NOT_STARTED_NOTICE_DAYS old; null otherwise. `changes` come newest
+ * first (useMembershipChanges).
+ */
+export const notStartedPauseOf = (changes: MembershipChange[] | undefined, today = new Date()) => {
+  const latest = changes?.[0];
+  if (!latest || latest.kind !== "pause" || !wasWithdrawnByJob(latest) || !latest.withdrawnAt) return null;
+  return daysBetween(latest.withdrawnAt, today) < NOT_STARTED_NOTICE_DAYS ? latest : null;
+};
+
+/** The change that matters now: the scheduled one, or the pause in progress. */
+export const currentChangeOf = <T extends MembershipChange>(changes: T[] | undefined): T | null =>
+  scheduledChangeOf(changes) ?? activePauseOf(changes);
+
+/** Months between a pause's start and its end date (they fall on the same payment day). */
+export const pauseMonthsOf = (change: MembershipChange) => {
+  if (!change.endDate) return 0;
+  const { effectiveDate: start, endDate: end } = change;
+  return (end.getFullYear() - start.getFullYear()) * MONTHS_PER_YEAR + end.getMonth() - start.getMonth();
+};
+
+/** The day a pause really ended: the day the student came back early, or its end date. */
+export const pauseRealEndOf = (change: MembershipChange) => {
+  if (!change.endDate) return null;
+  if (change.status !== "ended" || !change.endedAt) return change.endDate;
+  const cameBack = addDays(change.endedAt, 0);
+  return cameBack.getTime() < change.endDate.getTime() ? cameBack : change.endDate;
+};
+
+/** Whether an admin's change starting on `effectiveDate` applies as soon as it's made (today). */
+export const appliesToday = (effectiveDate: Date | null, today = new Date()) =>
+  !!effectiveDate && daysBetween(today, effectiveDate) <= 0;
+
+/** The admin's chip for a student's change in progress (currentChangeOf); null with none. */
+export const liveChangeOf = (change: MembershipChange | null): LiveMembershipChange | null => {
+  if (!change) return null;
+  if (change.kind === "pause") return change.status === "applied" ? "paused" : "pauseScheduled";
+  return change.kind === "cancel" ? "cancelScheduled" : "dropScheduled";
+};

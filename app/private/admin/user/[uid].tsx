@@ -1,11 +1,13 @@
 import DataLoader from "@/components/DataLoader";
+import MembershipChangeChip from "@/components/membership/admin/MembershipChangeChip";
+import StudentMembershipCard from "@/components/membership/admin/StudentMembershipCard";
 import AgeChip from "@/components/profile/AgeChip";
 import BirthDateRow from "@/components/profile/BirthDateRow";
 import AppText from "@/components/ui/AppText";
 import Avatar from "@/components/ui/Avatar";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import Chip, { statusTone } from "@/components/ui/Chip";
+import Chip, { statusTone, type ChipTone } from "@/components/ui/Chip";
 import DateTimeField from "@/components/ui/DateTimeField";
 import Field from "@/components/ui/Field";
 import FormActions from "@/components/ui/FormActions";
@@ -20,6 +22,7 @@ import {
   birthDatePickerDates,
   capitalize,
   digitsOnly,
+  formatDayMonth,
   formatYYYYMMDD,
   parseLocalDate,
   roleLabel,
@@ -27,9 +30,19 @@ import {
 } from "@/constants/helpers";
 import { adminProfileFormSchema, FormErrors, validationErrors } from "@/constants/validationForms";
 import { useBranches } from "@/hooks/branches/useBranches";
+import type { CourseSchemaWithMember } from "@/hooks/courses/schema/courseSchema";
 import { useCourses } from "@/hooks/courses/useCourses";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
 import { useManualEnrollment } from "@/hooks/enrollment/useManualEnrollment";
+import {
+  currentChangeOf,
+  leavingDateOf,
+  liveChangeOf,
+  scheduledChangeOf,
+} from "@/hooks/membership/membershipRules";
+import type { MembershipChange } from "@/hooks/membership/schema";
+import { useAdminMembershipChangePreview } from "@/hooks/membership/useAdminMembershipChangePreview";
+import { useMembershipChangesByUser } from "@/hooks/membership/useMembershipChangesByUser";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useDeleteProfilePhoto } from "@/hooks/user/useDeleteProfilePhoto";
 import { useSetUserActive } from "@/hooks/user/useSetUserActive";
@@ -47,12 +60,26 @@ const ROLES: { value: Role; label: string }[] = [
   { value: "admin", label: roleLabel.admin },
 ];
 
-/** Admin: one person's details, role, courses and whether their account is active. */
+/** A course's chip on the profile: paused, leaving on a date, or how its payment stands. */
+const courseChipOf = (
+  course: CourseSchemaWithMember,
+  scheduled: MembershipChange | null,
+): { label: string; tone: ChipTone } => {
+  if (course.pausedUntil) return { label: "En pausa", tone: "muted" };
+  const leavesOn = leavingDateOf(course.courseId, scheduled);
+  if (leavesOn) return { label: `Baja el ${formatDayMonth(leavesOn)}`, tone: "pending" };
+  return { label: standingLabel[course.paymentStatus] ?? course.paymentStatus, tone: statusTone(course.paymentStatus) };
+};
+
+/** Admin: one person's details, role, courses, membership and whether their account is active. */
 const AdminUserProfile = () => {
   const { uid } = useLocalSearchParams<{ uid: string }>();
   const { user: activeUser } = useActiveUser();
   const userQuery = useUserInfo(uid);
   const coursesQuery = useCoursesByUserMember(uid);
+  // Shared with the membership card (same cache): the header chip and refreshing.
+  const changesQuery = useMembershipChangesByUser(uid);
+  const membershipPreviewQuery = useAdminMembershipChangePreview(uid);
   const allCoursesQuery = useCourses();
   const branchesQuery = useBranches();
   const updateProfile = useUpdateProfile();
@@ -73,6 +100,10 @@ const AdminUserProfile = () => {
   const isSelf = activeUser?.uid === uid;
 
   const courses = coursesQuery.data ?? [];
+  const scheduledChange = scheduledChangeOf(changesQuery.data);
+  const liveChange = liveChangeOf(currentChangeOf(changesQuery.data));
+  const courseTitle = (courseId: string) =>
+    allCoursesQuery.data?.find((course) => course.id === courseId)?.title ?? "un curso";
   const available = (allCoursesQuery.data ?? []).filter((course) => !courses.some((c) => c.courseId === course.id));
   const standing = courses.some((c) => c.paymentStatus === "late")
     ? "late"
@@ -158,6 +189,8 @@ const AdminUserProfile = () => {
   const refresh = () => {
     userQuery.refetch();
     coursesQuery.refetch();
+    changesQuery.refetch();
+    membershipPreviewQuery.refetch();
   };
 
   return (
@@ -215,6 +248,7 @@ const AdminUserProfile = () => {
                 <AgeChip birthDate={profile.birthDate} />
                 <Chip label={roleLabel[profile.role]} />
                 {standing && <Chip label={standingLabel[standing]} tone={statusTone(standing)} />}
+                {liveChange && <MembershipChangeChip change={liveChange} />}
                 {!profile.isActive && <Chip label="Inactivo" tone="muted" />}
               </View>
 
@@ -250,6 +284,7 @@ const AdminUserProfile = () => {
                 )}
                 {courses.map((course) => {
                   const branch = branchesQuery.data?.find((b) => b.id === course.branchId);
+                  const chip = courseChipOf(course, scheduledChange);
                   return (
                     <View key={course.id} className="flex-row items-center gap-2.5 border-b border-line-soft py-2.5">
                       <View className="flex-1">
@@ -261,10 +296,7 @@ const AdminUserProfile = () => {
                         </AppText>
                       </View>
                       <View>
-                        <Chip
-                          label={standingLabel[course.paymentStatus] ?? course.paymentStatus}
-                          tone={statusTone(course.paymentStatus)}
-                        />
+                        <Chip label={chip.label} tone={chip.tone} />
                       </View>
                     </View>
                   );
@@ -280,6 +312,14 @@ const AdminUserProfile = () => {
                   className="pt-2"
                 />
               </Card>
+
+              {profile.role === "user" && (
+                <StudentMembershipCard
+                  userId={uid}
+                  studentName={profile.name.trim() || fullName}
+                  courseTitle={courseTitle}
+                />
+              )}
 
               {!isSelf && profile.photoPath && (
                 <Card className="mx-3 mt-2.5 flex-row items-center justify-between gap-3">

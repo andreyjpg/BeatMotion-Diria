@@ -2,7 +2,7 @@ import { useSignOut } from "@/hooks/auth/useSignOut";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Notifications } from "@/lib/notifications";
 import { Stack, useRouter } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Alert } from "react-native";
 
 // Notifications is null in Expo Go on Android (see lib/notifications.ts).
@@ -48,6 +48,24 @@ const AppContent = () => {
       });
     }
   }, [lastNotificationResponse, router]);
+
+  // A membership change push (BM-033..035) opens Mi membresía for the student,
+  // and the student's profile for an admin. The role may load after the push
+  // is tapped, so each push is followed once, when the role is known.
+  const role = user?.role;
+  const handledMembershipPushId = useRef<string | null>(null);
+  useEffect(() => {
+    const request = lastNotificationResponse?.notification.request;
+    const data = request?.content.data;
+    if (!request || data?.type !== "membership_change" || !role) return;
+    if (handledMembershipPushId.current === request.identifier) return;
+    handledMembershipPushId.current = request.identifier;
+    if (role === "admin" && typeof data.userId === "string") {
+      router.push({ pathname: "/private/admin/user/[uid]", params: { uid: data.userId } });
+    } else if (role === "user") {
+      router.push("/private/user/membership");
+    }
+  }, [lastNotificationResponse, router, role]);
 
   return (
     <Stack>
