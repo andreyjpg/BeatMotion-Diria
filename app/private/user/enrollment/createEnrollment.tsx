@@ -30,11 +30,17 @@ type EnrollmentBlockedProps = {
 };
 
 /** Instead of the steps when the student can't enroll now: paused, or a pause or cancel scheduled. */
-const EnrollmentBlocked = ({ reason, onGoToMembership }: EnrollmentBlockedProps) => (
-  <Screen footer={<Button label="Ir a Mi membresía" onPress={onGoToMembership} />}>
+const EnrollmentBlocked = ({
+  reason,
+  onGoToMembership,
+}: EnrollmentBlockedProps) => (
+  <Screen
+    footer={<Button label="Ir a Mi membresía" onPress={onGoToMembership} />}
+  >
     <ScreenHeader eyebrow="Matrícula" title="Matricular" />
     <Notice tone="neutral" className="mx-3 mt-4">
-      {ENROLLMENT_ERROR_MESSAGES[reason] ?? "No puedes matricularte en este momento."}
+      {ENROLLMENT_ERROR_MESSAGES[reason] ??
+        "No puedes matricularte en este momento."}
     </Notice>
   </Screen>
 );
@@ -58,7 +64,11 @@ const CreateEnrollment = () => {
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [receipt, setReceipt] = useState<PickedImage | null>(null);
   // What was sent: sending refreshes the enrollments, which would change the totals.
-  const [sent, setSent] = useState<{ courseTitles: string[]; total: number; at: Date } | null>(null);
+  const [sent, setSent] = useState<{
+    courseTitles: string[];
+    total: number;
+    at: Date;
+  } | null>(null);
 
   // The courses the student is in now (active memberships) and the ones in a
   // pending request: those can't be asked for twice, and the fare difference
@@ -67,13 +77,17 @@ const CreateEnrollment = () => {
     .filter((enrollment) => enrollment.status === "pending")
     .flatMap((enrollment) => enrollment.courseIds);
   const enrolledCourseIds = [
-    ...new Set([...(myCoursesQuery.data ?? []).map((course) => course.courseId), ...pendingCourseIds]),
+    ...new Set([
+      ...(myCoursesQuery.data ?? []).map((course) => course.courseId),
+      ...pendingCourseIds,
+    ]),
   ];
 
   // Without fares every price is 0; never let a request go out like that.
   const faresReady = (faresQuery.data?.length ?? 0) > 0;
   const shouldChargeAnnualFee = annualFeeQuery.data ?? false;
-  const annualFare = faresQuery.data?.find((d) => d.type === "annual")?.fare ?? 0;
+  const annualFare =
+    faresQuery.data?.find((d) => d.type === "annual")?.fare ?? 0;
 
   // The student already pays the fare for their current courses; adding
   // courses costs the difference up to the fare for the new total.
@@ -86,7 +100,8 @@ const CreateEnrollment = () => {
   // Plan Diriá covers any number of courses: adding one may cost nothing.
   const needsReceipt = totalAmount > 0;
 
-  const pricesReady = annualFeeQuery.isSuccess && faresReady && myCoursesQuery.isSuccess;
+  const pricesReady =
+    annualFeeQuery.isSuccess && faresReady && myCoursesQuery.isSuccess;
   const selectedTitles = (coursesQuery.data ?? [])
     .filter((course) => selectedCourses.includes(course.id))
     .map((course) => course.title);
@@ -95,21 +110,26 @@ const CreateEnrollment = () => {
 
   // Android's back button moves between the steps, like the arrow on screen.
   useEffect(() => {
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (sent) {
-        router.replace("/private/home");
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (sent) {
+          router.replace("/private/home");
+          return true;
+        }
+        if (step === 1) return false;
+        setStep(step === 3 ? 2 : 1);
         return true;
-      }
-      if (step === 1) return false;
-      setStep(step === 3 ? 2 : 1);
-      return true;
-    });
+      },
+    );
     return () => subscription.remove();
   }, [router, sent, step]);
 
   const handleToggleCourse = (courseId: string) => {
     setSelectedCourses((prev) =>
-      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId],
+      prev.includes(courseId)
+        ? prev.filter((id) => id !== courseId)
+        : [...prev, courseId],
     );
   };
 
@@ -136,7 +156,14 @@ const CreateEnrollment = () => {
   };
 
   if (sent) {
-    return <EnrollmentSent courseTitles={sent.courseTitles} total={sent.total} sentAt={sent.at} onDone={goHome} />;
+    return (
+      <EnrollmentSent
+        courseTitles={sent.courseTitles}
+        total={sent.total}
+        sentAt={sent.at}
+        onDone={goHome}
+      />
+    );
   }
 
   if (enrollmentBlock) {
@@ -150,7 +177,11 @@ const CreateEnrollment = () => {
 
   if (step === 1) {
     return (
-      <RulesStep accepted={accepted} onAcceptedChange={setAccepted} onContinue={() => setStep(2)} />
+      <RulesStep
+        accepted={accepted}
+        onAcceptedChange={setAccepted}
+        onContinue={() => setStep(2)}
+      />
     );
   }
 
