@@ -4,6 +4,14 @@ import { dateTimeSchema } from "../common/schema";
 export const reviewStatusSchema = zod.enum(["pending", "approved", "rejected"]);
 export type ReviewStatus = zod.infer<typeof reviewStatusSchema>;
 
+/** Codes request_enrollment raises (P0001, the code is the message), in Spanish. */
+export const ENROLLMENT_ERROR_MESSAGES: Record<string, string> = {
+  COURSE_NOT_AVAILABLE: "Uno de los cursos ya no está disponible. Actualiza la lista e intenta de nuevo.",
+  CANCEL_SCHEDULED: "Tienes una cancelación programada. Deshazla para matricularte.",
+  MEMBERSHIP_PAUSED: "Tu membresía está en pausa. Termina la pausa para matricularte.",
+  PAUSE_SCHEDULED: "Tienes una pausa programada. Deshazla para matricularte.",
+};
+
 /**
  * public.enrollments columns renamed to the fields the app uses. An enrollment
  * is one request (receipt, total, status) for one or more courses
@@ -12,9 +20,12 @@ export type ReviewStatus = zod.infer<typeof reviewStatusSchema>;
 export const ENROLLMENT_COLUMNS =
   "id, userId:user_id, status, source, totalAmount:total_amount, receiptPath:payment_proof_path, annualFeeYear:annual_fee_year, submittedAt:submitted_at, reviewedBy:reviewed_by, reviewedAt:reviewed_at, enrollmentCourses:enrollment_courses(courseId:course_id)";
 
-/** Same request with each course (and its branch) and the student, for the admin screens. */
+/**
+ * Same request with each course (and its branch), the student and when they
+ * accepted the academy's rules, for the admin screens.
+ */
 export const ENROLLMENT_DETAIL_COLUMNS =
-  "id, userId:user_id, status, source, totalAmount:total_amount, receiptPath:payment_proof_path, annualFeeYear:annual_fee_year, submittedAt:submitted_at, reviewedBy:reviewed_by, reviewedAt:reviewed_at, enrollmentCourses:enrollment_courses(course:courses(id, title, description, level, day, branch:branches(name))), user:profiles!enrollments_user_id_fkey(id, name, lastName:last_name, email, phone)";
+  "id, userId:user_id, status, source, totalAmount:total_amount, receiptPath:payment_proof_path, annualFeeYear:annual_fee_year, submittedAt:submitted_at, reviewedBy:reviewed_by, reviewedAt:reviewed_at, rulesAcceptedAt:rules_accepted_at, enrollmentCourses:enrollment_courses(course:courses(id, title, description, level, day, branch:branches(name))), user:profiles!enrollments_user_id_fkey(id, name, lastName:last_name, email, phone, birthDate:birth_date)";
 
 /** Database row -> screen shape: the requested course ids as a flat list. */
 export function toEnrollment<T extends { enrollmentCourses: { courseId: string }[] }>(row: T) {
@@ -59,6 +70,8 @@ export type Enrollment = zod.infer<typeof enrollmentSchema>[number];
 export const enrollmentDetailSchema = zod.array(
   zod.object({
     ...enrollmentFields,
+    // Null for manual enrollments, older requests and builds that don't send it.
+    rulesAcceptedAt: dateTimeSchema.nullable(),
     receiptUrl: zod.string().nullable(),
     courses: zod.array(
       zod.object({
@@ -77,6 +90,7 @@ export const enrollmentDetailSchema = zod.array(
         lastName: zod.string(),
         email: zod.string(),
         phone: zod.string().nullable(),
+        birthDate: zod.string().nullable(), // "YYYY-MM-DD"; empty for accounts that never added it
       })
       .nullable(),
   })

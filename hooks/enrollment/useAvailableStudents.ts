@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import zod from "zod";
+import { signAvatarUrls, withPhotoUrl } from "../storage/avatarStorage";
 
 const studentSchema = zod.array(
   zod.object({
@@ -9,6 +10,7 @@ const studentSchema = zod.array(
     lastName: zod.string(),
     email: zod.string(),
     phone: zod.string().nullable(),
+    photoURL: zod.string().nullable(),
   })
 );
 
@@ -20,7 +22,7 @@ export const useAvailableStudents = (courseId: string) => {
     const [students, enrolled] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, name, lastName:last_name, email, phone")
+        .select("id, name, lastName:last_name, email, phone, photoPath:photo_path")
         .eq("role", "user")
         .eq("is_active", true)
         .order("name"),
@@ -34,7 +36,9 @@ export const useAvailableStudents = (courseId: string) => {
     if (enrolled.error) throw enrolled.error;
 
     const enrolledIds = new Set(enrolled.data.map((row) => row.enrollment.userId));
-    return studentSchema.parse(students.data.filter((s) => !enrolledIds.has(s.id)));
+    const available = students.data.filter((s) => !enrolledIds.has(s.id));
+    const urls = await signAvatarUrls(available.map((s) => s.photoPath));
+    return studentSchema.parse(available.map((s) => withPhotoUrl(s, urls)));
   };
 
   return useQuery({

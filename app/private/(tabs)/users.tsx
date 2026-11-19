@@ -1,4 +1,5 @@
 import DataLoader from "@/components/DataLoader";
+import MembershipChangeChip, { LIVE_CHANGE_CHIPS } from "@/components/membership/admin/MembershipChangeChip";
 import AppText from "@/components/ui/AppText";
 import Avatar from "@/components/ui/Avatar";
 import Card from "@/components/ui/Card";
@@ -7,7 +8,7 @@ import Field from "@/components/ui/Field";
 import Pill from "@/components/ui/Pill";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
-import { formatDayMonth, parseLocalDate, roleLabel, standingLabel } from "@/constants/helpers";
+import { ageOrNoAge, formatDayMonth, parseLocalDate, roleLabel, standingLabel } from "@/constants/helpers";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useUsers } from "@/hooks/user/useUsers";
 import type { PaymentStanding, UserListItem } from "@/hooks/user/userSchema";
@@ -31,14 +32,22 @@ const userChip = (user: UserListItem): { label: string; tone: ChipTone } => {
   return { label: "Sin cursos", tone: "muted" };
 };
 
-/** Second line of a user's row: their courses and next payment, or their email. */
-const userDetail = (user: UserListItem) => {
-  if (!user.isActive) return "Cuenta desactivada";
-  if (user.role !== "user") return user.email;
-  if (user.courses.length === 0) return "Sin cursos activos";
+/** The second chip of an active student with a membership change in progress. */
+const changeOf = (user: UserListItem) => (user.isActive ? user.membershipChange : null);
+
+/** What a student's row says after their age: their courses and next payment. */
+const studentActivity = (user: UserListItem) => {
+  if (!user.isActive) return "cuenta desactivada";
+  if (user.courses.length === 0) return "sin cursos activos";
   const courses = user.courses.length === 1 ? "1 curso" : `${user.courses.length} cursos`;
   const nextPayment = parseLocalDate(user.nextPaymentDate);
   return nextPayment ? `${courses} · próximo pago ${formatDayMonth(nextPayment)}` : courses;
+};
+
+/** Second line of a user's row: a student's age and courses, or a teacher's or admin's email. */
+const userDetail = (user: UserListItem) => {
+  if (user.role !== "user") return user.isActive ? user.email : "Cuenta desactivada";
+  return `${ageOrNoAge(user.birthDate)} · ${studentActivity(user)}`;
 };
 
 /** Ignores upper case and accents: "maria" finds "María". */
@@ -128,25 +137,37 @@ const AdminUsersScreen = () => {
             }
             renderItem={({ item }) => {
               const chip = userChip(item);
+              const change = changeOf(item);
               const name = `${item.name} ${item.lastName}`.trim();
               return (
                 <Card
                   onPress={() => router.push({ pathname: "/private/admin/user/[uid]", params: { uid: item.id } })}
-                  accessibilityLabel={`${name}, ${chip.label}`}
+                  accessibilityLabel={[name, chip.label, change && LIVE_CHANGE_CHIPS[change].label]
+                    .filter(Boolean)
+                    .join(", ")}
                   padded={false}
                   className={`flex-row items-center gap-3 px-3.5 py-3 ${item.isActive ? "" : "opacity-60"}`}
                 >
-                  <Avatar name={item.name} lastName={item.lastName} size={42} />
+                  <Avatar name={item.name} lastName={item.lastName} photoUrl={item.photoURL} size={42} />
                   <View className="flex-1 gap-0.5">
                     <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
                       {name || "Sin nombre"}
                     </AppText>
-                    <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+                    {/* Two lines: with a wide chip, the next payment date wraps instead of being cut. */}
+                    <AppText tone="muted" className="text-[12.5px]" numberOfLines={2}>
                       {userDetail(item)}
                     </AppText>
                   </View>
-                  <View>
-                    <Chip {...chip} />
+                  {/* Each chip in its own View: Chip is self-start, which would pull it left. */}
+                  <View className="items-end gap-1">
+                    <View>
+                      <Chip {...chip} />
+                    </View>
+                    {change && (
+                      <View>
+                        <MembershipChangeChip change={change} />
+                      </View>
+                    )}
                   </View>
                 </Card>
               );

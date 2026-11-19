@@ -6,7 +6,7 @@ import Chip from "@/components/ui/Chip";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
-import { capitalize, formatDayMonth, shortDayName } from "@/constants/helpers";
+import { capitalize, formatDayMonth, formatTimeRange, shortDayName } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { useBranches } from "@/hooks/branches/useBranches";
 import { useActiveClasses } from "@/hooks/classes/useActiveClasses";
@@ -15,6 +15,19 @@ import { useCourses } from "@/hooks/courses/useCourses";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, RefreshControl, View } from "react-native";
+
+/**
+ * Second line of a course row: "Lun 7:00–8:30 p. m. · Andrés Solano", or
+ * "Lunes · Andrés Solano" for a course without hours. The day is short next
+ * to the hours so the teacher still fits on the line.
+ */
+const courseRowDetail = (course: CourseType) => {
+  const hours = formatTimeRange(course.startTime, course.endTime);
+  const schedule = hours
+    ? [shortDayName(course.day), hours].filter(Boolean).join(" ")
+    : capitalize(course.day ?? "");
+  return [schedule, course.teacher].filter(Boolean).join(" · ");
+};
 
 /** Admin "Cursos" tab: every course by branch, and the way in to create and edit them. */
 const CoursesMenuScreen = () => {
@@ -88,6 +101,25 @@ const CoursesMenuScreen = () => {
           className="flex-1"
         />
       </View>
+      <Card
+        onPress={() => router.push("/private/admin/classes")}
+        accessibilityLabel="Clases. Todas las clases, visibles y ocultas"
+        padded={false}
+        className="mx-3 mt-2.5 flex-row items-center gap-3 px-3.5 py-3"
+      >
+        <View className="h-10 w-10 items-center justify-center rounded-xl bg-sand">
+          <Ionicons name="list-outline" size={20} color={palette.ink} />
+        </View>
+        <View className="flex-1">
+          <AppText variant="bold" className="text-[15px]">
+            Clases
+          </AppText>
+          <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
+            Todas las clases, visibles y ocultas
+          </AppText>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={palette.ink} />
+      </Card>
 
       <DataLoader query={coursesQuery} emptyMessage="No hay cursos creados aún.">
         {() =>
@@ -120,7 +152,7 @@ const CoursesMenuScreen = () => {
                           {course.title}
                         </AppText>
                         <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
-                          {[course.day && capitalize(course.day), course.teacher].filter(Boolean).join(" · ")}
+                          {courseRowDetail(course)}
                         </AppText>
                         <View className="flex-row flex-wrap gap-[5px]">
                           <Chip label={classes === 1 ? "1 clase" : `${classes} clases`} />

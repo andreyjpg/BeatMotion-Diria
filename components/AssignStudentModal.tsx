@@ -101,7 +101,7 @@ const AssignStudentModal = ({ visible, courseId, courseName, onClose }: AssignSt
                             isSelected ? "border-ink" : "border-surface"
                           }`}
                         >
-                          <Avatar name={item.name} lastName={item.lastName} tone={isSelected ? "dark" : "soft"} />
+                          <Avatar name={item.name} lastName={item.lastName} photoUrl={item.photoURL} tone={isSelected ? "dark" : "soft"} />
                           <View className="flex-1">
                             <AppText variant="bold" className="text-[15px]" numberOfLines={1}>
                               {`${item.name} ${item.lastName}`}

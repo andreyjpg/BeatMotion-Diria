@@ -3,23 +3,28 @@ import { dateTimeSchema } from "../common/schema";
 
 /**
  * public.event_signups columns renamed to the fields the app uses, plus the
- * student's name and email from their profile.
+ * student's name, email and picture from their profile.
  */
 export const EVENT_SIGNUP_COLUMNS =
-  "id, eventId:event_id, userId:user_id, status, inviteeCount:invitee_count, totalAttendees:total_attendees, pricePerHead:price_per_head, totalPrice:total_price, isFree:is_free, receiptPath:receipt_path, reviewedBy:reviewed_by, reviewedAt:reviewed_at, createdAt:created_at, updatedAt:updated_at, user:profiles!event_signups_user_id_fkey(name, lastName:last_name, email)";
+  "id, eventId:event_id, userId:user_id, status, inviteeCount:invitee_count, totalAttendees:total_attendees, pricePerHead:price_per_head, totalPrice:total_price, isFree:is_free, receiptPath:receipt_path, reviewedBy:reviewed_by, reviewedAt:reviewed_at, createdAt:created_at, updatedAt:updated_at, user:profiles!event_signups_user_id_fkey(name, lastName:last_name, email, photoPath:photo_path)";
 
 type SignupRow = {
   receiptPath: string | null;
-  user: { name: string; lastName: string; email: string } | null;
+  user: { name: string; lastName: string; email: string; photoPath: string | null } | null;
 };
 
-/** Database row -> screen shape: student name/email and the receipt's signed URL. */
-export function toEventSignup<T extends SignupRow>(row: T, receiptUrls: Map<string, string>) {
+/** Database row -> screen shape: student name/email and the signed URLs of their picture and receipt. */
+export function toEventSignup<T extends SignupRow>(
+  row: T,
+  receiptUrls: Map<string, string>,
+  photoUrls = new Map<string, string>(),
+) {
   const { user, ...signup } = row;
   return {
     ...signup,
     userName: user ? `${user.name} ${user.lastName}`.trim() : "",
     userEmail: user?.email ?? "",
+    userPhotoUrl: user?.photoPath ? (photoUrls.get(user.photoPath) ?? null) : null,
     receiptUrl: row.receiptPath ? (receiptUrls.get(row.receiptPath) ?? null) : null,
   };
 }
@@ -38,6 +43,7 @@ export const eventSignupSchema = zod.object({
   userId: zod.string(),
   userName: zod.string(),
   userEmail: zod.string(),
+  userPhotoUrl: zod.string().nullable(),
   inviteeCount: zod.number(),
   totalAttendees: zod.number(),
   pricePerHead: zod.number().nullable(),

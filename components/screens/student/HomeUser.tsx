@@ -1,20 +1,19 @@
 import ConoceDiriaCardMock from "@/components/mocks/ConoceDiriaCardMock";
+import MonthlyFeeCard from "@/components/payments/MonthlyFeeCard";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import Chip, { type ChipTone } from "@/components/ui/Chip";
+import Chip from "@/components/ui/Chip";
 import HomeHero from "@/components/ui/HomeHero";
 import Screen from "@/components/ui/Screen";
 import SectionHeader from "@/components/ui/SectionHeader";
 import ShortcutCard from "@/components/ui/ShortcutCard";
 import { SHOW_FEATURE_MOCKS } from "@/constants/featureMocks";
 import {
-  formatCurrency,
+  formatDayMonth,
   formatShortDate,
   formatYYYYMMDD,
   hhmmTo12h,
-  lateFeeFor,
-  monthlyFareFor,
   parseLocalDate,
   shortDayName,
 } from "@/constants/helpers";
@@ -22,30 +21,38 @@ import palette from "@/constants/palette.json";
 import { useBranches } from "@/hooks/branches/useBranches";
 import { useActiveClasses } from "@/hooks/classes/useActiveClasses";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
-import { useFares } from "@/hooks/fares/useFares";
-import { useAnnualFeeDue } from "@/hooks/payment/useAnnualFeeDue";
+import { activePauseOf } from "@/hooks/membership/membershipRules";
+import { useMembershipChanges } from "@/hooks/membership/useMembershipChanges";
 import { usePaymentsByUser } from "@/hooks/payment/usePaymentsByUser";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, type Href } from "expo-router";
 import { ActivityIndicator, Pressable, RefreshControl, View } from "react-native";
 
+const ENROLL_ROUTE: Href = "/private/user/enrollment/createEnrollment";
+
 const SHORTCUTS: { label: string; sub: string; icon: "add" | "checkbox-outline" | "calendar-outline" | "bag-outline"; route: Href }[] = [
-  { label: "Matricular", sub: "Agregar un curso", icon: "add", route: "/private/user/enrollment/createEnrollment" },
+  { label: "Matricular", sub: "Agregar un curso", icon: "add", route: ENROLL_ROUTE },
   { label: "Encuestas", sub: "Tu opinión cuenta", icon: "checkbox-outline", route: "/private/user/surveys/list" },
   { label: "Eventos", sub: "Sociales y talleres", icon: "calendar-outline", route: "/private/user/events" },
   { label: "Tienda", sub: "Ropa y accesorios", icon: "bag-outline", route: "/private/marketplace/MarketplaceList" },
 ];
 
-/** Student home: today's class, the monthly payment and shortcuts. */
+/** What the "Matricular" shortcut says while paused: enrolling waits for the pause to end. */
+const ENROLL_WHILE_PAUSED_SUB = "Al terminar la pausa";
+
+/** "Tus 3 cursos te esperan." on the paused hero. */
+const pausedSubtitle = (courseCount: number) =>
+  `${courseCount === 1 ? "Tu curso te espera" : `Tus ${courseCount} cursos te esperan`}. No tienes que matricularte de nuevo.`;
+
+/** Student home: today's class (or the pause), the monthly payment and shortcuts. */
 const HomeUser = () => {
   const router = useRouter();
   const { user } = useActiveUser();
   const coursesQuery = useCoursesByUserMember(user?.uid ?? "");
+  const changesQuery = useMembershipChanges(user?.uid);
   const classesQuery = useActiveClasses();
   const paymentsQuery = usePaymentsByUser(user?.uid);
-  const annualFeeQuery = useAnnualFeeDue(user?.uid);
-  const faresQuery = useFares();
   const branchesQuery = useBranches();
 
   const courses = coursesQuery.data ?? [];
@@ -56,6 +63,7 @@ const HomeUser = () => {
   const refreshing = coursesQuery.isRefetching || paymentsQuery.isRefetching;
   const refresh = () => {
     coursesQuery.refetch();
+    changesQuery.refetch();
     paymentsQuery.refetch();
     classesQuery.refetch();
   };
@@ -137,97 +145,65 @@ const HomeUser = () => {
   const nextClass = todayClass ? undefined : myClasses.find((cls) => (cls.date ?? "") > todayKey);
   const courseTitle = (courseId: string) => courses.find((c) => c.courseId === courseId)?.title ?? "";
 
-  // Same total as the payment screen: monthly fare + late fee + annual fee when due.
-  const dueDate =
-    courses
-      .map((course) => course.nextPaymentDate)
-      .filter((date): date is Date => date instanceof Date)
-      .sort((a, b) => a.getTime() - b.getTime())[0] ?? null;
-  const owes = courses.some((course) => course.paymentStatus !== "ok");
-  const isLate = courses.some((course) => course.paymentStatus === "late");
-  const inReview = paymentsQuery.data?.some((payment) => payment.status === "pending") ?? false;
-  const annualFare = faresQuery.data?.find((f) => f.type === "annual")?.fare ?? 0;
-  const total =
-    monthlyFareFor(faresQuery.data, courses.length) +
-    lateFeeFor(faresQuery.data, dueDate).amount +
-    (annualFeeQuery.data ? annualFare : 0);
+  // While paused there's no class to answer: the hero says until when, and how to come back.
+  const activePause = activePauseOf(changesQuery.data);
+  const pausedHero = activePause?.endDate ? (
+    <HomeHero
+      eyebrow="Membresía en pausa"
+      title={`En pausa hasta\nel ${formatDayMonth(activePause.endDate)}`}
+      subtitle={pausedSubtitle(courses.length)}
+    >
+      <Button
+        label="Volver antes"
+        variant="inverse"
+        className="mt-5"
+        onPress={() => router.push("/private/user/membership")}
+      />
+    </HomeHero>
+  ) : null;
 
-  const payment: { label: string; tone: ChipTone; text: string } = inReview
-    ? { label: "En revisión", tone: "pending", text: "Recibimos tu comprobante y lo estamos revisando." }
-    : isLate
-      ? { label: "Atrasado", tone: "late", text: dueDate ? `Venció el ${formatShortDate(dueDate).toLowerCase()}` : "Pago atrasado" }
-      : owes
-        ? { label: "Pendiente", tone: "pending", text: dueDate ? `Vence el ${formatShortDate(dueDate).toLowerCase()}` : "Pago pendiente" }
-        : { label: "Al día", tone: "ok", text: dueDate ? `Próximo pago el ${formatShortDate(dueDate).toLowerCase()}` : "No debes nada" };
-  const mustPay = owes && !inReview;
+  const classHero = todayClass ? (
+    <HomeHero
+      eyebrow={`${dateLabel} · Hoy`}
+      title={`${courseTitle(todayClass.courseId)}${todayClass.startTime ? `\na las ${hhmmTo12h(todayClass.startTime)}` : ""}`}
+      subtitle={[todayClass.title, todayClass.endTime && `hasta ${hhmmTo12h(todayClass.endTime)}`].filter(Boolean).join(" · ")}
+    >
+      <Button
+        label="¿Vas a asistir? Responde"
+        variant="inverse"
+        className="mt-5"
+        onPress={() =>
+          router.push({
+            pathname: "/private/user/attendance/rsvp",
+            params: {
+              classId: todayClass.id,
+              courseId: todayClass.courseId,
+              courseTitle: courseTitle(todayClass.courseId),
+            },
+          })
+        }
+      />
+    </HomeHero>
+  ) : (
+    <HomeHero
+      eyebrow={dateLabel}
+      title={`Hola, ${user?.name ?? ""}`.trim()}
+      subtitle={
+        nextClass?.date
+          ? `Hoy no tienes clase. La próxima: ${courseTitle(nextClass.courseId)}, ${formatShortDate(
+              parseLocalDate(nextClass.date) ?? today,
+            ).toLowerCase()}${nextClass.startTime ? ` a las ${hhmmTo12h(nextClass.startTime)}` : ""}.`
+          : "Hoy no tienes clase."
+      }
+    />
+  );
 
   return (
     <Screen inTabs refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
-      {todayClass ? (
-        <HomeHero
-          eyebrow={`${dateLabel} · Hoy`}
-          title={`${courseTitle(todayClass.courseId)}${todayClass.startTime ? `\na las ${hhmmTo12h(todayClass.startTime)}` : ""}`}
-          subtitle={[todayClass.title, todayClass.endTime && `hasta ${hhmmTo12h(todayClass.endTime)}`].filter(Boolean).join(" · ")}
-        >
-          <Button
-            label="¿Vas a asistir? Responde"
-            variant="inverse"
-            className="mt-5"
-            onPress={() =>
-              router.push({
-                pathname: "/private/user/attendance/rsvp",
-                params: {
-                  classId: todayClass.id,
-                  courseId: todayClass.courseId,
-                  courseTitle: courseTitle(todayClass.courseId),
-                },
-              })
-            }
-          />
-        </HomeHero>
-      ) : (
-        <HomeHero
-          eyebrow={dateLabel}
-          title={`Hola, ${user?.name ?? ""}`.trim()}
-          subtitle={
-            nextClass?.date
-              ? `Hoy no tienes clase. La próxima: ${courseTitle(nextClass.courseId)}, ${formatShortDate(
-                  parseLocalDate(nextClass.date) ?? today,
-                ).toLowerCase()}${nextClass.startTime ? ` a las ${hhmmTo12h(nextClass.startTime)}` : ""}.`
-              : "Hoy no tienes clase."
-          }
-        />
-      )}
+      {pausedHero ?? classHero}
 
       <SectionHeader title="Mensualidad" action={{ label: "Historial", onPress: () => router.navigate("/private/payments") }} />
-      <Card className="mx-3 gap-3">
-        <View className="flex-row items-center gap-2">
-          <Chip label={payment.label} tone={payment.tone} />
-          <AppText variant="label" tone="muted" className="flex-1 text-[10.5px]" numberOfLines={1}>
-            {payment.text}
-          </AppText>
-        </View>
-        <View className="flex-row items-end justify-between gap-3">
-          <View className="flex-1">
-            <AppText variant="bold" className="text-[16px]">
-              {courses.length === 1 ? "1 curso este mes" : `${courses.length} cursos este mes`}
-            </AppText>
-            <AppText tone="muted" className="mt-0.5 text-[13.5px]" numberOfLines={1}>
-              {courses.map((c) => c.title).join(" + ")}
-            </AppText>
-          </View>
-          {mustPay && faresQuery.isSuccess && (
-            <AppText variant="heavy" className="text-[24px]">
-              {formatCurrency(total)}
-            </AppText>
-          )}
-        </View>
-        <Button
-          label={mustPay ? "Pagar mensualidad" : "Ver mis pagos"}
-          variant={mustPay ? "primary" : "secondary"}
-          onPress={() => router.navigate("/private/payments")}
-        />
-      </Card>
+      <MonthlyFeeCard userId={user?.uid ?? ""} courses={courses} />
 
       <SectionHeader title="Mis cursos" action={{ label: "Ver todos", onPress: () => router.navigate("/private/courses") }} />
       <View className="gap-2.5 px-3">
@@ -254,6 +230,12 @@ const HomeUser = () => {
                   {[branch?.name, course.teacher].filter(Boolean).join(" · ")}
                 </AppText>
               </View>
+              {/* In a View: Chip is self-start, which would pin it to the top of the row. */}
+              {course.pausedUntil && (
+                <View>
+                  <Chip label="En pausa" tone="muted" />
+                </View>
+              )}
               <Ionicons name="chevron-forward" size={18} color={palette.ink} />
             </Pressable>
           );
@@ -263,7 +245,13 @@ const HomeUser = () => {
       <SectionHeader title="Accesos" />
       <View className="flex-row flex-wrap justify-between gap-y-2.5 px-3">
         {SHORTCUTS.map((s) => (
-          <ShortcutCard key={s.label} label={s.label} sub={s.sub} icon={s.icon} onPress={() => router.push(s.route)} />
+          <ShortcutCard
+            key={s.label}
+            label={s.label}
+            sub={activePause && s.route === ENROLL_ROUTE ? ENROLL_WHILE_PAUSED_SUB : s.sub}
+            icon={s.icon}
+            onPress={() => router.push(s.route)}
+          />
         ))}
       </View>
     </Screen>

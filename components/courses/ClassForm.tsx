@@ -1,3 +1,4 @@
+import HiddenSwitchCard from "@/components/courses/HiddenSwitchCard";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -8,7 +9,7 @@ import IconButton from "@/components/ui/IconButton";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SelectField from "@/components/ui/SelectField";
-import { detectVideoPlatform, formatYYYYMMDD, to24h } from "@/constants/helpers";
+import { detectVideoPlatform, formatYYYYMMDD, timeToDate, to24h } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { classFormSchema, FormErrors, validationErrors, videoLinkFormSchema } from "@/constants/validationForms";
 import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
@@ -20,6 +21,9 @@ import { View } from "react-native";
 
 type Video = { url: string; platform: "youtube" | "vimeo"; title: string | null };
 
+/** A course's "HH:MM" time for a time picker; null when the course has none. */
+const courseTime = (value: string | null | undefined) => (value ? timeToDate(value) : null);
+
 export type ClassFormValues = {
   courseId: string;
   title: string;
@@ -30,6 +34,8 @@ export type ClassFormValues = {
   startTime: Date | null;
   endTime: Date | null;
   videos: Video[];
+  /** Hidden from students. */
+  isHidden: boolean;
 };
 
 /** What the hooks save: the date and times as Postgres takes them. */
@@ -46,6 +52,8 @@ type ClassFormProps = {
   /** New classes: the course they were opened from. */
   preselectedCourseId?: string;
   saveLabel: string;
+  /** Save button while the class is set to hidden; saveLabel without it. */
+  hiddenSaveLabel?: string;
   saving: boolean;
   onSave: (values: ClassFormOutput) => void;
   /** Editing only: asks for confirmation first, on the screen. */
@@ -58,6 +66,7 @@ const ClassForm = ({
   initial,
   preselectedCourseId,
   saveLabel,
+  hiddenSaveLabel,
   saving,
   onSave,
   onDelete,
@@ -73,9 +82,12 @@ const ClassForm = ({
   const [objectives, setObjectives] = useState(initial?.objectives ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
   const [date, setDate] = useState<Date | null>(initial?.date ?? null);
-  const [startTime, setStartTime] = useState<Date | null>(initial?.startTime ?? null);
-  const [endTime, setEndTime] = useState<Date | null>(initial?.endTime ?? null);
+  // Undefined until picked or cleared: a new class takes its course's hours.
+  const [pickedStartTime, setStartTime] = useState<Date | null | undefined>(initial ? initial.startTime : undefined);
+  const [pickedEndTime, setEndTime] = useState<Date | null | undefined>(initial ? initial.endTime : undefined);
   const [videos, setVideos] = useState<Video[]>(initial?.videos ?? []);
+  // New classes start visible, as the database defaults them.
+  const [isHidden, setIsHidden] = useState(initial?.isHidden ?? false);
   const [videoTitle, setVideoTitle] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [errors, setErrors] = useState<FormErrors<typeof classFormSchema>>({});
@@ -85,6 +97,12 @@ const ClassForm = ({
   const classesQuery = useClassesByCourseId(initial ? "" : courseId);
   const suggestedTitle = classesQuery.data ? `Clase ${classesQuery.data.length + 1}` : "";
   const title = typedTitle ?? suggestedTitle;
+
+  const course = courses.find((c) => c.id === courseId);
+  const startTime = pickedStartTime === undefined ? courseTime(course?.startTime) : pickedStartTime;
+  const endTime = pickedEndTime === undefined ? courseTime(course?.endTime) : pickedEndTime;
+  const showsCourseTimes =
+    pickedStartTime === undefined && pickedEndTime === undefined && (startTime !== null || endTime !== null);
 
   const addVideo = () => {
     const found = validationErrors(videoLinkFormSchema, { url: videoUrl });
@@ -108,6 +126,7 @@ const ClassForm = ({
       startTime: startTime ? to24h(startTime) : "",
       endTime: endTime ? to24h(endTime) : "",
       videos,
+      isHidden,
     };
     const found = validationErrors(classFormSchema, values);
     setErrors(found);
@@ -136,7 +155,7 @@ const ClassForm = ({
       form
       footer={
         <FormActions
-          saveLabel={saveLabel}
+          saveLabel={isHidden && hiddenSaveLabel ? hiddenSaveLabel : saveLabel}
           onSave={save}
           loading={saving}
           hasErrors={Object.keys(errors).length > 0}
@@ -145,7 +164,9 @@ const ClassForm = ({
     >
       <ScreenHeader nav="close" eyebrow="Clases" title={heading} subtitle="Los campos con * son obligatorios." />
 
-      <Card className="mx-3 mt-4 gap-3.5">
+      <HiddenSwitchCard isHidden={isHidden} onChange={setIsHidden} />
+
+      <Card className="mx-3 mt-2.5 gap-3.5">
         <AppText variant="label-bold" accessibilityRole="header" className="text-[12px]">
           Clase
         </AppText>
@@ -165,24 +186,31 @@ const ClassForm = ({
         )}
         <Field label="Título *" value={title} onChangeText={setTitle} placeholder="Clase 1" error={errors.title} />
         <DateTimeField label="Fecha" mode="date" value={date} onChange={setDate} onClear={() => setDate(null)} />
-        <View className="flex-row gap-2.5">
-          <DateTimeField
-            label="Hora de inicio"
-            mode="time"
-            value={startTime}
-            onChange={setStartTime}
-            onClear={() => setStartTime(null)}
-            className="flex-1"
-          />
-          <DateTimeField
-            label="Hora de fin"
-            mode="time"
-            value={endTime}
-            onChange={setEndTime}
-            onClear={() => setEndTime(null)}
-            error={errors.endTime}
-            className="flex-1"
-          />
+        <View>
+          <View className="flex-row gap-2.5">
+            <DateTimeField
+              label="Hora de inicio"
+              mode="time"
+              value={startTime}
+              onChange={setStartTime}
+              onClear={() => setStartTime(null)}
+              className="flex-1"
+            />
+            <DateTimeField
+              label="Hora de fin"
+              mode="time"
+              value={endTime}
+              onChange={setEndTime}
+              onClear={() => setEndTime(null)}
+              error={errors.endTime}
+              className="flex-1"
+            />
+          </View>
+          {showsCourseTimes && !errors.endTime && (
+            <AppText tone="muted" className="mt-1.5 text-[12.5px] leading-[17px]">
+              Tomadas del horario del curso. Puedes cambiarlas.
+            </AppText>
+          )}
         </View>
       </Card>
 

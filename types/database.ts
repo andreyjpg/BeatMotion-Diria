@@ -108,6 +108,7 @@ export type Database = {
           end_time: string | null
           id: string
           is_deleted: boolean
+          is_hidden: boolean
           legacy_id: string | null
           objectives: string | null
           start_time: string | null
@@ -125,6 +126,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_deleted?: boolean
+          is_hidden?: boolean
           legacy_id?: string | null
           objectives?: string | null
           start_time?: string | null
@@ -142,6 +144,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           is_deleted?: boolean
+          is_hidden?: boolean
           legacy_id?: string | null
           objectives?: string | null
           start_time?: string | null
@@ -173,6 +176,7 @@ export type Database = {
           last_pending_notification_at: string | null
           legacy_id: string | null
           next_payment_date: string | null
+          paused_until: string | null
           payment_status: Database["public"]["Enums"]["payment_standing"]
           updated_at: string
           user_id: string
@@ -190,6 +194,7 @@ export type Database = {
           last_pending_notification_at?: string | null
           legacy_id?: string | null
           next_payment_date?: string | null
+          paused_until?: string | null
           payment_status?: Database["public"]["Enums"]["payment_standing"]
           updated_at?: string
           user_id: string
@@ -207,6 +212,7 @@ export type Database = {
           last_pending_notification_at?: string | null
           legacy_id?: string | null
           next_payment_date?: string | null
+          paused_until?: string | null
           payment_status?: Database["public"]["Enums"]["payment_standing"]
           updated_at?: string
           user_id?: string
@@ -249,11 +255,14 @@ export type Database = {
           created_by: string | null
           day: Database["public"]["Enums"]["weekday"] | null
           description: string
+          end_date: string | null
+          end_time: string | null
           id: string
           is_deleted: boolean
           legacy_id: string | null
           level: number
           start_date: string | null
+          start_time: string | null
           teacher_id: string | null
           teacher_name: string | null
           title: string
@@ -265,11 +274,14 @@ export type Database = {
           created_by?: string | null
           day?: Database["public"]["Enums"]["weekday"] | null
           description?: string
+          end_date?: string | null
+          end_time?: string | null
           id?: string
           is_deleted?: boolean
           legacy_id?: string | null
           level?: number
           start_date?: string | null
+          start_time?: string | null
           teacher_id?: string | null
           title: string
           updated_at?: string
@@ -280,11 +292,14 @@ export type Database = {
           created_by?: string | null
           day?: Database["public"]["Enums"]["weekday"] | null
           description?: string
+          end_date?: string | null
+          end_time?: string | null
           id?: string
           is_deleted?: boolean
           legacy_id?: string | null
           level?: number
           start_date?: string | null
+          start_time?: string | null
           teacher_id?: string | null
           title?: string
           updated_at?: string
@@ -346,15 +361,13 @@ export type Database = {
       enrollments: {
         Row: {
           annual_fee_year: number | null
-          assigned_class_id: string | null
-          class_assigned_at: string | null
-          class_assigned_by: string | null
           id: string
           legacy_id: string | null
           payment_proof_deleted_at: string | null
           payment_proof_path: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          rules_accepted_at: string | null
           source: Database["public"]["Enums"]["enrollment_source"]
           status: Database["public"]["Enums"]["review_status"]
           submitted_at: string
@@ -364,15 +377,13 @@ export type Database = {
         }
         Insert: {
           annual_fee_year?: number | null
-          assigned_class_id?: string | null
-          class_assigned_at?: string | null
-          class_assigned_by?: string | null
           id?: string
           legacy_id?: string | null
           payment_proof_deleted_at?: string | null
           payment_proof_path?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          rules_accepted_at?: string | null
           source?: Database["public"]["Enums"]["enrollment_source"]
           status?: Database["public"]["Enums"]["review_status"]
           submitted_at?: string
@@ -382,15 +393,13 @@ export type Database = {
         }
         Update: {
           annual_fee_year?: number | null
-          assigned_class_id?: string | null
-          class_assigned_at?: string | null
-          class_assigned_by?: string | null
           id?: string
           legacy_id?: string | null
           payment_proof_deleted_at?: string | null
           payment_proof_path?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          rules_accepted_at?: string | null
           source?: Database["public"]["Enums"]["enrollment_source"]
           status?: Database["public"]["Enums"]["review_status"]
           submitted_at?: string
@@ -399,20 +408,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "enrollments_assigned_class_id_fkey"
-            columns: ["assigned_class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollments_class_assigned_by_fkey"
-            columns: ["class_assigned_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "enrollments_reviewed_by_fkey"
             columns: ["reviewed_by"]
@@ -665,6 +660,92 @@ export type Database = {
           },
         ]
       }
+      membership_changes: {
+        Row: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          course_ids: string[]
+          created_at?: string
+          created_by?: string | null
+          effective_date: string
+          end_date?: string | null
+          ended_at?: string | null
+          ended_by?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason?: string | null
+          status?: Database["public"]["Enums"]["membership_change_status"]
+          updated_at?: string
+          user_id: string
+          withdrawn_at?: string | null
+          withdrawn_by?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          course_ids?: string[]
+          created_at?: string
+          created_by?: string | null
+          effective_date?: string
+          end_date?: string | null
+          ended_at?: string | null
+          ended_by?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["membership_change_kind"]
+          reason?: string | null
+          status?: Database["public"]["Enums"]["membership_change_status"]
+          updated_at?: string
+          user_id?: string
+          withdrawn_at?: string | null
+          withdrawn_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membership_changes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_changes_ended_by_fkey"
+            columns: ["ended_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_changes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_changes_withdrawn_by_fkey"
+            columns: ["withdrawn_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_broadcasts: {
         Row: {
           content: string
@@ -886,6 +967,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          birth_date: string | null
           consent_accepted: boolean
           consent_accepted_at: string | null
           created_at: string
@@ -895,11 +977,13 @@ export type Database = {
           last_name: string
           name: string
           phone: string | null
+          photo_path: string | null
           photo_url: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
         Insert: {
+          birth_date?: string | null
           consent_accepted?: boolean
           consent_accepted_at?: string | null
           created_at?: string
@@ -909,11 +993,13 @@ export type Database = {
           last_name?: string
           name?: string
           phone?: string | null
+          photo_path?: string | null
           photo_url?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Update: {
+          birth_date?: string | null
           consent_accepted?: boolean
           consent_accepted_at?: string | null
           created_at?: string
@@ -923,6 +1009,7 @@ export type Database = {
           last_name?: string
           name?: string
           phone?: string | null
+          photo_path?: string | null
           photo_url?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
@@ -1136,14 +1223,159 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_end_pause: {
+        Args: { p_user_id: string }
+        Returns: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_changes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_membership_change_preview: {
+        Args: { p_user_id: string }
+        Returns: {
+          blocked_reason: string
+          cancel_blocked_reason: string
+          effective_date: string
+          owed_payment_date: string
+          pause_end_dates: string[]
+          payment_date: string
+        }[]
+      }
+      admin_request_membership_change: {
+        Args: {
+          p_course_ids?: string[]
+          p_kind: Database["public"]["Enums"]["membership_change_kind"]
+          p_months?: number
+          p_reason?: string
+          p_user_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_changes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      admin_withdraw_membership_change: {
+        Args: { p_change_id: string }
+        Returns: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_changes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      age_report: { Args: never; Returns: Json }
       assign_student_to_course: {
         Args: { p_course_id: string; p_user_id: string }
         Returns: string
       }
       attendance_report: { Args: never; Returns: Json }
+      course_classes_with_attendance: {
+        Args: { p_course_id: string }
+        Returns: {
+          class_id: string
+          date: string
+        }[]
+      }
+      end_pause: {
+        Args: never
+        Returns: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_changes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       enrollment_report: { Args: { p_months?: number }; Returns: Json }
       event_spots_taken: { Args: { p_event_id: string }; Returns: number }
       mark_receipts_purged: { Args: { p_paths: string[] }; Returns: undefined }
+      membership_change_preview: {
+        Args: never
+        Returns: {
+          blocked_reason: string
+          cancel_blocked_reason: string
+          effective_date: string
+          next_pause_date: string
+          pause_blocked_reason: string
+          pause_end_dates: string[]
+          payment_date: string
+        }[]
+      }
       payment_report: { Args: { p_months?: number }; Returns: Json }
       receipts_due_for_purge: {
         Args: { p_limit?: number; p_retention?: string }
@@ -1157,9 +1389,42 @@ export type Database = {
           p_annual_fee_year?: number
           p_course_ids: string[]
           p_receipt_path: string
+          p_rules_accepted?: boolean
           p_total_amount: number
         }
         Returns: string
+      }
+      request_membership_change: {
+        Args: {
+          p_course_ids?: string[]
+          p_kind: Database["public"]["Enums"]["membership_change_kind"]
+          p_months?: number
+          p_reason?: string
+        }
+        Returns: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_changes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       save_survey: {
         Args: {
@@ -1192,11 +1457,40 @@ export type Database = {
         Args: { "": Database["public"]["Tables"]["courses"]["Row"] }
         Returns: string
       }
+      withdraw_membership_change: {
+        Args: { p_change_id: string }
+        Returns: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_changes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       audience: "all" | "user" | "teacher"
       enrollment_source: "self" | "manual"
       event_status: "draft" | "published"
+      membership_change_kind: "drop" | "cancel" | "pause"
+      membership_change_status: "scheduled" | "applied" | "withdrawn" | "ended"
       payment_standing: "ok" | "pending" | "late"
       question_type: "rating" | "multiple_choice" | "text"
       review_status: "pending" | "approved" | "rejected"
@@ -1346,6 +1640,8 @@ export const Constants = {
       audience: ["all", "user", "teacher"],
       enrollment_source: ["self", "manual"],
       event_status: ["draft", "published"],
+      membership_change_kind: ["drop", "cancel", "pause"],
+      membership_change_status: ["scheduled", "applied", "withdrawn", "ended"],
       payment_standing: ["ok", "pending", "late"],
       question_type: ["rating", "multiple_choice", "text"],
       review_status: ["pending", "approved", "rejected"],

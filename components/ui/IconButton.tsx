@@ -8,6 +8,8 @@ export type IconName = ComponentProps<typeof Ionicons>["name"];
 const TONE = {
   light: { box: "bg-surface", icon: palette.ink },
   outline: { box: "bg-surface border-[1.5px] border-field-line", icon: palette.ink },
+  /** An outline toggle that's on. Keeps the border so Android keeps the corners when it switches. */
+  selected: { box: "bg-ink border-[1.5px] border-ink", icon: palette.surface },
   dark: { box: "bg-ink", icon: palette.surface },
 } as const;
 

@@ -22,62 +22,26 @@ Each one is a new migration in `supabase/migrations/`. Follow the rules in
 
 ### Access rules
 
-- [ ] **Teachers can't create or edit classes.** From the app, teachers only see
-  their courses and classes and take attendance; creating and editing are
-  admin-only. The database still lets a course's teacher insert and update its
-  classes: the policies "course managers create" and "course managers update" on
-  `public.classes` use `private.can_manage_course`.
-  - Make both of them admin-only (`private.is_admin()`).
-  - Keep `private.can_manage_course` / `private.can_manage_class` unchanged:
-    the attendance policies use them, so teachers can still take attendance.
-  - Store builds older than the redesign still show teachers the class editor,
-    which will then fail with a permission error. Ship this after the redesign
-    build is out.
+- [ ] **Teachers read every hidden class.** The read policy on `classes` ("read
+  visible, staff read all", `20261113000000_hidden_classes.sql`) lets
+  `private.is_staff()` read every hidden class, not only those of the teacher's
+  own courses. Restrict teachers to `private.can_manage_course(course_id)`;
+  admins keep reading all.
+- [ ] **RSVP to a deleted class.** `private.guard_attendance_write` blocks a
+  student's RSVP on a hidden class, but not on a deleted one (`is_deleted`), for
+  example from a reminder sent before the class was deleted. Reject it the same
+  way, with its own error code and message in `RSVP_ERROR_MESSAGES`.
 
 ### New data the redesign needs
 
-- [ ] **Birth date on profiles.** Add a nullable `birth_date date` to
-  `profiles`, ask for it in the sign-up and profile forms, and add it to the
-  profile `*_COLUMNS`. Staff already read profiles.
-  - Designed in the canvas: "Registro · fecha de nacimiento". Ages are also
-    shown to admins and teachers: the user's profile (birth date and age), the
-    Usuarios list, Matrículas and the enrollment review.
-  - Unlocks the birthdays alert and the group ages bar (see the mocks below).
-  - It's new personal data, so the privacy texts must mention it: in the app
-    (`app/public/signIn.tsx`, `components/PrivacyConsentModal.tsx`) and on the
-    external policy page.
-- [ ] **Course schedule.** `courses` has `day` and `start_date` only (the course
-  form sets both).
-  - Add `start_time time`, `end_time time` (with `end_time > start_time`) and
-    `end_date date`, and their fields in `components/courses/CourseForm.tsx`.
-  - Show the times where the design does: the course lists and summaries, and
-    as the default times of a new class.
-  - Designed in the canvas: "Nuevo curso · horario y fechas". The times are
-    required and the dates optional. Add the times as nullable, require them in
-    `courseFormSchema`, and only add `not null` once every course has them.
-  - Unlocks the course progress bar (see the mocks below), which only applies to
-    courses with both dates.
-- [ ] **Hidden classes.**
-  - Add `is_hidden boolean not null default false` to `classes`, and a toggle
-    on the admin class editor.
-  - Designed in the canvas: "Clases · visibles y ocultas" and "Nueva clase ·
-    ocultar", with a dashed "Oculta" chip, plus an eye button on each class in
-    "Curso · clases y edades". The "Clases" list screen wasn't built, because
-    its filters only make sense with this flag; today each course's screen
-    lists its classes.
-  - Students must not see hidden classes: the "signed-in users read" policy on
-    `classes` lets everyone read every row, so restrict hidden classes to staff.
+- [ ] **Course times `not null`.** BM-013 added `courses.start_time` and
+  `end_time` as nullable; the course form requires them. Add `not null` once
+  every course has its times.
 
 ### Cleanup (only once no store build uses them)
 
-- [ ] **Accepting the rules.** Step 1 of the enrollment asks the student to accept
-  the academy's rules, but nothing records it. If the academy wants proof, add
-  `rules_accepted_at` to `enrollments` and set it in `request_enrollment`.
-- [ ] **Unused class assignment on enrollments.** Drop
-  `enrollments.assigned_class_id`, `class_assigned_by` and `class_assigned_at`;
-  nothing uses them since the "assign class" screen was removed. First update
-  the "students request, admins assign" insert policy, which still checks
-  `assigned_class_id is null`.
+- [ ] **Unused `profiles.photo_url`.** Profile pictures use `photo_path` now, in the
+  private `avatars` bucket. Drop the old column.
 
 ## Features that are only mocks
 
@@ -86,16 +50,6 @@ in development and preview builds, never in production. Each one is marked in
 the code with the `TODO(...)` tag given below. Their designs are on the canvas
 page "Funciones nuevas (mock)".
 
-- [ ] **Transfer details** (`TODO(datos bancarios)`). Shown in Pagos › Por
-  pagar by `components/mocks/TransferDetailsMock.tsx`, which already has the
-  academy's real accounts.
-  - Make the copy buttons copy: install `expo-clipboard` with
-    `npx expo install expo-clipboard` (Expo Go includes it). Today they only
-    show the check mark.
-  - Decide where the accounts live: a constant (e.g. `constants/academy.ts`),
-    or a table the admin can edit.
-  - Show it in production. It's also step 3 of the enrollment ("Matrícula ·
-    paso 3 · transferencia").
 - [ ] **Help section** (`TODO(ayuda)`). The screens are in `app/private/help/`;
   the entry points are the "?" button on Pagos and "¿Problema con este pago?"
   in the payment history.
@@ -107,36 +61,6 @@ page "Funciones nuevas (mock)".
   - Optionally, a `support_requests` table to keep a record.
   - Confirm the FAQ answers with the academy (`app/private/help/index.tsx`).
   - Remove the "Muestra · no se envió" chip on the confirmation screen.
-- [ ] **Course progress** (`TODO(progreso del curso)`). Shown in Mis cursos by
-  `components/mocks/CourseProgressMock.tsx` and on the student's course screen
-  by `components/mocks/CourseProgressCardMock.tsx`.
-  - Needs the course schedule (above).
-  - Total classes = the course's weekday between its start and end dates; given
-    = those before today; progress = given / total; attendance = attended /
-    given.
-  - Without an end date, show attendance only, without the bar.
-  - Attendance data already exists (`useAttendanceByUser`). Only `end_date` is
-    missing from the database, plus an end date on each course.
-  - Decide before building:
-    - Count classes from the calendar, as designed, or from the `classes` rows
-      the admin created? The calendar also counts holidays and days with no
-      class created.
-    - Don't count classes from before the student joined
-      (`course_members.joined_at`) as missed.
-    - What to do with a past class where nobody was marked present: attendance
-      probably wasn't taken, so it shouldn't count as missed.
-- [ ] **Birthdays** (`TODO(cumpleaños)`). Shown in the teacher's home by
-  `components/mocks/BirthdaysMock.tsx`.
-  - Needs the birth date (above).
-  - List the teacher's students whose birthday falls between Monday and Sunday
-    of the class week, with the day and the age they turn.
-- [ ] **Group ages** (`TODO(edades)` in
-  `app/private/teacher/course/[courseId].tsx` and
-  `app/private/admin/courses/[id].tsx`). Needs the birth date. Also show each
-  student's age in the admin's list of the course's students.
-- [ ] **Academy ages** (`TODO(edades)`). Shown in the admin's Estadísticas by
-  `components/mocks/AcademyAgesMock.tsx`, with sample numbers. Needs the birth
-  date: count active students per age group and show the average.
 - [ ] **Conoce Diriá** (`TODO(conoce)`). For students with no courses: a card on
   the home (`components/mocks/ConoceDiriaCardMock.tsx`) that opens
   `app/private/user/conoce.tsx` (`components/mocks/ConoceDiriaMock.tsx`).
@@ -206,6 +130,10 @@ classes run from 7 to 9 p. m., so a student can't take two at once.
   who answered the RSVP, until attendance is first saved.
 - [ ] **Sent drafts.** Sending a saved notification draft leaves it in Borradores
   (`useSendBroadcast` doesn't touch the draft). Should sending remove it?
+- [ ] **Holidays in the course progress.** The progress (BM-014 for students,
+  BM-036 for staff) counts every course weekday between its start and end
+  dates, so a holiday is one of the N classes and shows as "Sin clase". A
+  holidays calendar would leave those dates out. Is it worth having one?
 - [ ] **Confirm with the academy:**
   - **Adding courses mid-month.** It charges the difference between the plans,
     so a course added on Plan Diriá costs ₡0, with no receipt, and only needs
@@ -213,21 +141,68 @@ classes run from 7 to 9 p. m., so a student can't take two at once.
 
 ## Cleanup
 
-- [ ] Remove the packages nothing imports since the redesign:
-  `react-native-bouncy-checkbox`, `react-native-vector-icons` and
-  `@react-native-picker/picker`.
+- [ ] **`npm run db:types` removes `courses.teacher_name`.** It's a computed column
+  (`20261018000200_review_fixes.sql`) that was added to `types/database.ts` by
+  hand. The generator doesn't output it, so the type-check fails after
+  regenerating. Until that's solved, add new columns to the file by hand, as
+  `profiles.photo_path` was (the generator produced the same lines for it).
+- [ ] **The homes load every class.** `useActiveClasses` (the homes and
+  Cursos) asks for every class with no date range. The API returns at most
+  1000 rows, oldest first, so past 1000 classes it drops the newest:
+  "Clases hoy" and the coming classes would vanish. Ask only for the dates
+  these screens show (for example, from today on).
+- [ ] **"Clases hoy" counts deleted courses' classes.** The number on the admin
+  home includes classes of deleted courses; the "Clases" list (BM-016) leaves
+  them out, so the two can differ.
+- [ ] **The admin "Clases" list loads up to 1000 classes** (`useClasses`,
+  newest first). Past that the oldest drop off, with a note at the end of the
+  list, and the numbering of those courses starts late. Add pagination or a
+  date range when the academy gets there.
+- [ ] **Small duplicates in the course progress.** `dayLabel` is in
+  `components/courses/CourseProgressSummary.tsx` and `ProgressHeroCard.tsx`, and
+  `DAYS_PER_WEEK` in `hooks/courses/courseProgress.ts`,
+  `components/courses/CourseProgressTiles.tsx` and
+  `StaffCourseProgressCard.tsx`. Move them to `constants/helpers.ts`.
+- [ ] **Texts to fix:**
+  - `useCourses` shows the alert "Error fetching courses" in English.
+  - The course form's end-date error says "La fecha de fin debe ser después de
+    la de inicio.", but the same day is valid. Say "no puede ser antes".
+  - The date picker shows in English (CANCEL / OK), and logs that its
+    `onChange` is deprecated.
 
 ## Before going live
 
 - [ ] **Check the packages for known vulnerabilities.** A safety check to do
   before the app goes live; no rush until then.
-  - Do it after removing the unused packages above, so there's less to review.
   - Run `npm audit`, and `npm audit --omit=dev` to see what ships in the app.
   - Update Expo's packages with `npx expo install --check`. Avoid
     `npm audit fix --force`: it can install versions the Expo SDK doesn't support.
 - [ ] **Revoke the Firebase migration's credentials.** Delete its service account
   key in the Firebase console (Project settings > Service accounts), and change
   the Supabase secret key and database passwords its `.env` files held.
+- [ ] **Privacy policy (Ley 8968).** Everyone must be told, before giving their
+  data, that it's hosted in the United States, and must authorize that. Article 14
+  requires express authorization to transfer data, article 31(f) makes sending it
+  to another country without consent a very serious offense, and article 5 lists
+  what people must be told.
+  - Policy page (beatmotion-politica-privacidad.netlify.app): it still names
+    Firebase. Name Supabase and the United States (both projects are in
+    `us-east-1`, North Virginia), and add profile pictures and the birth date
+    to the data it lists. The app's texts already mention the birth date.
+  - Sign-up (`app/public/signIn.tsx`): the checkbox says "fuera de Costa Rica" but
+    not "Estados Unidos". New students only see this text: accepting it saves
+    their consent, so `components/PrivacyConsentModal.tsx`, which does name the
+    United States, never opens for them.
+  - `PrivacyConsentModal.tsx` cites article 6 for the transfer, but article 6 is
+    about data quality. It should cite article 14.
+  - Check every text against article 5. The modal doesn't give the academy's
+    address (h), who can see the data (c), or what happens if someone won't give
+    it (d, f).
+  - Decide whether people who already accepted must accept the new text.
+    `consent_accepted` has no version, so today they wouldn't be asked again.
+  - Have a lawyer or Prodhab review the final text, and confirm that article 21
+    doesn't apply. It requires registering databases run for distribution,
+    dissemination or sale.
 
 ## Release steps left from the move to Supabase
 
@@ -254,10 +229,6 @@ Carried over from the migration notes of 2026-10-19; some may already be done.
   imported real devices, so preview could send them pushes.
 - [ ] Production password-reset emails: set up custom SMTP with a dedicated
   Gmail account.
-- [ ] Privacy:
-  - update the external policy page (beatmotion-politica-privacidad.netlify.app),
-    which still names Firebase;
-  - check that the production Supabase region matches the "Estados Unidos" text.
 - [ ] After the new store version is adopted, clean up Firebase project
   `beatmotion-b1ec6`:
   - delete the Cloud Functions: `deleteUser` and `sendExpoPushNotification`

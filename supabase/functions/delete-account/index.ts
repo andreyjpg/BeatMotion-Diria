@@ -5,8 +5,8 @@
 //
 // Call it BEFORE signing out: it needs the caller's session to know who is asking.
 // Deleting the auth user cascades to the profile and every row that belongs to
-// it (enrollments, payments, attendance, notifications, ...). Receipt files
-// aren't rows, so they are removed from Storage first.
+// it (enrollments, payments, attendance, notifications, ...). Receipts and
+// profile pictures aren't rows, so they are removed from Storage first.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const admin = createClient(
@@ -45,9 +45,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    await removeReceipts(targetId);
+    await removeFolder("receipts", targetId);
+    await removeFolder("avatars", targetId);
   } catch (error) {
-    return json({ error: `Could not remove receipts: ${error}` }, 500);
+    return json({ error: `Could not remove the user's files: ${error}` }, 500);
   }
 
   const { error } = await admin.auth.admin.deleteUser(targetId);
@@ -56,8 +57,8 @@ Deno.serve(async (req) => {
   return json({ success: true });
 });
 
-async function removeReceipts(userId: string) {
-  const bucket = admin.storage.from("receipts");
+async function removeFolder(bucketName: string, userId: string) {
+  const bucket = admin.storage.from(bucketName);
   const paths: string[] = [];
 
   for (let offset = 0; ; offset += PAGE_SIZE) {

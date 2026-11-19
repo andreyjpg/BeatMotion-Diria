@@ -7,24 +7,30 @@ import { formatYYYYMMDD } from "@/constants/helpers";
 import { useClassesByCourseId } from "@/hooks/classes/useClassesByCourseId";
 import { useGetClassInfo } from "@/hooks/classes/useGetClassInfo";
 import { useCourseById } from "@/hooks/courses/useCourseById";
+import { activePauseOf } from "@/hooks/membership/membershipRules";
+import { useMembershipChanges } from "@/hooks/membership/useMembershipChanges";
+import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-/** A class of the student's course. Today's class also asks if they're coming. */
+/** A class of the student's course. Today's class also asks if they're coming, unless they're paused. */
 const StudentClassScreen = () => {
   const router = useRouter();
   const { classId } = useLocalSearchParams<{ classId: string }>();
+  const { user } = useActiveUser();
   const classQuery = useGetClassInfo(classId);
   const cls = classQuery.data;
   const courseQuery = useCourseById(cls?.courseId);
   // Cached by the course screen; only used for the class number.
   const classesQuery = useClassesByCourseId(cls?.courseId ?? "");
+  const changesQuery = useMembershipChanges(user?.uid);
 
   const course = courseQuery.data;
   const number = (classesQuery.data?.findIndex((c) => c.id === classId) ?? -1) + 1;
   const eyebrow = [number > 0 && `Clase ${String(number).padStart(2, "0")}`, course?.title].filter(Boolean).join(" · ");
+  const isPaused = activePauseOf(changesQuery.data) !== null;
 
   const footer =
-    cls && cls.date === formatYYYYMMDD(new Date()) ? (
+    cls && cls.date === formatYYYYMMDD(new Date()) && !isPaused ? (
       <Button
         label="Confirmar asistencia de hoy"
         onPress={() =>

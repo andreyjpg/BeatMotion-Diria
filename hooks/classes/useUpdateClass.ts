@@ -22,6 +22,7 @@ type ClassPatch = {
   endTime?: string;
   videoLinks?: Video[];
   isDeleted?: boolean;
+  isHidden?: boolean;
 };
 
 type UpdateClassBody = { id: string; patch: ClassPatch };
@@ -36,6 +37,7 @@ const toUpdate = (patch: ClassPatch): ClassUpdate => ({
   ...(patch.endTime !== undefined && { end_time: emptyToNull(patch.endTime) }),
   ...(patch.videoLinks !== undefined && { video_links: patch.videoLinks }),
   ...(patch.isDeleted !== undefined && { is_deleted: patch.isDeleted }),
+  ...(patch.isHidden !== undefined && { is_hidden: patch.isHidden }),
 });
 
 export const useUpdateClass = () => {

@@ -15,6 +15,8 @@ const VARIANT = {
   /** Small uppercase labels (section titles, eyebrows, dates). */
   label: "font-mono uppercase tracking-[1px]",
   "label-bold": "font-mono-bold uppercase tracking-[1px]",
+  /** Monospace that keeps its case and spacing, for times next to labels ("7:00–8:30 p. m."). */
+  mono: "font-mono",
 } as const;
 
 const TONE = {

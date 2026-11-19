@@ -1,5 +1,4 @@
 import CourseForm from "@/components/courses/CourseForm";
-import { formatYYYYMMDD } from "@/constants/helpers";
 import { useCreateCourse } from "@/hooks/courses/useCreateCourse";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useRouter } from "expo-router";
@@ -14,12 +13,11 @@ const NewCourseScreen = () => {
       heading="Nuevo curso"
       saveLabel="Guardar curso"
       saving={createCourse.isPending}
-      onSave={({ startDate, branchId, ...values }) =>
+      onSave={({ branchId, ...values }) =>
         createCourse.mutate(
           {
             ...values,
             branchId: branchId || null,
-            startDate: startDate ? formatYYYYMMDD(startDate) : null,
             createdBy: user!.uid,
           },
           {

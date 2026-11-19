@@ -90,7 +90,8 @@ const MyNotifications = () => {
                     <AppText variant={item.read ? "semibold" : "heavy"} className="flex-1 text-[15px]">
                       {item.title}
                     </AppText>
-                    <AppText variant="label" tone="muted" className="text-[10px]">
+                    {/* Today's notices show a time, which keeps "p. m." in small letters. */}
+                    <AppText variant={section.title === "Hoy" ? "mono" : "label"} tone="muted" className="text-[10px]">
                       {WHEN[section.title](item.createdAt)}
                     </AppText>
                   </View>

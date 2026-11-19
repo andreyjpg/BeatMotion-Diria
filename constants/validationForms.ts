@@ -1,13 +1,47 @@
 import { string } from "yup";
 
-import { detectVideoPlatform } from "@/constants/helpers";
+import {
+  ageOn,
+  birthDatePickerDates,
+  detectVideoPlatform,
+  formatYYYYMMDD,
+  MIN_AGE_YEARS,
+} from "@/constants/helpers";
+import { PAUSE_MONTHS } from "@/hooks/membership/schema";
 import type { SurveyQuestionInput } from "@/hooks/surveys/surveySchema";
 import * as yup from "yup";
+
+/**
+ * Birth date picked in a form (a Date, or null while empty). Compared by
+ * calendar day at the time of saving: not after today, at least MIN_AGE_YEARS
+ * old and not more than MAX_AGE_YEARS ago. The date pickers already stop at
+ * these limits (birthDatePickerDates); this is the backup. Optional here;
+ * sign-up adds `required`.
+ */
+const birthDateSchema = yup
+  .date()
+  .nullable()
+  .test(
+    "not-future",
+    "La fecha no puede ser en el futuro.",
+    (value) => !value || formatYYYYMMDD(value) <= formatYYYYMMDD(new Date()),
+  )
+  .test(
+    "min-age",
+    `La edad mínima es ${MIN_AGE_YEARS} años.`,
+    (value) => !value || (ageOn(formatYYYYMMDD(value)) ?? 0) >= MIN_AGE_YEARS,
+  )
+  .test(
+    "max-age",
+    "Revisa el año de nacimiento.",
+    (value) => !value || formatYYYYMMDD(value) >= formatYYYYMMDD(birthDatePickerDates().minimumDate),
+  );
 
 export const signInValidationSchema = {
   name: string().required("El nombre es obligatorio"),
   lastName: string().required("El apellido es obligatorio"),
   phone: string().required("El teléfono es obligatorio"),
+  birthDate: birthDateSchema.required("Ingresa tu fecha de nacimiento."),
   email: string()
     .email("El email no es válido")
     .required("El email es obligatorio"),
@@ -41,6 +75,7 @@ export const adminProfileFormSchema = yup.object({
   name: ProfileAdminValidationSchema.name,
   lastName: ProfileAdminValidationSchema.lastName,
   phone: ProfileAdminValidationSchema.phone,
+  birthDate: birthDateSchema,
 });
 
 /** Notification draft (admin notifications/[draftId]). */
@@ -64,6 +99,7 @@ export const UserProfileValidationSchema = {
     .required("El teléfono es obligatorio")
     .min(8, "Debe de ingresar un número válido")
     .max(8, "Debe de ingresar un número válido"),
+  birthDate: birthDateSchema,
 };
 
 /** The user's own profile (tabs/profile). */
@@ -288,6 +324,34 @@ export const helpPaymentFormSchema = yup.object({
     .max(500, "El mensaje no puede superar 500 caracteres."),
 });
 
+// The optional reason of a drop or cancel (app/private/user/membership).
+// Same limit as membership_changes.reason.
+const membershipReasonSchema = yup.string().trim().max(500, "El motivo no puede superar 500 caracteres.");
+
+export const membershipChangeFormSchema = yup.object({
+  reason: membershipReasonSchema,
+});
+
+// How long a pause lasts: 1 to 3 months, as request_membership_change and
+// admin_request_membership_change allow.
+const pauseMonthsSchema = yup
+  .number()
+  .nullable()
+  .required("Elige cuánto dura la pausa.")
+  .oneOf([...PAUSE_MONTHS], "Elige una pausa de 1, 2 o 3 meses.");
+
+// The student's pause (app/private/user/membership/pause).
+export const pauseFormSchema = yup.object({
+  months: pauseMonthsSchema,
+});
+
+// An admin's pause for a student (app/private/admin/membership/[uid]/pause),
+// which also takes a reason.
+export const adminPauseFormSchema = yup.object({
+  months: pauseMonthsSchema,
+  reason: membershipReasonSchema,
+});
+
 // Limits match the database constraints on public.branches.
 export const branchFormSchema = yup.object({
   name: yup
@@ -304,7 +368,25 @@ export const branchFormSchema = yup.object({
     .max(200, "La ubicación no puede superar 200 caracteres."),
 });
 
-// Limits match the database constraints on public.courses.
+/**
+ * "HH:MM" end time of a form that also has a `startTime`: it must be after the
+ * start ("HH:MM" strings compare correctly as text). Passes while either is
+ * empty; forms that need it add `required`.
+ */
+const endTimeSchema = yup
+  .string()
+  .test(
+    "after-start",
+    "La hora de fin debe ser después de la de inicio.",
+    (endTime, context) => {
+      const startTime: string | undefined = context.parent.startTime;
+      return !endTime || !startTime || endTime > startTime;
+    },
+  );
+
+// Limits match the database constraints on public.courses (title, description,
+// courses_end_time_after_start and courses_end_date_not_before_start). The
+// database still accepts courses without hours, but the form asks for them.
 export const courseFormSchema = yup.object({
   title: yup
     .string()
@@ -317,6 +399,25 @@ export const courseFormSchema = yup.object({
   description: yup
     .string()
     .max(1000, "La descripción no puede superar 1000 caracteres."),
+  startTime: yup.string().required("Elige la hora de inicio."),
+  endTime: endTimeSchema.required("Elige la hora de fin."),
+  // Both dates are optional; compared by calendar day, so both can be the same day.
+  startDate: yup.date().nullable(),
+  endDate: yup
+    .date()
+    .nullable()
+    .test(
+      "not-before-start",
+      "La fecha de fin debe ser después de la de inicio.",
+      (endDate, context) => {
+        const startDate: unknown = context.parent.startDate;
+        return (
+          !endDate ||
+          !(startDate instanceof Date) ||
+          formatYYYYMMDD(endDate) >= formatYYYYMMDD(startDate)
+        );
+      },
+    ),
 });
 
 // One video being added to a class (components/courses/ClassForm.tsx).
@@ -337,15 +438,5 @@ export const classFormSchema = yup.object({
   title: yup.string().trim().required("El título es obligatorio."),
   content: yup.string().trim().required("El contenido es obligatorio."),
   startTime: yup.string(),
-  // "HH:MM" strings compare correctly as text.
-  endTime: yup
-    .string()
-    .test(
-      "after-start",
-      "La hora de fin debe ser posterior a la de inicio.",
-      (endTime, context) => {
-        const startTime: string | undefined = context.parent.startTime;
-        return !endTime || !startTime || endTime > startTime;
-      },
-    ),
+  endTime: endTimeSchema,
 });

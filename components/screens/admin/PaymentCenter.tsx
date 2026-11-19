@@ -123,7 +123,7 @@ const PaymentCenter = () => {
                 padded={false}
                 className="flex-row items-center gap-3 px-3.5 py-3"
               >
-                <Avatar name={item.user?.name} lastName={item.user?.lastName} />
+                <Avatar name={item.user?.name} lastName={item.user?.lastName} photoUrl={item.user?.photoURL} />
                 <View className="flex-1 gap-1.5">
                   <View className="flex-row items-baseline justify-between gap-2">
                     <AppText variant="bold" className="flex-1 text-[15.5px]" numberOfLines={1}>

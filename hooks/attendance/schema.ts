@@ -13,8 +13,27 @@ export const ATTENDANCE_COLUMNS =
 export const ATTENDANCE_WITH_CLASS_COLUMNS =
   "classId:class_id, userId:user_id, attended, rsvpStatus:rsvp_status, createdAt:created_at, updatedAt:updated_at, class:classes!inner(course_id, is_deleted)";
 
+/** course_classes_with_attendance rows renamed to the fields the app uses. */
+export const TAKEN_CLASS_COLUMNS = "classId:class_id, date";
+
+/** Classes where attendance was taken (someone was marked present), with their date "YYYY-MM-DD". */
+export const TakenClassSchemaArray = zod.array(
+  zod.object({
+    classId: zod.string(),
+    date: zod.string(),
+  }),
+);
+
+export type TakenClass = zod.infer<typeof TakenClassSchemaArray>[number];
+
 export const rsvpStatusSchema = zod.enum(["leaders", "followers", "no_asistira"]);
 export type RsvpStatus = zod.infer<typeof rsvpStatusSchema>;
+
+/** RSVP errors raised by the database (trigger guard_attendance_write), as shown to the student. */
+export const RSVP_ERROR_MESSAGES: Record<string, string> = {
+  // An admin hid the class after the reminder or the screen loaded.
+  CLASS_HIDDEN: "Esta clase ya no está disponible.",
+};
 
 const AttendanceSchema = zod.object({
   classId: zod.string(),

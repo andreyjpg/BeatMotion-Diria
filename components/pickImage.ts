@@ -4,10 +4,11 @@ import { Alert } from "react-native";
 
 /**
  * Lets the user choose a photo from their gallery (receipts, event banners,
- * marketplace photos). No cropping: on iOS the editor forces a square, which
- * cut off tall receipt screenshots. Uploads resize it (hooks/storage).
+ * marketplace photos). No cropping by default: on iOS the editor forces a
+ * square, which cut off tall receipt screenshots. `square` turns it on, for
+ * profile pictures. Uploads resize it (hooks/storage).
  */
-export const pickImage = async (permissionMessage: string): Promise<PickedImage | null> => {
+export const pickImage = async (permissionMessage: string, square = false): Promise<PickedImage | null> => {
   const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
   if (status !== "granted") {
@@ -18,6 +19,8 @@ export const pickImage = async (permissionMessage: string): Promise<PickedImage 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     quality: 1,
+    allowsEditing: square,
+    aspect: [1, 1],
   });
 
   if (result.canceled) return null;

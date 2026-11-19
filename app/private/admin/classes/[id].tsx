@@ -57,6 +57,7 @@ const EditClassScreen = () => {
           platform: video.platform === "vimeo" ? "vimeo" : "youtube",
           title: video.title ?? null,
         })),
+        isHidden: cls.isHidden,
       }}
       saveLabel="Guardar cambios"
       saving={updateClass.isPending}

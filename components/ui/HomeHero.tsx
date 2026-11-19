@@ -1,4 +1,5 @@
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
+import { useAvatarUrl } from "@/hooks/user/useAvatarUrl";
 import { useRouter } from "expo-router";
 import type { ReactNode } from "react";
 import { View } from "react-native";
@@ -19,6 +20,7 @@ type HomeHeroProps = {
 const HomeHero = ({ eyebrow, title, subtitle, children }: HomeHeroProps) => {
   const router = useRouter();
   const { user } = useActiveUser();
+  const { data: photoUrl } = useAvatarUrl(user?.photoPath);
 
   return (
     <View className="mx-3 mt-3 rounded-[26px] bg-ink p-5">
@@ -27,7 +29,7 @@ const HomeHero = ({ eyebrow, title, subtitle, children }: HomeHeroProps) => {
         <Avatar
           name={user?.name}
           lastName={user?.lastName}
-          photoUrl={user?.photoURL}
+          photoUrl={photoUrl}
           tone="light"
           onPress={() => router.navigate("/private/profile")}
           accessibilityLabel="Mi perfil"

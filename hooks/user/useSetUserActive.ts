@@ -20,6 +20,7 @@ export const useSetUserActive = () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["user", userId] });
       queryClient.invalidateQueries({ queryKey: ["dashboardCounts"] });
+      queryClient.invalidateQueries({ queryKey: ["reports", "ages"] });
       Alert.alert("Éxito", `Usuario ${isActive ? "activado" : "desactivado"}`);
     },
     onError: (error) => {

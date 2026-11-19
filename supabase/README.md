@@ -11,8 +11,8 @@ except the one-time secrets below.
 | `migrations/…200_storage.sql` | `receipts` (private) and `media` (public) buckets |
 | `migrations/…300_business_logic.sql` | Triggers, push delivery, broadcast RPC, payment check, attendance reminders, receipt retention helpers |
 | `migrations/…400_scheduled_jobs.sql` | Daily pg_cron jobs |
-| `functions/delete-account` | Deletes an account, its data and its receipt files |
-| `functions/purge-receipts` | Deletes receipt photos 6 months after review |
+| `functions/delete-account` | Deletes an account, its data, its receipt files and its profile pictures |
+| `functions/purge-receipts` | Deletes receipt photos 6 months after review, and profile pictures no profile uses |
 | [`../TODO.md`](../TODO.md) | Database changes the app still needs (with the rest of the to-do list) |
 
 There are two projects, **preview** and **production**. Do every step below
@@ -129,4 +129,5 @@ select * from cron.job_run_details order by start_time desc limit 20;
 ```
 
 Times are UTC: attendance reminders 20:00 (14:00 Costa Rica), payment check
-18:00 (12:00), receipt purge 09:00 (03:00).
+18:00 (12:00), receipt purge 09:00 (03:00), membership changes
+(`apply-membership-changes`) 06:05 (00:05).

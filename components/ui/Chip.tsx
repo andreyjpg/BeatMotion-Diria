@@ -36,15 +36,17 @@ type ChipProps = {
   label: string;
   tone?: ChipTone;
   icon?: IconName;
+  /** Keep the label's case and spacing: times read "p. m.", not "P. M.". */
+  keepCase?: boolean;
 };
 
 /** Small uppercase status tag. */
-const Chip = ({ label, tone = "line", icon }: ChipProps) => {
+const Chip = ({ label, tone = "line", icon, keepCase = false }: ChipProps) => {
   const look = TONE[tone];
   return (
     <View className={`h-[22px] flex-row items-center gap-1 self-start rounded-md px-2 ${look.box}`}>
       {icon && <Ionicons name={icon} size={11} color={look.icon} />}
-      <AppText variant="label" tone={look.text} className="text-[10.5px]">
+      <AppText variant={keepCase ? "mono" : "label"} tone={look.text} className="text-[10.5px]">
         {label}
       </AppText>
     </View>

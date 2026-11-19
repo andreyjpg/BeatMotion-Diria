@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
+import { signAvatarUrls } from "../storage/avatarStorage";
 import { signReceiptUrls } from "../storage/receiptStorage";
 import {
   EVENT_SIGNUP_COLUMNS,
@@ -8,7 +9,7 @@ import {
   toEventSignup,
 } from "./schema";
 
-/** Admin: every signup of an event, newest first, with receipt URLs. */
+/** Admin: every signup of an event, newest first, with receipt and picture URLs. */
 export const useEventSignupsByEvent = (eventId?: string) => {
   const fetchSignups = async () => {
     const { data, error } = await supabase
@@ -19,7 +20,8 @@ export const useEventSignupsByEvent = (eventId?: string) => {
     if (error) throw error;
 
     const urls = await signReceiptUrls(data.map((row) => row.receiptPath));
-    return eventSignupCollectionSchema.parse(data.map((row) => toEventSignup(row, urls)));
+    const photoUrls = await signAvatarUrls(data.map((row) => row.user?.photoPath));
+    return eventSignupCollectionSchema.parse(data.map((row) => toEventSignup(row, urls, photoUrls)));
   };
 
   return useQuery({

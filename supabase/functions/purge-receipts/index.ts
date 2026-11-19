@@ -1,6 +1,8 @@
 // Daily retention job: deletes receipt photos (payments, enrollments, event
 // signups) 6 months after they were reviewed. The rows keep their amounts and
-// dates; their *_path column is cleared and *_deleted_at is set.
+// dates; their *_path column is cleared and *_deleted_at is set. It also
+// deletes profile pictures that no profile points to anymore
+// (public.avatars_due_for_purge).
 //
 // Invoked by the `purge-receipts` pg_cron job with
 // `Authorization: Bearer <CRON_SECRET>`, so deploy it without JWT verification:
@@ -54,5 +56,28 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ purged });
+  // Profile pictures no profile points to: left by a removal or a save that failed.
+  let avatarsRemoved = 0;
+
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    const { data, error } = await admin.rpc("avatars_due_for_purge");
+    if (error) return json({ error: error.message, purged, avatarsRemoved }, 500);
+
+    const paths = (data as { path: string }[]).map((row) => row.path);
+    if (paths.length === 0) break;
+
+    let removedThisRound = 0;
+    for (let i = 0; i < paths.length; i += CHUNK_SIZE) {
+      const { data: removed, error: removeError } = await admin.storage
+        .from("avatars")
+        .remove(paths.slice(i, i + CHUNK_SIZE));
+      if (removeError) return json({ error: removeError.message, purged, avatarsRemoved }, 500);
+      removedThisRound += removed.length;
+    }
+    avatarsRemoved += removedThisRound;
+    // Nothing was deleted: the same files would come back every round.
+    if (removedThisRound === 0) break;
+  }
+
+  return json({ purged, avatarsRemoved });
 });

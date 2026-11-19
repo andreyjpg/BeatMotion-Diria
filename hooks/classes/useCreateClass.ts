@@ -19,6 +19,8 @@ type CreateClassInput = {
   startTime?: string | null; // "HH:MM"
   endTime?: string | null;
   videoLinks?: VideoLink[];
+  /** Hidden from students until an admin shows it (default false). */
+  isHidden?: boolean;
 };
 
 export const useCreateClass = () => {
@@ -38,6 +40,7 @@ export const useCreateClass = () => {
           start_time: emptyToNull(input.startTime),
           end_time: emptyToNull(input.endTime),
           video_links: input.videoLinks ?? [],
+          is_hidden: input.isHidden ?? false,
         })
         .select("id")
         .single();
