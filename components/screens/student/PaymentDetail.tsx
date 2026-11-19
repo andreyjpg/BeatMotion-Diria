@@ -22,7 +22,14 @@ import {
 import palette from "@/constants/palette.json";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
 import { useFares } from "@/hooks/fares/useFares";
-import { coursesContinuingOn, earliestPaymentDate, scheduledChangeOf } from "@/hooks/membership/membershipRules";
+import {
+  activePauseOf,
+  coursesContinuingOn,
+  earliestPaymentDate,
+  pauseCoversDate,
+  scheduledChangeOf,
+} from "@/hooks/membership/membershipRules";
+import type { MembershipChange } from "@/hooks/membership/schema";
 import { useMembershipChanges } from "@/hooks/membership/useMembershipChanges";
 import { useAnnualFeeDue } from "@/hooks/payment/useAnnualFeeDue";
 import { useCreatePayment } from "@/hooks/payment/useCreatePayment";
@@ -41,8 +48,25 @@ const dueChip = (daysToDue: number): { label: string; tone: ChipTone } => {
   return { label: `Atrasado ${-daysToDue} d`, tone: "late" };
 };
 
-/** Under "Estás al día": the next due date, and when the membership ends if a cancel is scheduled. */
-const upToDateMessage = (dueDate: Date | null, cancelDate: Date | null) => {
+/** Under "Estás al día" while paused: until when, and the next due date (the end, unless paid ahead). */
+const pausedMessage = (pauseEnd: Date, dueDate: Date | null) => {
+  const until = `Tu membresía está en pausa hasta el ${formatLongDate(pauseEnd)}.`;
+  if (!dueDate) return until;
+  return dueDate.getTime() === pauseEnd.getTime()
+    ? `${until} Ese día vence tu próximo pago.`
+    : `${until} Tu próximo pago vence el ${formatLongDate(dueDate)}.`;
+};
+
+/**
+ * Under "Estás al día": the next due date, the pause in progress or about to
+ * start, and when the membership ends if a cancel is scheduled.
+ */
+const upToDateMessage = (dueDate: Date | null, change: MembershipChange | null, activePause: MembershipChange | null) => {
+  if (activePause?.endDate) return pausedMessage(activePause.endDate, dueDate);
+  if (change?.endDate && pauseCoversDate(change, dueDate)) {
+    return `Tu pausa empieza el ${formatLongDate(change.effectiveDate)}. Vuelves a pagar el ${formatLongDate(change.endDate)}.`;
+  }
+  const cancelDate = change?.kind === "cancel" ? change.effectiveDate : null;
   const endsText = cancelDate ? `Tu membresía termina el ${formatLongDate(cancelDate)}.` : "";
   const endsFirst = !!cancelDate && !!dueDate && cancelDate.getTime() <= dueDate.getTime();
   if (!dueDate || endsFirst) return endsText || "No tienes pagos pendientes.";
@@ -62,13 +86,13 @@ const Detail = () => {
 
   const courses = coursesQuery.data ?? [];
   const change = scheduledChangeOf(changesQuery.data);
+  const activePause = activePauseOf(changesQuery.data);
   // New courses share the student's existing due date, so the earliest one is
   // the date for the whole monthly payment.
   const dueDate = earliestPaymentDate(courses);
   // A course whose scheduled drop or cancel starts on or before that date isn't charged it.
   const payingCourses = coursesContinuingOn(courses, change, dueDate);
   const owesPayment = payingCourses.some((course) => course.paymentStatus !== "ok");
-  const cancelDate = change?.kind === "cancel" ? change.effectiveDate : null;
 
   // Without fares every price is 0; never let a payment go out like that.
   const faresReady = (faresQuery.data?.length ?? 0) > 0;
@@ -130,7 +154,7 @@ const Detail = () => {
                 Estás al día
               </AppText>
               <AppText tone="muted" className="text-center text-[14.5px] leading-[20px]">
-                {upToDateMessage(dueDate, cancelDate)}
+                {upToDateMessage(dueDate, change, activePause)}
               </AppText>
             </View>
           ) : (

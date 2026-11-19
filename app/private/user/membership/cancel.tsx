@@ -53,6 +53,29 @@ const FactRow = ({ fact, divider }: { fact: Fact; divider: boolean }) => (
   </View>
 );
 
+/** "¿Solo necesitas un descanso?": pausing instead of canceling. */
+const BreakCard = ({ onPress }: { onPress: () => void }) => (
+  <Card
+    onPress={onPress}
+    accessibilityLabel="¿Solo necesitas un descanso? Pausa de 1 a 3 meses sin perder tus cursos."
+    padded={false}
+    className="mx-3 mt-2.5 flex-row items-center gap-3 px-4 py-3.5"
+  >
+    <View className="h-10 w-10 items-center justify-center rounded-xl bg-sand">
+      <Ionicons name="pause-circle-outline" size={20} color={palette.ink} />
+    </View>
+    <View className="flex-1 gap-0.5">
+      <AppText variant="bold" className="text-[15px]">
+        ¿Solo necesitas un descanso?
+      </AppText>
+      <AppText tone="muted" className="text-[12.5px]">
+        Pausa de 1 a 3 meses sin perder tus cursos.
+      </AppText>
+    </View>
+    <Ionicons name="chevron-forward" size={20} color={palette.ink} />
+  </Card>
+);
+
 /** "Cancelar membresía": the student leaves every course, from a payment date. */
 const CancelMembershipScreen = () => {
   const router = useRouter();
@@ -133,7 +156,7 @@ const CancelMembershipScreen = () => {
                     <CancelBlockedNotice reason={preview.cancelBlockedReason} className="mx-3 mt-2.5" />
                   )}
 
-                  {/* TODO(pausa): BM-034 adds "¿Solo necesitas un descanso?" here (canvas "Nuevo · Cancelar membresía"). */}
+                  <BreakCard onPress={() => router.replace("/private/user/membership/pause")} />
 
                   <View className="px-5 pt-5">
                     <Field

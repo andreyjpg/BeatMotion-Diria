@@ -4,17 +4,22 @@ import { dateTimeSchema } from "../common/schema";
 
 /**
  * public.membership_changes columns renamed to the fields the app uses. A
- * change is a drop (some courses) or a cancel (all of them) that starts on a
- * payment date; pauses come with BM-034.
+ * change is a drop (some courses), a cancel (all of them) or a pause (all of
+ * them, until end_date) that starts on a payment date. endedAt is when a
+ * pause really ended: its end date, or the day the student came back early.
  */
 export const MEMBERSHIP_CHANGE_COLUMNS =
-  "id, userId:user_id, kind, courseIds:course_ids, effectiveDate:effective_date, endDate:end_date, status, reason, createdAt:created_at";
+  "id, userId:user_id, kind, courseIds:course_ids, effectiveDate:effective_date, endDate:end_date, status, reason, createdAt:created_at, endedAt:ended_at";
 
 export const membershipChangeKindSchema = zod.enum(["drop", "cancel", "pause"]);
 export const membershipChangeStatusSchema = zod.enum(["scheduled", "applied", "withdrawn", "ended"]);
 
-/** What the student asks for: a pause isn't offered until BM-034. */
-export type RequestedChangeKind = "drop" | "cancel";
+/** What the student asks for: dropping some courses, canceling, or pausing every course. */
+export type RequestedChangeKind = zod.infer<typeof membershipChangeKindSchema>;
+
+/** How long a pause can be, in months (request_membership_change allows 1 to 3). */
+export const PAUSE_MONTHS = [1, 2, 3] as const;
+export type PauseMonths = (typeof PAUSE_MONTHS)[number];
 
 type MembershipChangeRow = { effectiveDate: string; endDate: string | null };
 
@@ -35,6 +40,7 @@ export const membershipChangeSchema = zod.object({
   status: membershipChangeStatusSchema,
   reason: zod.string().nullable(),
   createdAt: dateTimeSchema,
+  endedAt: dateTimeSchema.nullable(),
 });
 
 export const membershipChangesSchema = zod.array(membershipChangeSchema);
@@ -42,22 +48,35 @@ export const membershipChangesSchema = zod.array(membershipChangeSchema);
 export type MembershipChange = zod.infer<typeof membershipChangeSchema>;
 
 /**
- * The row request_membership_change and withdraw_membership_change return
- * (snake_case, like every RPC result): only what the screens read from it.
+ * The row request_membership_change, withdraw_membership_change and end_pause
+ * return (snake_case, like every RPC result): only what the screens read from it.
  */
 export const membershipChangeResultSchema = zod
   .object({
     id: zod.string(),
     kind: membershipChangeKindSchema,
     effective_date: zod.string(),
+    end_date: zod.string().nullable(),
   })
-  .transform((row) => ({ id: row.id, kind: row.kind, effectiveDate: parseLocalDate(row.effective_date) }));
+  .transform((row) => ({
+    id: row.id,
+    kind: row.kind,
+    effectiveDate: parseLocalDate(row.effective_date),
+    endDate: parseLocalDate(row.end_date),
+  }));
+
+/** "YYYY-MM-DD" strings -> local dates, leaving out any that don't parse. */
+const toLocalDates = (values: string[] | null) =>
+  (values ?? []).map((value) => parseLocalDate(value)).filter((date): date is Date => date !== null);
 
 /**
  * membership_change_preview(): the student's coming payment date, the date a
  * change asked today would start, and why they can't ask for one now (null
  * when they can). cancelBlockedReason only blocks canceling (and dropping
- * every course). Codes are keys of MEMBERSHIP_ERROR_MESSAGES.
+ * every course), pauseBlockedReason only pausing. pauseEndDates are the end
+ * of a pause of 1, 2 and 3 months (PAUSE_MONTHS order); nextPauseDate, with
+ * PAUSE_YEAR_LIMIT, the first payment date a pause could start on. Codes are
+ * keys of MEMBERSHIP_ERROR_MESSAGES.
  */
 export const membershipChangePreviewSchema = zod
   .object({
@@ -65,12 +84,18 @@ export const membershipChangePreviewSchema = zod
     effective_date: zod.string().nullable(),
     blocked_reason: zod.string().nullable(),
     cancel_blocked_reason: zod.string().nullable(),
+    pause_blocked_reason: zod.string().nullable(),
+    pause_end_dates: zod.array(zod.string()).nullable(),
+    next_pause_date: zod.string().nullable(),
   })
   .transform((row) => ({
     paymentDate: parseLocalDate(row.payment_date),
     effectiveDate: parseLocalDate(row.effective_date),
     blockedReason: row.blocked_reason,
     cancelBlockedReason: row.cancel_blocked_reason,
+    pauseBlockedReason: row.pause_blocked_reason,
+    pauseEndDates: toLocalDates(row.pause_end_dates),
+    nextPauseDate: parseLocalDate(row.next_pause_date),
   }));
 
 export type MembershipChangePreview = zod.infer<typeof membershipChangePreviewSchema>;
@@ -80,7 +105,11 @@ export const MEMBERSHIP_ERROR_MESSAGES: Record<string, string> = {
   NOT_MEMBER: "Ya no estás en ese curso. Actualiza e intenta de nuevo.",
   PAYMENT_LATE: "Tienes un pago atrasado. Ponte al día para hacer cambios.",
   CHANGE_PENDING: "Ya tienes un cambio programado. Deshazlo para pedir otro.",
-  ENROLLMENT_PENDING: "Tienes una matrícula en revisión. Podrás cancelar cuando la academia la revise.",
+  ENROLLMENT_PENDING: "Tienes una matrícula en revisión. Podrás cancelar o pausar cuando la academia la revise.",
+  MEMBERSHIP_PAUSED: "Tu membresía está en pausa. Termina la pausa para hacer otros cambios.",
+  PAUSE_YEAR_LIMIT: "Ya usaste tu pausa de este año.",
+  INVALID_PAUSE_LENGTH: "Elige una pausa de 1, 2 o 3 meses.",
+  NOT_PAUSED: "Tu membresía ya no está en pausa. Actualiza la pantalla.",
   NO_COURSES: "Elige al menos un curso.",
   INVALID_CHANGE: "Ese cambio no está disponible.",
   CHANGE_NOT_FOUND: "No encontramos ese cambio. Actualiza la pantalla.",
@@ -106,8 +135,9 @@ export const membershipKeys = {
 };
 
 /**
- * Queries a change asked for or undone affects: the change and its preview,
- * the student's courses (payment standing) and their payments.
+ * Queries a change asked for, undone or ended affects: the change and its
+ * preview, the student's courses (payment standing, paused_until) and their
+ * payments (the home and Pagos read both), and the course rosters.
  */
 export const MEMBERSHIP_AFFECTED_KEYS = [
   membershipKeys.allChanges,
@@ -115,5 +145,6 @@ export const MEMBERSHIP_AFFECTED_KEYS = [
   ["myCourses"],
   ["courseDetail"],
   ["courseMember"],
+  ["membersByCourse"],
   ["payments"],
 ] as const;

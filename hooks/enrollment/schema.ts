@@ -8,6 +8,8 @@ export type ReviewStatus = zod.infer<typeof reviewStatusSchema>;
 export const ENROLLMENT_ERROR_MESSAGES: Record<string, string> = {
   COURSE_NOT_AVAILABLE: "Uno de los cursos ya no está disponible. Actualiza la lista e intenta de nuevo.",
   CANCEL_SCHEDULED: "Tienes una cancelación programada. Deshazla para matricularte.",
+  MEMBERSHIP_PAUSED: "Tu membresía está en pausa. Termina la pausa para matricularte.",
+  PAUSE_SCHEDULED: "Tienes una pausa programada. Deshazla para matricularte.",
 };
 
 /**

@@ -16,7 +16,7 @@ const MembershipEntryCard = ({ className = "mx-3 mt-2.5" }: MembershipEntryCardP
   return (
     <Card
       onPress={() => router.push("/private/user/membership")}
-      accessibilityLabel="Pausar o cancelar. Dar de baja un curso o cancelar tu membresía"
+      accessibilityLabel="Pausar o cancelar. Dar de baja un curso, pausar o cancelar tu membresía"
       padded={false}
       className={`flex-row items-center gap-3 px-4 py-3.5 ${className}`}
     >
@@ -27,9 +27,8 @@ const MembershipEntryCard = ({ className = "mx-3 mt-2.5" }: MembershipEntryCardP
         <AppText variant="bold" className="text-[15px]">
           Pausar o cancelar
         </AppText>
-        {/* TODO(pausa): BM-034 adds "pausar" to this line. */}
         <AppText tone="muted" className="text-[12.5px]">
-          Dar de baja un curso o cancelar tu membresía
+          Dar de baja un curso, pausar o cancelar tu membresía
         </AppText>
       </View>
       <Ionicons name="chevron-forward" size={20} color={palette.ink} />

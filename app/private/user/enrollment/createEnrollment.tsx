@@ -3,18 +3,41 @@ import EnrollmentSent from "@/components/enrollment/EnrollmentSent";
 import PaymentStep from "@/components/enrollment/PaymentStep";
 import RulesStep from "@/components/enrollment/RulesStep";
 import { pickImage, RECEIPT_PERMISSION_MESSAGE } from "@/components/pickImage";
+import Button from "@/components/ui/Button";
+import Notice from "@/components/ui/Notice";
+import Screen from "@/components/ui/Screen";
+import ScreenHeader from "@/components/ui/ScreenHeader";
 import { monthlyFareFor, plural } from "@/constants/helpers";
 import { useCoursesAvailable } from "@/hooks/courses/useCoursesAvailable";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
+import { ENROLLMENT_ERROR_MESSAGES } from "@/hooks/enrollment/schema";
 import { useCreateEnrollment } from "@/hooks/enrollment/useCreateEnrollment";
 import { useEnrollmentByUserId } from "@/hooks/enrollment/useEnrollmentByUserId";
 import { useFares } from "@/hooks/fares/useFares";
+import { enrollmentBlockOf } from "@/hooks/membership/membershipRules";
+import { useMembershipChanges } from "@/hooks/membership/useMembershipChanges";
 import { useAnnualFeeDue } from "@/hooks/payment/useAnnualFeeDue";
 import type { PickedImage } from "@/hooks/storage/compressImage";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { BackHandler } from "react-native";
+
+type EnrollmentBlockedProps = {
+  /** Why the database would refuse the request (enrollmentBlockOf). */
+  reason: string;
+  onGoToMembership: () => void;
+};
+
+/** Instead of the steps when the student can't enroll now: paused, or a pause or cancel scheduled. */
+const EnrollmentBlocked = ({ reason, onGoToMembership }: EnrollmentBlockedProps) => (
+  <Screen footer={<Button label="Ir a Mi membresía" onPress={onGoToMembership} />}>
+    <ScreenHeader eyebrow="Matrícula" title="Matricular" />
+    <Notice tone="neutral" className="mx-3 mt-4">
+      {ENROLLMENT_ERROR_MESSAGES[reason] ?? "No puedes matricularte en este momento."}
+    </Notice>
+  </Screen>
+);
 
 /** Enrollment in three steps: rules, courses and payment, then a confirmation. */
 const CreateEnrollment = () => {
@@ -26,6 +49,9 @@ const CreateEnrollment = () => {
   const enrollmentsQuery = useEnrollmentByUserId(user?.uid);
   const annualFeeQuery = useAnnualFeeDue(user?.uid);
   const faresQuery = useFares();
+  const changesQuery = useMembershipChanges(user?.uid);
+  // request_enrollment would refuse it: say why before the student fills the steps.
+  const enrollmentBlock = enrollmentBlockOf(changesQuery.data);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [accepted, setAccepted] = useState(false);
@@ -111,6 +137,15 @@ const CreateEnrollment = () => {
 
   if (sent) {
     return <EnrollmentSent courseTitles={sent.courseTitles} total={sent.total} sentAt={sent.at} onDone={goHome} />;
+  }
+
+  if (enrollmentBlock) {
+    return (
+      <EnrollmentBlocked
+        reason={enrollmentBlock}
+        onGoToMembership={() => router.replace("/private/user/membership")}
+      />
+    );
   }
 
   if (step === 1) {

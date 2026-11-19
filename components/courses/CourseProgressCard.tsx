@@ -87,6 +87,7 @@ const legendItems = (progress: CourseProgress): ProgressLegendItem[] => {
   if (progress.beforeJoining > 0) {
     items.push({ state: "beforeJoining", label: `Antes de tu ingreso ${progress.beforeJoining}` });
   }
+  if (progress.paused > 0) items.push({ state: "paused", label: `En pausa ${progress.paused}` });
   if (progress.remainingClasses > 0) items.push({ state: "upcoming", label: `Quedan ${progress.remainingClasses}` });
   return items;
 };

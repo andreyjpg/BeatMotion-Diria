@@ -1,36 +1,30 @@
 import DataLoader from "@/components/DataLoader";
 import CancelBlockedNotice from "@/components/membership/CancelBlockedNotice";
+import MembershipCourseList from "@/components/membership/MembershipCourseList";
+import PausedCard from "@/components/membership/PausedCard";
 import ScheduledChangeCard from "@/components/membership/ScheduledChangeCard";
 import AppText from "@/components/ui/AppText";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import Chip from "@/components/ui/Chip";
 import type { IconName } from "@/components/ui/IconButton";
 import InfoRow from "@/components/ui/InfoRow";
 import Notice from "@/components/ui/Notice";
 import Screen from "@/components/ui/Screen";
 import ScreenHeader from "@/components/ui/ScreenHeader";
 import SectionHeader from "@/components/ui/SectionHeader";
-import {
-  formatCourseSchedule,
-  formatCurrency,
-  formatDayMonth,
-  monthlyFareFor,
-  planName,
-  plural,
-} from "@/constants/helpers";
+import { formatCurrency, formatDayMonth, monthlyFareFor, planName, plural } from "@/constants/helpers";
 import palette from "@/constants/palette.json";
 import { useBranches } from "@/hooks/branches/useBranches";
-import type { CourseSchemaWithMember } from "@/hooks/courses/schema/courseSchema";
 import { useCoursesByUserMember } from "@/hooks/courses/useCoursesByUserMember";
 import { useFares } from "@/hooks/fares/useFares";
 import {
+  activePauseOf,
   coursesContinuingOn,
   earliestPaymentDate,
-  leavingDateOf,
+  nextChargedDate,
   scheduledChangeOf,
 } from "@/hooks/membership/membershipRules";
-import { MEMBERSHIP_ERROR_MESSAGES, type MembershipChange } from "@/hooks/membership/schema";
+import { MEMBERSHIP_ERROR_MESSAGES } from "@/hooks/membership/schema";
 import { useMembershipChangePreview } from "@/hooks/membership/useMembershipChangePreview";
 import { useMembershipChanges } from "@/hooks/membership/useMembershipChanges";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
@@ -45,6 +39,7 @@ const DISABLED_OPACITY = 0.45;
 const BLOCKED_TEXT: Record<string, string> = {
   PAYMENT_LATE: "Ponte al día con tu pago para hacer cambios. Un pago en revisión no los bloquea.",
   CHANGE_PENDING: "Solo puedes tener un cambio programado a la vez. Deshazlo para elegir otro.",
+  MEMBERSHIP_PAUSED: "Termina la pausa para hacer otros cambios.",
 };
 
 const PREVIEW_ERROR_TEXT = "No se pudo revisar si puedes hacer cambios. Desliza hacia abajo para intentar de nuevo.";
@@ -102,52 +97,7 @@ const OptionRow = ({ option, divider, onPress }: OptionRowProps) => (
   </Pressable>
 );
 
-type CourseListProps = {
-  courses: CourseSchemaWithMember[];
-  change: MembershipChange | null;
-  branchName: (branchId: string | null | undefined) => string | undefined;
-};
-
-/** "Tus cursos": each course, with when it leaves or that it's late. */
-const CourseList = ({ courses, change, branchName }: CourseListProps) => (
-  <Card padded={false} className="mx-3 px-4">
-    {courses.map((course, index) => {
-      const where = [formatCourseSchedule(course.day, course.startTime, course.endTime), branchName(course.branchId)]
-        .filter(Boolean)
-        .join(" · ");
-      const leavesOn = leavingDateOf(course.courseId, change);
-      return (
-        <View
-          key={course.id}
-          className={`flex-row items-center justify-between gap-2.5 py-3 ${
-            index < courses.length - 1 ? "border-b border-line-soft" : ""
-          }`}
-        >
-          <View className="flex-1">
-            <AppText variant="bold" className="text-[15px]">
-              {course.title}
-            </AppText>
-            {!!where && (
-              <AppText tone="muted" className="text-[12.5px]" numberOfLines={1}>
-                {where}
-              </AppText>
-            )}
-          </View>
-          {/* In a View: Chip is self-start, which would pin it to the top of the row. */}
-          <View>
-            {leavesOn ? (
-              <Chip label={`Baja el ${formatDayMonth(leavesOn)}`} tone="pending" />
-            ) : (
-              course.paymentStatus === "late" && <Chip label="Atrasado" tone="late" />
-            )}
-          </View>
-        </View>
-      );
-    })}
-  </Card>
-);
-
-/** "Mi membresía": the student's plan and courses, a scheduled change, and dropping or canceling. */
+/** "Mi membresía": the student's plan and courses, a scheduled change or a pause, and dropping, pausing or canceling. */
 const MembershipScreen = () => {
   const router = useRouter();
   const { user } = useActiveUser();
@@ -159,6 +109,7 @@ const MembershipScreen = () => {
   const branchesQuery = useBranches();
 
   const change = scheduledChangeOf(changesQuery.data);
+  const activePause = activePauseOf(changesQuery.data);
   const blockedReason = previewQuery.data?.blockedReason ?? null;
   const cancelBlockedReason = previewQuery.data?.cancelBlockedReason ?? null;
   // Until the database says the student can, no option opens.
@@ -174,7 +125,16 @@ const MembershipScreen = () => {
       isDestructive: false,
       isDisabled: isBlocked,
     },
-    // TODO(pausa): BM-034 adds "Pausar membresía" here (canvas "Nuevo · Mi membresía").
+    {
+      title: "Pausar membresía",
+      sub: "De 1 a 3 meses · gratis · una vez al año",
+      icon: "pause-circle-outline",
+      route: "/private/user/membership/pause",
+      isDestructive: false,
+      // A pause blocked only by its own rules (the yearly limit, an enrollment
+      // in review) still opens: its screen says why and when it can be asked.
+      isDisabled: isBlocked,
+    },
     {
       title: "Cancelar membresía",
       sub: "Dejas todos tus cursos",
@@ -202,6 +162,7 @@ const MembershipScreen = () => {
           const dueDate = earliestPaymentDate(courses);
           const isLate = courses.some((course) => course.paymentStatus === "late");
           const isCharged = coursesContinuingOn(courses, change, dueDate).length > 0;
+          const monthlyFare = monthlyFareFor(faresQuery.data, courses.length);
           return (
             <>
               {blockedReason === "PAYMENT_LATE" && (
@@ -216,17 +177,25 @@ const MembershipScreen = () => {
               )}
 
               {change && <ScheduledChangeCard change={change} courses={courses} fares={faresQuery.data} />}
+              {activePause && (
+                <PausedCard
+                  pause={activePause}
+                  courseCount={courses.length}
+                  monthlyFare={monthlyFare}
+                  dueDate={dueDate}
+                />
+              )}
 
               <Card padded={false} className="mx-3 mt-3 px-4 py-1">
                 <InfoRow label="Plan">{`${planName(courses.length)} · ${plural(courses.length, "curso", "cursos")}`}</InfoRow>
-                <InfoRow label="Mensualidad">{formatCurrency(monthlyFareFor(faresQuery.data, courses.length))}</InfoRow>
+                <InfoRow label="Mensualidad">{formatCurrency(monthlyFare)}</InfoRow>
                 <InfoRow label="Próximo pago" divider={false}>
-                  {nextPaymentLabel(dueDate, isLate, isCharged)}
+                  {nextPaymentLabel(nextChargedDate(dueDate, change), isLate, isCharged)}
                 </InfoRow>
               </Card>
 
               <SectionHeader title="Tus cursos" />
-              <CourseList courses={courses} change={change} branchName={branchName} />
+              <MembershipCourseList courses={courses} change={change} branchName={branchName} />
 
               <SectionHeader title="Cambios" />
               <Card padded={false} className="mx-3 px-4">

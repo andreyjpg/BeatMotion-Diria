@@ -3,13 +3,17 @@ import zod from "zod";
 import { dateTimeSchema } from "../common/schema";
 import { userSchema } from "../user/userSchema";
 
-/** public.course_members columns renamed to the fields the app uses. */
+/**
+ * public.course_members columns renamed to the fields the app uses.
+ * pausedUntil is set while the student's membership is paused: they're back
+ * on that day (membership_changes, kind 'pause').
+ */
 export const MEMBER_COLUMNS =
-  "id, userId:user_id, courseId:course_id, enrollmentId:enrollment_id, joinedAt:joined_at, active, paymentStatus:payment_status, nextPaymentDate:next_payment_date, createdBy:created_by, createdAt:created_at";
+  "id, userId:user_id, courseId:course_id, enrollmentId:enrollment_id, joinedAt:joined_at, active, paymentStatus:payment_status, nextPaymentDate:next_payment_date, pausedUntil:paused_until, createdBy:created_by, createdAt:created_at";
 
-/** next_payment_date is a calendar day; read it as a local date, not UTC. */
-export function toMember<T extends { nextPaymentDate: string | null }>(row: T) {
-  return { ...row, nextPaymentDate: parseLocalDate(row.nextPaymentDate) };
+/** next_payment_date and paused_until are calendar days; read them as local dates, not UTC. */
+export function toMember<T extends { nextPaymentDate: string | null; pausedUntil: string | null }>(row: T) {
+  return { ...row, nextPaymentDate: parseLocalDate(row.nextPaymentDate), pausedUntil: parseLocalDate(row.pausedUntil) };
 }
 
 const memberFields = {
@@ -21,6 +25,7 @@ const memberFields = {
   active: zod.boolean(),
   paymentStatus: zod.enum(["pending", "late", "ok"]),
   nextPaymentDate: zod.date().nullable(), // local date from toMember
+  pausedUntil: zod.date().nullable(), // local date from toMember
   createdBy: zod.string().nullable(),
   createdAt: dateTimeSchema,
 };

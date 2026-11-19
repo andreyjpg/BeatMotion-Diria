@@ -176,6 +176,7 @@ export type Database = {
           last_pending_notification_at: string | null
           legacy_id: string | null
           next_payment_date: string | null
+          paused_until: string | null
           payment_status: Database["public"]["Enums"]["payment_standing"]
           updated_at: string
           user_id: string
@@ -193,6 +194,7 @@ export type Database = {
           last_pending_notification_at?: string | null
           legacy_id?: string | null
           next_payment_date?: string | null
+          paused_until?: string | null
           payment_status?: Database["public"]["Enums"]["payment_standing"]
           updated_at?: string
           user_id: string
@@ -210,6 +212,7 @@ export type Database = {
           last_pending_notification_at?: string | null
           legacy_id?: string | null
           next_payment_date?: string | null
+          paused_until?: string | null
           payment_status?: Database["public"]["Enums"]["payment_standing"]
           updated_at?: string
           user_id?: string
@@ -665,6 +668,7 @@ export type Database = {
           created_by: string | null
           effective_date: string
           end_date: string | null
+          ended_at: string | null
           id: string
           kind: Database["public"]["Enums"]["membership_change_kind"]
           reason: string | null
@@ -680,6 +684,7 @@ export type Database = {
           created_by?: string | null
           effective_date: string
           end_date?: string | null
+          ended_at?: string | null
           id?: string
           kind: Database["public"]["Enums"]["membership_change_kind"]
           reason?: string | null
@@ -695,6 +700,7 @@ export type Database = {
           created_by?: string | null
           effective_date?: string
           end_date?: string | null
+          ended_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["membership_change_kind"]
           reason?: string | null
@@ -1210,6 +1216,31 @@ export type Database = {
           date: string
         }[]
       }
+      end_pause: {
+        Args: never
+        Returns: {
+          applied_at: string | null
+          course_ids: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          end_date: string | null
+          ended_at: string | null
+          id: string
+          kind: Database["public"]["Enums"]["membership_change_kind"]
+          reason: string | null
+          status: Database["public"]["Enums"]["membership_change_status"]
+          updated_at: string
+          user_id: string
+          withdrawn_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_changes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       enrollment_report: { Args: { p_months?: number }; Returns: Json }
       event_spots_taken: { Args: { p_event_id: string }; Returns: number }
       mark_receipts_purged: { Args: { p_paths: string[] }; Returns: undefined }
@@ -1219,6 +1250,9 @@ export type Database = {
           blocked_reason: string
           cancel_blocked_reason: string
           effective_date: string
+          next_pause_date: string
+          pause_blocked_reason: string
+          pause_end_dates: string[]
           payment_date: string
         }[]
       }
@@ -1244,6 +1278,7 @@ export type Database = {
         Args: {
           p_course_ids?: string[]
           p_kind: Database["public"]["Enums"]["membership_change_kind"]
+          p_months?: number
           p_reason?: string
         }
         Returns: {
@@ -1253,6 +1288,7 @@ export type Database = {
           created_by: string | null
           effective_date: string
           end_date: string | null
+          ended_at: string | null
           id: string
           kind: Database["public"]["Enums"]["membership_change_kind"]
           reason: string | null
@@ -1308,6 +1344,7 @@ export type Database = {
           created_by: string | null
           effective_date: string
           end_date: string | null
+          ended_at: string | null
           id: string
           kind: Database["public"]["Enums"]["membership_change_kind"]
           reason: string | null

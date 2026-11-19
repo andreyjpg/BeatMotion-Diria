@@ -14,6 +14,7 @@ export type ProgressBlockState =
   | "missed"
   | "noClass"
   | "beforeJoining"
+  | "paused"
   | "given"
   | "today"
   | "upcoming";
@@ -22,7 +23,7 @@ export type ProgressBlockState =
 export type ProgressBlock = { date: string; state: ProgressBlockState };
 
 /** How a past class went for the student (today's and later classes have none). */
-export type ClassMark = "attended" | "missed" | "noClass" | "beforeJoining";
+export type ClassMark = "attended" | "missed" | "noClass" | "beforeJoining" | "paused";
 
 export type CoursePhase = "notStarted" | "inProgress" | "finished";
 
@@ -42,6 +43,11 @@ export type AttendanceFacts = {
   attendedClassIds: ReadonlySet<string>;
   /** When the student's membership started: earlier classes are never missed. */
   joinedAt: Date;
+  /**
+   * The days the student was paused ("YYYY-MM-DD", `until` not included):
+   * their classes then are "En pausa", never missed (pauseRangesOf).
+   */
+  pausedRanges: { from: string; until: string }[];
 };
 
 /** Where a course is in its calendar: the same for everyone, from its class dates and today only. */
@@ -75,6 +81,8 @@ export type CourseProgress = CalendarProgress & {
   noClass: number;
   /** Past class dates from before the student joined that they didn't attend. */
   beforeJoining: number;
+  /** Past class dates while the student was paused that they didn't attend. */
+  paused: number;
   /** attended / (attended + missed), 0-100; null before the course starts or with no class given. */
   attendancePercent: number | null;
   /** The attendance if the student comes today and to every class left; null when none is left. */
@@ -168,19 +176,33 @@ const toBlocks = (
     return { date, state: pastState(date) };
   });
 
+/** Whether the student was paused on that day ("YYYY-MM-DD"). */
+const isPausedDay = (pausedRanges: AttendanceFacts["pausedRanges"], date: string) =>
+  pausedRanges.some((range) => range.from <= date && date < range.until);
+
 /**
  * Past days (before today) where attendance was taken. A day is attended when
  * the student was marked present in any of its classes, even before joining;
- * otherwise it's missed, but only from the day they joined.
+ * otherwise it's missed, but only from the day they joined and not while paused.
  */
-const pastDayMarks = ({ takenClasses, attendedClassIds }: AttendanceFacts, todayKey: string, joinedKey: string) => {
+const pastDayMarks = (
+  { takenClasses, attendedClassIds, pausedRanges }: AttendanceFacts,
+  todayKey: string,
+  joinedKey: string,
+) => {
   const marks = new Map<string, DayMark>();
   for (const { classId, date } of takenClasses) {
     if (date >= todayKey) continue;
     if (attendedClassIds.has(classId)) marks.set(date, "attended");
-    else if (date >= joinedKey && !marks.has(date)) marks.set(date, "missed");
+    else if (date >= joinedKey && !isPausedDay(pausedRanges, date) && !marks.has(date)) marks.set(date, "missed");
   }
   return marks;
+};
+
+/** A past class date with no attendance mark: from before joining, during a pause, or without a class. */
+const unmarkedState = (date: string, joinedKey: string, pausedRanges: AttendanceFacts["pausedRanges"]): ClassMark => {
+  if (date < joinedKey) return "beforeJoining";
+  return isPausedDay(pausedRanges, date) ? "paused" : "noClass";
 };
 
 /**
@@ -197,7 +219,7 @@ export const toCourseProgress = (course: CourseSchedule, facts: AttendanceFacts,
   const blocks = toBlocks(
     course,
     todayKey,
-    (date) => marks.get(date) ?? (date < joinedKey ? "beforeJoining" : "noClass"),
+    (date) => marks.get(date) ?? unmarkedState(date, joinedKey, facts.pausedRanges),
   );
 
   const { phase, isClassToday, remainingClasses } = calendar;
@@ -213,6 +235,7 @@ export const toCourseProgress = (course: CourseSchedule, facts: AttendanceFacts,
     missed,
     noClass: countState(blocks, "noClass"),
     beforeJoining: countState(blocks, "beforeJoining"),
+    paused: countState(blocks, "paused"),
     attendancePercent: phase === "notStarted" ? null : percentOf(attended, attended + missed),
     projectedPercent:
       phase === "inProgress" && classesLeft > 0
@@ -251,7 +274,7 @@ export const toStaffCourseProgress = (
  */
 export const toClassMarks = (
   classes: { id: string; date: string | null }[],
-  { takenClasses, attendedClassIds, joinedAt }: AttendanceFacts,
+  { takenClasses, attendedClassIds, joinedAt, pausedRanges }: AttendanceFacts,
   today = new Date(),
 ) => {
   const todayKey = formatYYYYMMDD(today);
@@ -260,9 +283,10 @@ export const toClassMarks = (
   const marks = new Map<string, ClassMark>();
   for (const { id, date } of classes) {
     if (!date || date >= todayKey) continue;
+    const unmarked = unmarkedState(date, joinedKey, pausedRanges);
     if (attendedClassIds.has(id)) marks.set(id, "attended");
-    else if (date < joinedKey) marks.set(id, "beforeJoining");
-    else marks.set(id, takenClassIds.has(id) ? "missed" : "noClass");
+    else if (unmarked === "noClass" && takenClassIds.has(id)) marks.set(id, "missed");
+    else marks.set(id, unmarked);
   }
   return marks;
 };

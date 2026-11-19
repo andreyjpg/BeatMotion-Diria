@@ -7,6 +7,7 @@ import {
   formatYYYYMMDD,
   MIN_AGE_YEARS,
 } from "@/constants/helpers";
+import { PAUSE_MONTHS } from "@/hooks/membership/schema";
 import type { SurveyQuestionInput } from "@/hooks/surveys/surveySchema";
 import * as yup from "yup";
 
@@ -327,6 +328,16 @@ export const helpPaymentFormSchema = yup.object({
 // Same limit as membership_changes.reason.
 export const membershipChangeFormSchema = yup.object({
   reason: yup.string().trim().max(500, "El motivo no puede superar 500 caracteres."),
+});
+
+// How long a pause lasts (app/private/user/membership/pause): 1 to 3 months,
+// as request_membership_change allows.
+export const pauseFormSchema = yup.object({
+  months: yup
+    .number()
+    .nullable()
+    .required("Elige cuánto dura la pausa.")
+    .oneOf([...PAUSE_MONTHS], "Elige una pausa de 1, 2 o 3 meses."),
 });
 
 // Limits match the database constraints on public.branches.

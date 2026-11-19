@@ -10,7 +10,7 @@ import { MEMBERSHIP_ERROR_MESSAGES } from "@/hooks/membership/schema";
 import { Alert, Linking, View } from "react-native";
 
 type CancelBlockedNoticeProps = {
-  /** Why canceling is blocked (membership_change_preview's cancelBlockedReason). */
+  /** Why canceling or pausing is blocked (membership_change_preview's cancelBlockedReason or pauseBlockedReason). */
   reason: string;
   className?: string;
 };
@@ -26,8 +26,8 @@ const openContact = async (url: string, fallback: string) => {
 };
 
 /**
- * Why the student can't cancel now (an enrollment in review), with the
- * academy's WhatsApp and email for help.
+ * Why the student can't cancel or pause now (an enrollment in review), with
+ * the academy's WhatsApp and email for help.
  */
 const CancelBlockedNotice = ({ reason, className = "" }: CancelBlockedNoticeProps) => {
   const message = MEMBERSHIP_ERROR_MESSAGES[reason] ?? MEMBERSHIP_ERROR_MESSAGES.INVALID_CHANGE;
