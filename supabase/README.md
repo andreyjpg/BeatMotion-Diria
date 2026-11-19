@@ -129,4 +129,5 @@ select * from cron.job_run_details order by start_time desc limit 20;
 ```
 
 Times are UTC: attendance reminders 20:00 (14:00 Costa Rica), payment check
-18:00 (12:00), receipt purge 09:00 (03:00).
+18:00 (12:00), receipt purge 09:00 (03:00), membership changes
+(`apply-membership-changes`) 06:05 (00:05).

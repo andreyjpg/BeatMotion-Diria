@@ -30,6 +30,20 @@ const AdminLayout = () => {
         options={{ title: "Users", headerShown: false }}
       />
 
+      {/* Membresía de un estudiante: pausar, dar de baja, cancelar */}
+      <Stack.Screen
+        name="membership/[uid]/pause"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="membership/[uid]/drop"
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="membership/[uid]/cancel"
+        options={{ headerShown: false }}
+      />
+
       {/* Cursos */}
       <Stack.Screen
         name="courses/new"

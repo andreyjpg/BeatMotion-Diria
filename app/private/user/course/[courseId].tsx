@@ -35,6 +35,7 @@ const CLASS_MARK_CHIPS: Record<ClassMark, ClassChip> = {
   missed: { label: "Faltaste", tone: "line" },
   noClass: { label: "Sin clase", tone: "line" },
   beforeJoining: { label: "Antes de tu ingreso", tone: "line" },
+  paused: { label: "En pausa", tone: "line" },
 };
 
 /** "31 ago – 16 nov", "Desde el 23 sep" or "Sin fecha". */

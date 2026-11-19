@@ -12,6 +12,7 @@ import { useUpsertAttendance } from "@/hooks/attendance/useUpsertAttendance";
 import { useGetClassInfo } from "@/hooks/classes/useGetClassInfo";
 import { useMembersByCourse } from "@/hooks/courseMember/useMembersByCourse";
 import { useCourseById } from "@/hooks/courses/useCourseById";
+import { isPausedOn } from "@/hooks/membership/membershipRules";
 import { useActiveUser } from "@/hooks/user/UseActiveUser";
 import { useLocalSearchParams } from "expo-router";
 import { useState } from "react";
@@ -77,7 +78,17 @@ const Attendance = () => {
   const choose = (userId: string, rsvpStatus: RsvpStatus) =>
     setEdits((prev) => ({ ...prev, [userId]: { attended: rsvpStatus !== "no_asistira", rsvpStatus } }));
 
-  const members = membersQuery.data ?? [];
+  // Students paused on the class's day aren't on the sheet, unless they already
+  // have a row for this class (answered or were marked before the pause).
+  // paused_until only says when the pause ends, not when it started, so only a
+  // class from today on is surely inside it: earlier sheets keep everyone.
+  const todayKey = formatYYYYMMDD(new Date());
+  const classDateKey = cls?.date ?? todayKey;
+  const hasSavedRow = (userId: string) => attendanceQuery.data?.some((row) => row.userId === userId) ?? false;
+  const isPausedForClass = (pausedUntil: Date | null) => classDateKey >= todayKey && isPausedOn(pausedUntil, classDateKey);
+  const members = (membersQuery.data ?? []).filter(
+    (member) => !isPausedForClass(member.pausedUntil) || hasSavedRow(member.userId),
+  );
   const marks = members.map((m) => ({ userId: m.userId, ...markFor(m.userId) }));
   // Rows that differ from what's saved (the teacher's changes and the students
   // marked present from their answer). Saving just these keeps RSVPs that
@@ -157,79 +168,85 @@ const Attendance = () => {
               </AppText>
 
               <DataLoader query={membersQuery} emptyMessage="No hay estudiantes en este curso.">
-                {(students) => (
-                  <Card padded={false} className="mx-3 mt-2 py-1">
-                    {students.map((student, i) => {
-                      const mark = markFor(student.userId);
-                      const saved = savedMark(student.userId);
-                      const name = student.userInfo.fullName;
-                      return (
-                        <View
-                          key={student.id}
-                          className={`flex-row items-center gap-2.5 py-2 pl-3.5 pr-2.5 ${
-                            i < students.length - 1 ? "border-b border-line-soft" : ""
-                          }`}
-                        >
-                          <Avatar
-                            name={student.userInfo.name}
-                            lastName={student.userInfo.lastName}
-                            photoUrl={student.userInfo.photoURL}
-                            size={36}
-                          />
-                          <View className="flex-1">
-                            <AppText variant="bold" className="text-[14.5px]" numberOfLines={1}>
-                              {name}
-                            </AppText>
-                            <AppText tone="muted" className="text-[12px]" numberOfLines={1}>
-                              {saved.attended
-                                ? "Presente"
-                                : saved.rsvpStatus
-                                  ? RESPONSE[saved.rsvpStatus]
-                                  : "Sin respuesta"}
-                            </AppText>
-                          </View>
+                {() =>
+                  members.length === 0 ? (
+                    <AppText tone="faint" className="px-5 pt-8 text-center text-[14.5px]">
+                      Los estudiantes de este curso están en pausa.
+                    </AppText>
+                  ) : (
+                    <Card padded={false} className="mx-3 mt-2 py-1">
+                      {members.map((student, i) => {
+                        const mark = markFor(student.userId);
+                        const saved = savedMark(student.userId);
+                        const name = student.userInfo.fullName;
+                        return (
                           <View
-                            accessibilityRole="radiogroup"
-                            accessibilityLabel={`Asistencia de ${name}`}
-                            className="flex-row gap-[3px] rounded-[10px] bg-control-track p-[3px]"
+                            key={student.id}
+                            className={`flex-row items-center gap-2.5 py-2 pl-3.5 pr-2.5 ${
+                              i < members.length - 1 ? "border-b border-line-soft" : ""
+                            }`}
                           >
-                            {CHOICES.map((choice) => {
-                              const on = mark.rsvpStatus === choice.value;
-                              const isNo = choice.value === "no_asistira";
-                              return (
-                                <Pressable
-                                  key={choice.value}
-                                  onPress={() => choose(student.userId, choice.value)}
-                                  accessibilityRole="radio"
-                                  aria-checked={on}
-                                  accessibilityLabel={choice.label}
-                                  // Always a border and a solid color (the track's when off):
-                                  // Android drops the rounded corners when a background is
-                                  // added to a view after its first render.
-                                  className={`h-9 w-11 items-center justify-center rounded-lg border-[1.5px] ${
-                                    on
-                                      ? isNo
-                                        ? "border-danger bg-surface"
-                                        : "border-ink bg-ink"
-                                      : "border-control-track bg-control-track"
-                                  }`}
-                                >
-                                  <AppText
-                                    variant="bold"
-                                    tone={on ? (isNo ? "danger" : "inverse") : "neutral"}
-                                    className="text-[13px]"
+                            <Avatar
+                              name={student.userInfo.name}
+                              lastName={student.userInfo.lastName}
+                              photoUrl={student.userInfo.photoURL}
+                              size={36}
+                            />
+                            <View className="flex-1">
+                              <AppText variant="bold" className="text-[14.5px]" numberOfLines={1}>
+                                {name}
+                              </AppText>
+                              <AppText tone="muted" className="text-[12px]" numberOfLines={1}>
+                                {saved.attended
+                                  ? "Presente"
+                                  : saved.rsvpStatus
+                                    ? RESPONSE[saved.rsvpStatus]
+                                    : "Sin respuesta"}
+                              </AppText>
+                            </View>
+                            <View
+                              accessibilityRole="radiogroup"
+                              accessibilityLabel={`Asistencia de ${name}`}
+                              className="flex-row gap-[3px] rounded-[10px] bg-control-track p-[3px]"
+                            >
+                              {CHOICES.map((choice) => {
+                                const on = mark.rsvpStatus === choice.value;
+                                const isNo = choice.value === "no_asistira";
+                                return (
+                                  <Pressable
+                                    key={choice.value}
+                                    onPress={() => choose(student.userId, choice.value)}
+                                    accessibilityRole="radio"
+                                    aria-checked={on}
+                                    accessibilityLabel={choice.label}
+                                    // Always a border and a solid color (the track's when off):
+                                    // Android drops the rounded corners when a background is
+                                    // added to a view after its first render.
+                                    className={`h-9 w-11 items-center justify-center rounded-lg border-[1.5px] ${
+                                      on
+                                        ? isNo
+                                          ? "border-danger bg-surface"
+                                          : "border-ink bg-ink"
+                                        : "border-control-track bg-control-track"
+                                    }`}
                                   >
-                                    {choice.short}
-                                  </AppText>
-                                </Pressable>
-                              );
-                            })}
+                                    <AppText
+                                      variant="bold"
+                                      tone={on ? (isNo ? "danger" : "inverse") : "neutral"}
+                                      className="text-[13px]"
+                                    >
+                                      {choice.short}
+                                    </AppText>
+                                  </Pressable>
+                                );
+                              })}
+                            </View>
                           </View>
-                        </View>
-                      );
-                    })}
-                  </Card>
-                )}
+                        );
+                      })}
+                    </Card>
+                  )
+                }
               </DataLoader>
             </>
           )

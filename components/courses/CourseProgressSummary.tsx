@@ -20,8 +20,10 @@ const attendanceText = ({ attendancePercent, attended, missed }: CourseProgress)
 
 /** A course with class dates: where it is in its calendar. */
 const calendarTexts = (progress: CourseProgress): SummaryTexts => {
-  const { phase, totalClasses, currentClass, remainingClasses, isClassToday, noClass } = progress;
-  const noClassText = noClass > 0 ? `${noClass} sin clase` : "";
+  const { phase, totalClasses, currentClass, remainingClasses, isClassToday, noClass, paused } = progress;
+  const noClassText = [noClass > 0 && `${noClass} sin clase`, paused > 0 && `${paused} en pausa`]
+    .filter(Boolean)
+    .join(" · ");
   if (phase === "notStarted") {
     return {
       headline: `Empieza el ${dayLabel(progress.firstClassDate)}`,

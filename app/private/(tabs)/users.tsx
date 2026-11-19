@@ -1,4 +1,5 @@
 import DataLoader from "@/components/DataLoader";
+import MembershipChangeChip, { LIVE_CHANGE_CHIPS } from "@/components/membership/admin/MembershipChangeChip";
 import AppText from "@/components/ui/AppText";
 import Avatar from "@/components/ui/Avatar";
 import Card from "@/components/ui/Card";
@@ -30,6 +31,9 @@ const userChip = (user: UserListItem): { label: string; tone: ChipTone } => {
   if (user.paymentStatus) return { label: standingLabel[user.paymentStatus], tone: statusTone(user.paymentStatus) };
   return { label: "Sin cursos", tone: "muted" };
 };
+
+/** The second chip of an active student with a membership change in progress. */
+const changeOf = (user: UserListItem) => (user.isActive ? user.membershipChange : null);
 
 /** What a student's row says after their age: their courses and next payment. */
 const studentActivity = (user: UserListItem) => {
@@ -133,11 +137,14 @@ const AdminUsersScreen = () => {
             }
             renderItem={({ item }) => {
               const chip = userChip(item);
+              const change = changeOf(item);
               const name = `${item.name} ${item.lastName}`.trim();
               return (
                 <Card
                   onPress={() => router.push({ pathname: "/private/admin/user/[uid]", params: { uid: item.id } })}
-                  accessibilityLabel={`${name}, ${chip.label}`}
+                  accessibilityLabel={[name, chip.label, change && LIVE_CHANGE_CHIPS[change].label]
+                    .filter(Boolean)
+                    .join(", ")}
                   padded={false}
                   className={`flex-row items-center gap-3 px-3.5 py-3 ${item.isActive ? "" : "opacity-60"}`}
                 >
@@ -151,8 +158,16 @@ const AdminUsersScreen = () => {
                       {userDetail(item)}
                     </AppText>
                   </View>
-                  <View>
-                    <Chip {...chip} />
+                  {/* Each chip in its own View: Chip is self-start, which would pull it left. */}
+                  <View className="items-end gap-1">
+                    <View>
+                      <Chip {...chip} />
+                    </View>
+                    {change && (
+                      <View>
+                        <MembershipChangeChip change={change} />
+                      </View>
+                    )}
                   </View>
                 </Card>
               );

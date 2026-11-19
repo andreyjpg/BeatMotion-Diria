@@ -32,6 +32,8 @@ const LOOKS: Record<BlocksTheme, Record<ProgressBlockState, BlockLook>> = {
     missed: { backgroundColor: palette.faint },
     noClass: NO_CLASS_LIGHT,
     beforeJoining: NO_CLASS_LIGHT,
+    // A class while paused: sand, so it reads neither as missed (gray) nor as no class (stripes).
+    paused: { backgroundColor: palette.sand.DEFAULT },
     given: { backgroundColor: palette.sand.strong },
     today: { backgroundColor: palette.surface, borderColor: palette.ink, borderWidth: 2 },
     upcoming: { backgroundColor: palette.surface, borderColor: palette.line.strong, borderWidth: 1 },
@@ -41,6 +43,8 @@ const LOOKS: Record<BlocksTheme, Record<ProgressBlockState, BlockLook>> = {
     missed: { backgroundColor: palette.muted },
     noClass: NO_CLASS_DARK,
     beforeJoining: NO_CLASS_DARK,
+    // An outline: the filled sand below is staff's "given".
+    paused: { backgroundColor: palette.ink, borderColor: palette.sand.DEFAULT, borderWidth: 1.5 },
     // Sand, not white: white is a student's "Asististe".
     given: { backgroundColor: palette.sand.strong },
     today: { backgroundColor: palette.ink, borderColor: palette.surface, borderWidth: 2.5 },
@@ -125,6 +129,7 @@ const blocksDescription = (blocks: ProgressBlock[], viewer: BlocksViewer) => {
     ...pastParts,
     count("noClass") > 0 && `${count("noClass")} sin clase`,
     count("beforeJoining") > 0 && `${count("beforeJoining")} antes de tu ingreso`,
+    count("paused") > 0 && `${count("paused")} en pausa`,
     todayPosition >= 0 && `hoy la clase ${todayPosition + 1}`,
     upcoming > 0 && `quedan ${upcoming}${todayPosition >= 0 ? " después de hoy" : ""}`,
   ];
